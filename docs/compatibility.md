@@ -28,7 +28,12 @@ table below is the list an implementation works from.
 | Source form | `<location>[@<ref>][#<path>]`, registries, URI schemes | The same form, specified, with vectors |
 | Integrity | A SHA-256 per installed file in its install record; no tree digest, no pin | The tree digest, pins checked at install and at each activation, a mismatch refuses |
 | Installed copy | Keeps `.dotagents-install.json` and setup output inside the overlay directory | The copy stays as verified; state goes to `AOS_OVERLAY_STATE` |
-| Weakenings | Not reported | Eight identifiers reported each time, never silently |
+| Weakenings | Not reported | Ten identifiers reported each time, never silently |
+| Secret grants | `env_passthrough` and `headers_env` pass any named host variable | A reference resolves only when the consumer's configuration grants it to that overlay |
+| Reserved variables | An overlay's `env.py` can set any variable, another overlay's root included | `AOS_*`, `*_OVERLAY_ROOT`, `*_OVERLAY_STATE` cannot be set by an overlay |
+| Relative paths | `[scripts]` paths checked; rules paths checked for containment | One rule for every path and digest member: no excluded or device names in any case, no trailing dot or space, no `:` or control characters |
+| Source safety | Refuses a location or ref starting with `-` | Also refuses `::`, a host starting with `-`, other schemes, and a `#path` that is not a relative path |
+| Processes per overlay | One environment for every overlay's processes | Each overlay's setup, scripts and servers get only that overlay's declarations |
 
 ## Ambiguities and interoperability risks
 

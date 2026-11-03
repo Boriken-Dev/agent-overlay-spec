@@ -41,10 +41,27 @@ The first edition, `0.1.0-draft`, a development draft open for review.
   special files, non-UTF-8 names and `\` refused; Git sources hashed from blob bytes), with 20 test
   vectors in `tests/vectors/digest.json`. Pins live in the consumer's configuration; a mismatch
   refuses the overlay.
-- The source form `[git+]<location>[@<ref>][#<path>]`, specified with examples.
+- The source form `[git+]<location>[@<ref>][#<path>]`, specified with examples. A `#path` must be a
+  relative path; a Git location holding `::`, a host or ref starting with `-`, or a scheme other than
+  `https`, `http`, `ssh`, `git` and `file` is refused.
 - Weakenings a consumer reports every time it applies one: `unpinned`, `setup-network`,
-  `network-not-enforced`, `no-timeout`, `env-script`, `env-passthrough`, `env-sensitive`,
-  `unlocked-dependencies`, with the list of sensitive variables.
+  `network-not-enforced`, `no-timeout`, `env-script`, `env-passthrough`, `secret-read`,
+  `env-sensitive`, `unlocked-dependencies`, `insecure-transport`, with the list of sensitive
+  variables (names, prefixes such as `GIT_` and `PIP_`, and the suffixes `_PROXY` and `_BASE_URL`).
+- Secret references resolve only when the consumer's configuration grants them to that overlay;
+  nothing is granted by default. Each overlay's own processes get only its own environment.
+- `AOS_*`, `*_OVERLAY_ROOT` and `*_OVERLAY_STATE` are reserved: no overlay sets them.
+- One rule for relative paths and digest members: no excluded or device name in any case, no
+  trailing dot or space, no `\ : * ? " < > |`, control or invisible characters, no `~` and digit;
+  a tree with two members equal under ASCII case has no digest.
+- Reading refuses a byte-order mark after the format line, YAML directives and the characters
+  U+0085, U+2028 and U+2029 in YAML, and TOML constructs newer than TOML 1.0.
+- Harness hints act only on `context`, `skills`, `model` and `effort`; other keys are kept and not
+  applied. MCP stdio commands with a separator are paths under the root; a batch file is never run
+  as an interpreter or server on Windows.
+- Lock and requirements files hold requirement lines only, and a lock installs binaries with hashes
+  from an index the consumer names. Setup runs in its own process group, and the state directory is
+  read-only inside the agent's sandbox.
 
 - Conformance vectors as JSON data in `tests/vectors/`: reading (format line, data model, static
   reading, limits, `dotenv`), validation of every field, names and root variables, source strings,

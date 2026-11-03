@@ -1,6 +1,6 @@
 # Design decisions
 
-## D1 — No required manifest version
+## 1 — No required manifest version
 
 **Decision:** the manifest stays optional, with no required `version` or `schema_version` key.
 
@@ -9,7 +9,7 @@ versioned in the specification.
 
 **Status:** adopted for `0.1.0-draft`; revisit before 1.0.
 
-## D2 — Separate declarations from manager policy
+## 2 — Separate declarations from manager policy
 
 **Decision:** source precedence, scopes, installation, execution and target rendering are manager
 behaviour unless reading a declaration needs them.
@@ -18,7 +18,7 @@ behaviour unless reading a declaration needs them.
 
 **Status:** adopted.
 
-## D3 — Unknown top-level keys are allowed
+## 3 — Unknown top-level keys are allowed
 
 **Decision:** unknown top-level keys are allowed and preserved; tables this specification defines
 refuse unknown keys.
@@ -28,7 +28,7 @@ namespaces remain a proposal.
 
 **Status:** adopted.
 
-## D4 — One manifest name, several syntaxes, TOML required
+## 4 — One manifest name, several syntaxes, TOML required
 
 **Decision:** the manifest is `overlay.cfg`. A first line `#!<format>` names its format; anything
 else means TOML; nothing is guessed from content; one leading byte-order mark is ignored. TOML is
@@ -42,7 +42,7 @@ kept as a second name.
 
 **Status:** adopted.
 
-## D5 — A data model independent of syntax, and static reading
+## 5 — A data model independent of syntax, and static reading
 
 **Decision:** a manifest reads as a mapping of strings, integers, finite floats, booleans, arrays
 and mappings; no null, no dates. No include, import, interpolation, templating or YAML tag is
@@ -53,7 +53,7 @@ consumer with no interpreter (a Rust or Dart program) must be able to read every
 
 **Status:** adopted.
 
-## D6 — Environment and secrets as references
+## 6 — Environment and secrets as references
 
 **Decision:** an env value is a literal, a path under the root, or a secret reference (a provider
 and its key, or a secret's name). Env files hold the same values; `dotenv` files hold literals only.
@@ -64,7 +64,7 @@ lets each consumer resolve it from where its user keeps secrets.
 
 **Status:** adopted; Proposed until an implementation reads it.
 
-## D7 — Per-OS variants as ordered arrays
+## 7 — Per-OS variants as ordered arrays
 
 **Decision:** `setup` and `runtime.python` are arrays; the first entry whose `os` matches applies.
 
@@ -73,7 +73,7 @@ statically typed languages.
 
 **Status:** adopted.
 
-## D8 — A tree digest over bytes as published
+## 8 — A tree digest over bytes as published
 
 **Decision:** the tree digest hashes one line per regular file, `path NUL sha256:<hex> LF`, sorted by
 path bytes, with SHA-256. Nothing is normalized: not line endings, encodings or names. Version-control
@@ -88,15 +88,40 @@ digest of the source and of an installed copy agree.
 
 **Status:** adopted; Proposed until an implementation computes it.
 
-## D9 — Weakenings are reported, not forbidden
+## 9 — Weakenings are reported, not forbidden
 
 **Decision:** AOS names a fixed set of weakenings (`unpinned`, `setup-network`,
-`network-not-enforced`, `no-timeout`, `env-script`, `env-passthrough`, `env-sensitive`,
-`unlocked-dependencies`). A consumer reports each one it applies, every time, by identifier,
+`network-not-enforced`, `no-timeout`, `env-script`, `env-passthrough`, `secret-read`,
+`env-sensitive`, `unlocked-dependencies`, `insecure-transport`). A consumer reports each one it applies, every time, by identifier,
 overlay and subject, never a value; it may refuse any by its own policy.
 
 **Reason:** a user sometimes needs a setup that downloads, or an overlay that reads a token from the
 environment. Taking the choice away pushes people to work around the consumer; reporting keeps the
 default strict and every loosening visible.
+
+**Status:** adopted.
+
+## 10 — An overlay asks for secrets; the consumer grants them
+
+**Decision:** a secret reference, an `env` provider read, and an MCP `env_passthrough` or
+`headers_env` name resolve only when the consumer's configuration grants that overlay that reference.
+Nothing is granted by default. Each overlay's own processes get only that overlay's environment.
+
+**Reason:** an overlay from elsewhere chooses its own references, so without grants it could name
+any secret the consumer can reach and send it out through a server or a setup step. A grant keeps the
+choice with the user, and per-overlay environments keep one overlay's secret from another's code.
+
+**Status:** adopted; Proposed until an implementation reads it.
+
+## 11 — One rule for paths, shared by declarations and the digest
+
+**Decision:** a relative path refuses names a platform aliases or alters (an excluded name in any
+case, a trailing dot or space, a device name, a short name, `:`, control and invisible characters),
+and every member of a tree digest must be one; two members equal under ASCII case are refused.
+
+**Reason:** a digest is only worth what it covers. A name that Windows or macOS opens as `.git`,
+`node_modules` or a bytecode file would let a pinned overlay change behaviour without changing its
+digest, and two names one filesystem holds as one file would make the installed bytes differ from
+the reviewed ones.
 
 **Status:** adopted.
