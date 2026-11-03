@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+    with:
+      ref: ${{ github.ref }}
+
+  docs-gate:
+    name: Strict docs build (no deploy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - run: python -m pip install -r requirements-docs.txt
+      - run: mkdocs build --strict
+
+  release:
+    needs: [test, docs-gate]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Release notes from the changelog
+        shell: python
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          import os, pathlib, re, sys
+
+          version = os.environ["TAG"].removeprefix("v")
+          text = pathlib.Path("CHANGELOG.md").read_text(encoding="utf-8")
+          match = re.search(
+              r"^## \[" + re.escape(version) + r"\][^\n]*\n(.*?)(?=^## \[|^\[[^\]]+\]: |\Z)",
+              text,
+              re.S | re.M,
+          )
+          if not match:
+              sys.exit(f"CHANGELOG.md has no section for {version}")
+          pathlib.Path("notes.md").write_text(match.group(1).strip() + "\n", encoding="utf-8")
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: notes.md
+          target_commitish: ${{ github.sha }}
+          prerelease: ${{ contains(github.ref_name, '-') }}
+
+  docs:
+    needs: release
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Publish the docs site at the tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run docs.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}" -f ref="${{ github.ref_name }}"

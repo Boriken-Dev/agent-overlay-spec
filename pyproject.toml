@@ -1,0 +1,8 @@
+# Tool configuration only: this repository ships a specification, not a Python package.
+
+[tool.black]
+line-length = 100
+target-version = ["py39"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

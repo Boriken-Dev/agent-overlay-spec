@@ -1,20 +1,48 @@
 name: Test
 
 on:
-  push:
-    tags: ['ci-*']
   workflow_dispatch:
     inputs:
       ref:
         description: Branch, tag, or commit to validate
         required: true
         default: main
+  workflow_call:
+    inputs:
+      ref:
+        description: Branch, tag, or commit to validate
+        required: true
+        type: string
+  push:
+    tags: ['ci-*']
+    branches: ['ci-*']
 
 permissions:
   contents: read
 
 jobs:
   validate:
+    name: Schema, examples and vectors (Python ${{ matrix.python }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ['3.9', '3.14']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -r requirements-test.txt
+      - run: python -m pytest -q
+      - if: matrix.python == '3.14' && matrix.os == 'ubuntu-latest'
+        run: python -m black --check tests
+
+  docs:
+    name: Strict docs build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,7 +50,6 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-      - run: python -m pip install -r requirements-test.txt
-      - run: python -m pytest
-      - run: python -m json.tool schemas/overlay.schema.json > /dev/null
+          python-version: '3.14'
+      - run: python -m pip install -r requirements-docs.txt
+      - run: mkdocs build --strict
