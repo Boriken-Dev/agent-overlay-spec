@@ -1,0 +1,53 @@
+site_name: Agent Overlay Specification
+site_description: A vendor-neutral draft specification for portable agent configuration overlays
+site_url: https://jose-pr.github.io/agent-overlay-spec/
+repo_url: https://github.com/jose-pr/agent-overlay-spec
+repo_name: jose-pr/agent-overlay-spec
+docs_dir: docs
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.snippets:
+      base_path:
+        - .
+      check_paths: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+nav:
+  - Home: index.md
+  - Specification draft:
+      - Overview: spec/v0/index.md
+      - Terminology: spec/v0/terminology.md
+  - Getting started: getting-started.md
+  - Authoring: authoring.md
+  - Format reference:
+      - Package: spec/v0/package.md
+      - Manifest: spec/v0/manifest.md
+      - Composition: spec/v0/composition.md
+      - Dependencies: spec/v0/dependencies.md
+      - Resolution: spec/v0/resolution.md
+      - Distribution: spec/v0/distribution.md
+      - Skills: spec/v0/skills.md
+      - Commands: spec/v0/commands.md
+      - MCP: spec/v0/mcp.md
+      - Security: spec/v0/security.md
+      - Conformance: spec/v0/conformance.md
+  - Implementations: implementations.md
+  - Compatibility: compatibility.md
+  - Governance: governance.md
+  - Decisions: design/decisions.md
+  - FAQ: faq.md

@@ -1,0 +1,24 @@
+name = "docs-mcp"
+description = "Optional MCP server declaration example."
+
+[mcp]
+
+[[mcp.servers]]
+name = "docs"
+transport = "stdio"
+command = "node"
+args = ["server.js"]
+env = { MODE = "read-only" }
+env_passthrough = ["DOCS_TOKEN"]
+timeout = 45
+
+[[mcp.servers]]
+name = "remote-docs"
+transport = "streamable-http"
+url = "https://mcp.example.org/agent"
+headers_env = { Authorization = "DOCS_AUTHORIZATION" }
+timeout = 20
+
+[[mcp.skills]]
+name = "search-docs"
+server = "docs"

@@ -1,0 +1,3 @@
+name = "team-local"
+priority = 700
+routing = ["- Team conventions → `$TEAM_LOCAL_OVERLAY_ROOT/kb/team.md`"]

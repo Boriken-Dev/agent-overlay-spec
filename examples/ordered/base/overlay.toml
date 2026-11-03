@@ -1,0 +1,3 @@
+name = "baseline"
+priority = 300
+routing = ["- General tasks → `$BASELINE_OVERLAY_ROOT/kb/general.md`"]

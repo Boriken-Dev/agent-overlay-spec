@@ -1,0 +1,4 @@
+name = "python-review"
+description = "Python review guidance layered on common engineering practices."
+requires = ["engineering"]
+routing = ["- Reviewing Python changes → `$PYTHON_REVIEW_OVERLAY_ROOT/kb/review.md`"]

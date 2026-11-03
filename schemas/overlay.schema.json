@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jose-pr.github.io/agent-overlay-spec/schemas/overlay.schema.json",
+  "title": "AOS overlay.toml parsed document",
+  "description": "Schema for the parsed TOML manifest. TOML syntax and filesystem checks require additional validation.",
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "requires": { "type": "array", "items": { "type": "string" } },
+    "routing": { "type": "array", "items": { "type": "string" } },
+    "rules": { "type": "array", "items": { "type": "string" } },
+    "priority": { "type": "integer" },
+    "setup_timeout": { "type": "integer", "minimum": 0 },
+    "scripts": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "boolean", "const": false },
+          { "type": "string", "pattern": "^[A-Za-z0-9_+-][A-Za-z0-9._+-]*(/[A-Za-z0-9_+-][A-Za-z0-9._+-]*)*$" }
+        ]
+      }
+    },
+    "mcp": { "$ref": "#/$defs/mcp" }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "toolName": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$" },
+    "envName": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+    "server": {
+      "type": "object",
+      "required": ["name", "transport"],
+      "properties": {
+        "name": { "$ref": "#/$defs/toolName" },
+        "transport": { "enum": ["stdio", "streamable-http"] },
+        "timeout": { "type": "number", "exclusiveMinimum": 0 },
+        "command": { "type": "string", "minLength": 1 },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "env": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/envName" },
+          "additionalProperties": { "type": "string" }
+        },
+        "env_passthrough": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/envName" }
+        },
+        "url": { "type": "string", "format": "uri", "pattern": "^https?://" },
+        "headers_env": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$" },
+          "additionalProperties": { "$ref": "#/$defs/envName" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "transport": { "const": "stdio" } }, "required": ["transport"] },
+          "then": { "required": ["command"], "not": { "anyOf": [{ "required": ["url"] }, { "required": ["headers_env"] }] } }
+        },
+        {
+          "if": { "properties": { "transport": { "const": "streamable-http" } }, "required": ["transport"] },
+          "then": { "required": ["url"], "not": { "anyOf": [{ "required": ["command"] }, { "required": ["args"] }, { "required": ["env"] }, { "required": ["env_passthrough"] }] } }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "skillLink": {
+      "type": "object",
+      "required": ["name", "server"],
+      "properties": {
+        "name": { "$ref": "#/$defs/toolName" },
+        "server": { "$ref": "#/$defs/toolName" }
+      },
+      "additionalProperties": false
+    },
+    "mcp": {
+      "type": "object",
+      "properties": {
+        "servers": { "type": "array", "items": { "$ref": "#/$defs/server" } },
+        "skills": { "type": "array", "items": { "$ref": "#/$defs/skillLink" } }
+      },
+      "additionalProperties": false
+    }
+  }
+}

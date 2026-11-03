@@ -1,0 +1,7 @@
+name = "bad-mcp"
+
+[mcp]
+[[mcp.servers]]
+name = "bad"
+transport = "carrier-pigeon"
+command = "not-used"

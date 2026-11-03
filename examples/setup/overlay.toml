@@ -1,0 +1,3 @@
+name = "optional-setup"
+description = "Demonstrates a bounded, opt-in setup hook."
+setup_timeout = 30

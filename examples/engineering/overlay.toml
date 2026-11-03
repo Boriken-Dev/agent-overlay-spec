@@ -1,0 +1,4 @@
+name = "engineering"
+description = "Shared engineering practices and review guidance."
+routing = ["- Repository-wide engineering work → `$ENGINEERING_OVERLAY_ROOT/flows/REPO.md`"]
+priority = 500

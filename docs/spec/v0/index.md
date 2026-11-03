@@ -1,0 +1,1 @@
+--8<-- "spec/v0/index.md"
