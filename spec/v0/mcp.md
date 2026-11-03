@@ -1,6 +1,7 @@
 # MCP integration
 
-**Optional Extension.** AOS records the MCP declaration shape currently implemented by dotagents. It does not require a manager to start servers, expose tools, or implement a gateway.
+**Optional Extension.** AOS records the MCP server declaration dotagents implements. It does not
+require a consumer to start servers, expose tools, or run a gateway.
 
 ```toml
 [mcp]
@@ -10,9 +11,14 @@ name = "docs"
 transport = "stdio"
 command = "node"
 args = ["server.js"]
-env = { MODE = "read-only" }
-env_passthrough = ["DOCS_TOKEN"]
+env = { MODE = "read-only", DOCS_TOKEN = { provider = "env", key = "DOCS_TOKEN" } }
 timeout = 30
+
+[[mcp.servers]]
+name = "remote-docs"
+transport = "streamable-http"
+url = "https://mcp.example.org/agent"
+headers_env = { Authorization = "DOCS_AUTHORIZATION" }
 
 [[mcp.skills]]
 name = "search-docs"
@@ -21,15 +27,34 @@ server = "docs"
 
 ## Fields and validation
 
-`mcp` is a table containing only `servers` and `skills` in dotagents. Both are arrays of tables. Server names are unique within one overlay and skill names are unique within one overlay; each is a tool-name segment matching `[A-Za-z0-9][A-Za-z0-9_.-]*`.
+`mcp` holds only `servers` and `skills`, both arrays of mappings. Server names are unique within one
+overlay, and so are skill names; each matches `[A-Za-z0-9][A-Za-z0-9_.-]*`.
 
-- Every server requires `name`, `transport`, and a positive numeric `timeout` if supplied (default 60 seconds).
-- `transport = "stdio"` requires a non-empty `command`. Optional `args` is an array of strings; `env` maps valid environment names to string values; `env_passthrough` is a list of unique valid environment names.
-- `transport = "streamable-http"` requires an absolute `http` or `https` URL without embedded username/password or fragment. Optional `headers_env` maps valid HTTP header names to valid environment variable names.
-- `mcp.skills` entries contain exactly `name` and `server`. The named server MUST be declared in the same overlay. Dotagents also requires a matching `skills/<name>/SKILL.md` in that overlay.
+- Every server has `name` and `transport`, and optionally a positive, finite `timeout` in seconds
+  (default 60).
+- `transport = "stdio"` requires a non-empty `command`. Optional: `args`, an array of strings;
+  `env`, a mapping of variable name to [env value](environment.md#env); `env_passthrough`, unique
+  variable names copied from the consumer's own environment when set.
+- `transport = "streamable-http"` requires an absolute `http` or `https` `url`, with no user
+  information and no fragment. Optional: `headers_env`, a mapping of HTTP header name to a variable
+  name whose value, from the consumer's own environment, is sent as that header.
+- `mcp.skills` entries hold exactly `name` and `server`. The server MUST be declared in the same
+  overlay, and `skills/<name>/SKILL.md` MUST exist.
 
-Environment values in `env` are literal strings in the manifest. Do not put credentials there. `env_passthrough` and `headers_env` name variables; the manager obtains their values from its environment. Credential resolution, process environment inheritance, authorization, and permission scopes are implementation-defined.
+**Proposed:** an `env` value may be any [env value](environment.md#env), including a path under the
+root and a secret reference; dotagents takes strings only. A stdio server starts with the overlay
+root as its working directory, so `args = ["server.js"]` names the overlay's file; dotagents starts
+it in the gateway's own working directory. A `command` without a separator is found on the `PATH`
+the overlay runs with, after its [path additions](environment.md#path-additions).
 
-## Gateway behavior
+`env_passthrough` and `headers_env` read the consumer's own environment: each is a
+[weakening](security.md#weakenings), `env-passthrough`. A literal `env` value is in the overlay for
+anyone to read, so a credential never goes there; a secret reference does.
 
-Dotagents' optional gateway starts servers when tools are listed, prefixes server tools with the server name (or a configured namespace), and forwards calls. Its gateway implementation and tool-to-skill presentation are not part of the portable declaration. Server/tool collisions and unavailable servers are runtime concerns. See the [MCP specification](https://modelcontextprotocol.io/specification/) for protocol behavior.
+## Gateway behaviour
+
+dotagents' optional gateway starts servers when tools are listed, prefixes each server's tools with
+its name (or a configured namespace), and forwards calls. That gateway and how tools are presented
+as skills are not part of the declaration. Name collisions and unavailable servers are runtime
+concerns; see the [MCP specification](https://modelcontextprotocol.io/specification/) for the
+protocol.

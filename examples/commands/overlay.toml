@@ -1,6 +1,0 @@
-name = "quality-commands"
-description = "Optional command declarations for a manager that supports them."
-
-[scripts]
-check-format = "bin/check_format.py"
-old-check = false

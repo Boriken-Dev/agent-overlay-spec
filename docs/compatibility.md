@@ -1,44 +1,46 @@
 # Compatibility and open decisions
 
-This page separates verified behavior from proposals. Evidence was checked against dotagents `main` source and tests, plus the public `repo` branch containing example overlays. Local overlay manifests were also reviewed for field usage; their content is not reproduced here.
+This page compares the specification with dotagents 0.8.3, the reference implementation, from its
+source and tests. "Proposed" in the specification means no implementation reads the field yet; the
+table below is the list an implementation works from.
 
-## Verified behavior in dotagents
+## What dotagents does and what AOS declares
 
-- Overlays are directories; `overlay.toml` is optional.
-- The public example overlays use `name`, `description`, `requires`, and `routing`; the engineering example also uses `rules`.
-- Manifest parsing uses TOML when available. Ordinary fields are permissive: defaults or filtered entries are used for many type errors. Invalid TOML suppresses ordinary manifest contributions with a warning.
-- Name normalization lowercases and maps `.` and `_` to `-`; directory identity is distinct from manifest display name.
-- `requires` is normalized and deduplicated. Add installs requirements first; remove protects required overlays unless forced. There is no dependency version syntax in the manifest.
-- `priority` defaults to 500; deterministic composition sorts by priority, manifest name, then directory name.
-- `setup_timeout` defaults to 300 seconds; zero means unlimited. Root `setup.py` or `setup.sh` can be run by the manager.
-- `[scripts]` maps launcher names to relative paths or `false`; top-level `bin/*.py` can be discovered automatically.
-- `[mcp]` supports arrays of stdio and streamable HTTP servers plus links from skill names to a server. The gateway has additional runtime behavior.
-- Sources include local directories, directory collections, JSON/TOML/YAML registries, Git repositories and revisions, and optional URI-backed sources. GitHub is not required by the source parser.
-- Scope walking and project/user/system shadowing are dotagents-specific manager behavior.
-
-## Documentation and implementation differences
-
-The `dotagents` overlay guide and authoring guide document most common behavior. The source and tests establish stricter details and occasional differences: for example, ordinary manifest values are often filtered/defaulted instead of rejected, whereas MCP declarations reject unknown keys and invalid structures. Therefore this spec gives the schema as an authoring/validation contract and separately describes the tolerant reference parser.
-
-The guide calls the manifest `name` canonical, while the implementation derives installation identity from the selected directory name; the manifest name is used as metadata and as a composition tiebreaker. This draft documents both roles and recommends that they normalize to the same value.
-
-The user request mentions MCP structures, scripts, and setup timeout that are implemented but not exercised by the `repo` branch's current example manifests. Their support is verified in source and tests, not inferred from the example branch.
+| Topic | dotagents 0.8.3 | AOS |
+| --- | --- | --- |
+| Manifest | `overlay.toml`, TOML only; a small hand reader when no TOML library imports | `overlay.cfg`: TOML by default, `#!json` / `#!yaml` on the first line; static; one data model |
+| Ordinary fields | Tolerant: a wrong type becomes the default, with a warning | A validator refuses; a consumer applies nothing of an invalid manifest |
+| `name`, `description`, `requires`, `routing`, `rules`, `priority` | As specified | Unchanged (Core) |
+| Root variable | `<NAME>_OVERLAY_ROOT`, set only when unset | Always set to the root the consumer exposes |
+| `PATH` | Every overlay's `bin/` prepended, whether it exists or not | Only what `paths` declares, with the separator of the OS |
+| `PYTHONPATH` | An existing `lib/` prepended | Only what `paths` declares |
+| Environment values | `env.py` / `pre.env.py` executed, `env` / `pre.env` sourced by bash, by file name | `env`, `env_files` (`aos` documents or `dotenv`), secret references; env scripts opt-in, with a named interpreter and a timeout |
+| Secrets | MCP `env_passthrough` and `headers_env` read the host environment | Secret references by provider and key, or by name; `env` provider reads are reported |
+| Setup | `setup.py` by file name, under dotagents' Python, cwd the installed copy, on every add and sync | `setup` variants per OS with an interpreter, a timeout (300 s default), a network need; once per digest; output into `AOS_OVERLAY_STATE` |
+| `setup_timeout` | Top-level integer | `timeout` in each `setup` variant |
+| Dependencies | `requirements.txt` by file name into a shared Python environment | `runtime.python`: minimum version, `requirements` (reported unlocked) or `lock` with `lock_digest`; one environment per digest |
+| Runtime probing | None | `runtime.os`, `runtime.commands`, interpreter and version probes before placement |
+| Context | Root `CONTEXT.md` by file name | `context` list, plus per-harness `context` |
+| Skills | Every `skills/*/SKILL.md` published | `skills` list when present, otherwise the same discovery |
+| Scripts | `bin/*.py` and `[scripts]` strings, run under Python | Strings by extension, or `{ path, interpreter, os }` |
+| MCP stdio | Working directory inherited from the gateway; `env` strings | Working directory the overlay root; `env` values may be references |
+| Harness hints | None | `[harness.<id>]`: `context`, `skills`, `model`, `effort` |
 
 ## Ambiguities and interoperability risks
 
-- AOS has no manifest version field; parser behavior for unknown keys differs between ordinary manifest fields and the MCP table.
-- Dependency cycles, partially installed dependency graphs, and conflict handling for manually assembled installations are not a stable portable contract.
-- Overlay identity is directory-based in dotagents, while manifest `name` affects display and ordering. Different tools may choose a different identity model unless constrained.
-- Skill publication and command collisions depend on manager and runtime behavior.
-- URI scheme support depends on optional dependencies and environment configuration.
-- MCP credential lookup, inherited environment, server permissions, and skill presentation are runtime-specific.
+- Overlay identity is the directory name in dotagents, while the manifest `name` affects display and
+  ordering. Different tools may pick different identities unless the two normalize alike.
+- dotagents' scope walk (system, user, project) and its shadowing are manager policy.
+- Some MCP clients and harnesses handle credentials, inherited environment and skills differently;
+  a consumer reports what it could not apply.
+- URI source schemes depend on optional dependencies in dotagents.
 
-## Proposals for a future version
+## Proposals for a future edition
 
-1. Define a versioned identity and alias model without invalidating manifest-free legacy packages.
-2. Define dependency cycle errors and optional version constraints.
-3. Define a portable provenance and integrity sidecar or registry metadata format.
-4. Define extension namespaces and a policy for unknown extension tables.
-5. Clarify portable skill metadata without requiring one vendor's front matter.
+1. A versioned identity and alias model that keeps manifest-free overlays valid.
+2. Dependency version constraints.
+3. Extension namespaces and a policy for unknown extension tables.
+4. Portable skill metadata that does not require one vendor's front matter.
+5. Installing Node.js dependencies, and a PEP 751 lock file for Python.
 
-Each proposal requires review before becoming normative. Existing overlays require no migration for this draft.
+Each needs review before it becomes normative.

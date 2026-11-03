@@ -2,27 +2,49 @@
 
 ## Package layout
 
-Keep each overlay in its own directory. Use paths that describe the asset type and use relative references to files in that overlay. Common paths include `rules/`, `skills/`, `kb/`, `references/`, `workflows/`, `cmds/`, `bin/`, and `lib/`; only `overlay.toml` and `skills/<name>/SKILL.md` have named conventions in this draft.
+Keep each overlay in its own directory, and refer to its files with relative paths. Common paths are
+`rules/`, `skills/`, `kb/`, `references/`, `workflows/`, `bin/`, `lib/`, `setup/`, `env/` and
+`locks/`; only `overlay.cfg` and `skills/<name>/SKILL.md` mean something by their name. Everything
+else means something when a field names it.
 
-## Optional manifest
+## The manifest
 
-Start with only the fields your consumers use:
+Start with the fields your consumers use:
 
 ```toml
 name = "team-review"
 description = "Review conventions for shared services."
-requires = ["engineering-basics"]
+requires = ["engineering"]
 routing = ["- Service reviews → `$TEAM_REVIEW_OVERLAY_ROOT/kb/review.md`"]
 rules = ["rules/review.md"]
 priority = 450
 ```
 
-See the [manifest field reference](spec/v0/manifest.md) for types, defaults, and dotagents compatibility details. Do not add a required format version; this draft does not define one.
+Write it in TOML, or put `#!json` or `#!yaml` on the first line. Every reader reads TOML; JSON and
+YAML are optional. Do not add a format version: the edition belongs to the specification. See the
+[manifest reference](spec/v0/manifest.md) for every field.
+
+## Declare what the overlay needs
+
+- **Environment**: plain values, a path under the root, or a secret reference (`{ provider = "env",
+  key = "TOKEN" }`, `{ secret = "name" }`), never a secret value. Env files hold the same.
+- **Search paths**: `[[paths]]` puts `bin/` on `PATH` or `lib/` on `PYTHONPATH`, with the separator
+  of each OS.
+- **Runtime**: the OSes, the commands that must exist, a minimum Python with a locked requirements
+  file and its digest.
+- **Setup**: a script per OS with its interpreter, a timeout, and whether it needs the network.
+  Setup writes into `$AOS_OVERLAY_STATE`, never into the overlay.
+
+Each of these is a weakening when it loosens a default (network for setup, reading the host's
+environment, unlocked dependencies, no timeout), and consumers report it. Declare only what you need.
 
 ## Skills and commands
 
-Put a skill in `skills/<skill-name>/SKILL.md`. Additional files can be placed beside it. A `bin/` script or `[scripts]` mapping is optional and does not guarantee another manager can run it. State the required runtime in your documentation.
+Put a skill in `skills/<skill-name>/SKILL.md` and list it in `skills`. A `[scripts]` entry names a
+command and its script; give the interpreter when the extension does not say it.
 
-## Authoring checks
+## Checks
 
-Validate TOML syntax, paths, and field types before distribution. Keep credentials out of manifests. Review setup hooks, scripts, and dependency declarations as code. Run this repository's fixtures with `python -m pytest` when changing the schema or examples.
+Validate the parsed manifest against the [schema](schemas/overlay.schema.json) and check that every
+file a field names exists. Review setup, scripts and dependency declarations as code. In this
+repository, `python -m pytest` runs every example and fixture.

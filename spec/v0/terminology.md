@@ -1,26 +1,53 @@
 # Terminology
 
-**Overlay**: a directory package containing agent configuration assets and, optionally, an `overlay.toml` manifest.
+**Overlay**: a directory of agent configuration assets and, optionally, an `overlay.cfg` manifest.
 
-**Overlay root**: the directory containing the overlay's manifest, if any. Relative asset references are resolved from this root.
+**Overlay root**: the overlay's top directory. Relative paths are resolved from it.
 
-**Manifest**: optional UTF-8 TOML document named `overlay.toml` at the overlay root.
+**Identity**: the name a consumer installs an overlay under, compared normalized.
 
-**Overlay manager**: software that locates, installs, removes, updates, or composes overlays.
+**Manifest**: the optional document `overlay.cfg` at the overlay root.
 
-**Consumer**: software that reads or exposes overlay assets. A consumer can be read-only and need not manage installation.
+**Format line**: a first line starting `#!` that names the manifest's format.
 
-**Reference implementation**: dotagents. The phrase means an implementation used to compare behavior; it does not imply that AOS requires it.
+**Data model**: the value a manifest reads as, the same whatever its format.
 
-**Name normalization**: the dotagents compatibility mapping that lowercases names and maps `_` and `.` to `-`.
+**Consumer**: software that reads or exposes overlay assets. A consumer can be read-only.
 
-## Conformance levels
+**Overlay manager**: a consumer that locates, installs, updates, removes or composes overlays.
 
-An implementation SHOULD state which capabilities it supports:
+**Harness**: the agent program an overlay is given to.
 
-1. **Read-only consumer** — lists and reads package assets without changing them.
-2. **Manifest parser** — parses TOML and exposes recognized fields with type information.
-3. **Overlay resolver** — resolves sources and dependencies and defines deterministic ordering.
-4. **Overlay manager** — installs, updates, removes, composes, and applies runtime integrations.
+**Active overlays**: the overlays a consumer applies to one session or process, after dependencies.
 
-Higher levels include the lower level's obligations only when the implementation claims those capabilities. A consumer can conform without executing assets.
+**Composition order**: the deterministic order in which active overlays contribute.
+
+**Env value**: what `env` gives a variable: a literal, a path under the root, or a secret reference.
+
+**Secret reference**: a provider and its fields, or a secret's name, that say where a value comes
+from; never the value.
+
+**Tree digest**: the SHA-256 digest of an overlay's files, computed as [Integrity](integrity.md)
+defines.
+
+**Pin**: a tree digest a consumer requires an overlay to have.
+
+**Weakening**: a choice, declared by an overlay or made by a consumer, that is looser than the
+default and that a consumer reports.
+
+**Reference implementation**: dotagents, the implementation behaviour is compared against. AOS does
+not require it.
+
+## Conformance classes
+
+An implementation states which of these it claims; see [Conformance](conformance.md):
+
+1. **Read-only consumer**: lists and reads overlay files without changing them.
+2. **Manifest reader**: reads `overlay.cfg` into the data model and validates it.
+3. **Environment**: builds an environment from `env`, `env_files`, `paths` and root variables.
+4. **Runtime and setup**: probes runtimes and runs setup.
+5. **Integrity**: computes tree digests and enforces pins.
+6. **Resolver**: resolves sources and dependencies in a deterministic order.
+7. **Manager**: installs, updates, removes and composes overlays.
+
+A class includes another's obligations only when the implementation claims both.

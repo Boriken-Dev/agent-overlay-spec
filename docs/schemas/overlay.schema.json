@@ -1,44 +1,284 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://boriken-dev.github.io/agent-overlay-spec/schemas/overlay.schema.json",
-  "title": "AOS overlay.toml parsed document",
-  "description": "Schema for the parsed TOML manifest. TOML syntax and filesystem checks require additional validation.",
+  "title": "AOS overlay.cfg data model",
+  "description": "The value an overlay.cfg reads as, in any format (TOML, JSON, YAML). Reading rules, integer-versus-float, cross references and file existence are checked semantically, as the specification states.",
   "type": "object",
   "properties": {
     "name": { "type": "string" },
     "description": { "type": "string" },
-    "requires": { "type": "array", "items": { "type": "string" } },
+    "requires": { "type": "array", "items": { "$ref": "#/$defs/overlayName" } },
     "routing": { "type": "array", "items": { "type": "string" } },
-    "rules": { "type": "array", "items": { "type": "string" } },
+    "rules": { "type": "array", "items": { "$ref": "#/$defs/relPath" } },
     "priority": { "type": "integer" },
-    "setup_timeout": { "type": "integer", "minimum": 0 },
-    "scripts": { "type": "object", "additionalProperties": { "oneOf": [{ "type": "boolean", "const": false }, { "type": "string", "pattern": "^[A-Za-z0-9_+-][A-Za-z0-9._+-]*(/[A-Za-z0-9_+-][A-Za-z0-9._+-]*)*$" }] } },
-    "mcp": { "$ref": "#/$defs/mcp" }
+    "context": { "type": "array", "items": { "$ref": "#/$defs/relPath" } },
+    "skills": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/toolName" } },
+    "env": { "$ref": "#/$defs/envMap" },
+    "env_files": { "type": "array", "items": { "$ref": "#/$defs/envFile" } },
+    "paths": { "type": "array", "items": { "$ref": "#/$defs/pathAddition" } },
+    "env_scripts": { "type": "array", "items": { "$ref": "#/$defs/envScript" } },
+    "runtime": { "$ref": "#/$defs/runtime" },
+    "setup": { "type": "array", "items": { "$ref": "#/$defs/setupVariant" } },
+    "scripts": { "$ref": "#/$defs/scripts" },
+    "mcp": { "$ref": "#/$defs/mcp" },
+    "harness": { "$ref": "#/$defs/harness" }
   },
-  "additionalProperties": true,
+  "additionalProperties": { "$ref": "#/$defs/value" },
   "$defs": {
+    "value": {
+      "description": "Any data model value: no null anywhere.",
+      "type": ["string", "number", "boolean", "array", "object"],
+      "items": { "$ref": "#/$defs/value" },
+      "additionalProperties": { "$ref": "#/$defs/value" }
+    },
+    "relPath": {
+      "description": "A /-separated path under the overlay root: no empty, '.' or '..' component, no backslash, colon or control character, not absolute.",
+      "type": "string",
+      "pattern": "^(?:[^/\\\\:.\\x00-\\x1f\\x7f][^/\\\\:\\x00-\\x1f\\x7f]*|\\.[^/\\\\:.\\x00-\\x1f\\x7f][^/\\\\:\\x00-\\x1f\\x7f]*|\\.\\.[^/\\\\:\\x00-\\x1f\\x7f]+)(?:/(?:[^/\\\\:.\\x00-\\x1f\\x7f][^/\\\\:\\x00-\\x1f\\x7f]*|\\.[^/\\\\:.\\x00-\\x1f\\x7f][^/\\\\:\\x00-\\x1f\\x7f]*|\\.\\.[^/\\\\:\\x00-\\x1f\\x7f]+))*$"
+    },
+    "overlayName": { "type": "string", "pattern": "^[A-Za-z](?:[A-Za-z0-9_.-]*[A-Za-z0-9])?$" },
     "toolName": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$" },
     "envName": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+    "osName": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "osList": { "type": "array", "items": { "$ref": "#/$defs/osName" } },
+    "interpreter": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "harnessId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-fA-F]{64}$" },
+    "timeout": { "type": "integer", "minimum": 0 },
+    "envValue": {
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "required": ["value"],
+          "properties": { "value": { "type": "string" }, "if_unset": { "type": "boolean" } },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["path"],
+          "properties": { "path": { "$ref": "#/$defs/relPath" }, "if_unset": { "type": "boolean" } },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["secret"],
+          "properties": {
+            "secret": { "type": "string", "minLength": 1 },
+            "if_unset": { "type": "boolean" },
+            "optional": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["provider", "key"],
+          "properties": {
+            "provider": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+            "key": { "type": "string", "minLength": 1 },
+            "if_unset": { "type": "boolean" },
+            "optional": { "type": "boolean" },
+            "value": false,
+            "path": false,
+            "secret": false
+          },
+          "additionalProperties": { "type": ["string", "integer", "boolean"] }
+        }
+      ]
+    },
+    "envMap": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/envName" },
+      "additionalProperties": { "$ref": "#/$defs/envValue" }
+    },
+    "envFile": {
+      "oneOf": [
+        { "$ref": "#/$defs/relPath" },
+        {
+          "type": "object",
+          "required": ["path"],
+          "properties": {
+            "path": { "$ref": "#/$defs/relPath" },
+            "format": { "enum": ["aos", "dotenv"] },
+            "os": { "$ref": "#/$defs/osList" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "pathAddition": {
+      "type": "object",
+      "required": ["variable", "path"],
+      "properties": {
+        "variable": { "$ref": "#/$defs/envName" },
+        "path": { "$ref": "#/$defs/relPath" },
+        "position": { "enum": ["prepend", "append"] },
+        "os": { "$ref": "#/$defs/osList" }
+      },
+      "additionalProperties": false
+    },
+    "envScript": {
+      "type": "object",
+      "required": ["interpreter", "path"],
+      "properties": {
+        "interpreter": { "$ref": "#/$defs/interpreter" },
+        "path": { "$ref": "#/$defs/relPath" },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "timeout": { "$ref": "#/$defs/timeout" },
+        "os": { "$ref": "#/$defs/osList" }
+      },
+      "additionalProperties": false
+    },
+    "setupVariant": {
+      "type": "object",
+      "required": ["interpreter", "path"],
+      "properties": {
+        "interpreter": { "$ref": "#/$defs/interpreter" },
+        "path": { "$ref": "#/$defs/relPath" },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "timeout": { "$ref": "#/$defs/timeout" },
+        "network": { "type": "boolean" },
+        "os": { "$ref": "#/$defs/osList" }
+      },
+      "additionalProperties": false
+    },
+    "version": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+){0,2}$" },
+    "pythonVariant": {
+      "type": "object",
+      "properties": {
+        "version": { "$ref": "#/$defs/version" },
+        "requirements": { "$ref": "#/$defs/relPath" },
+        "lock": { "$ref": "#/$defs/relPath" },
+        "lock_digest": { "$ref": "#/$defs/digest" },
+        "os": { "$ref": "#/$defs/osList" }
+      },
+      "not": { "required": ["requirements", "lock"] },
+      "dependentRequired": { "lock_digest": ["lock"] },
+      "additionalProperties": false
+    },
+    "nodeVariant": {
+      "type": "object",
+      "properties": {
+        "version": { "$ref": "#/$defs/version" },
+        "os": { "$ref": "#/$defs/osList" }
+      },
+      "additionalProperties": false
+    },
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "os": { "$ref": "#/$defs/osList" },
+        "commands": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$" },
+              {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$" },
+                  "os": { "$ref": "#/$defs/osList" }
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "python": { "type": "array", "items": { "$ref": "#/$defs/pythonVariant" } },
+        "node": { "type": "array", "items": { "$ref": "#/$defs/nodeVariant" } }
+      },
+      "additionalProperties": false
+    },
+    "scriptPath": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_+-][A-Za-z0-9._+-]*(?:/[A-Za-z0-9_+-][A-Za-z0-9._+-]*)*$"
+    },
+    "scripts": {
+      "type": "object",
+      "propertyNames": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$", "not": { "pattern": "\\.[eE][xX][eE]$" } },
+      "additionalProperties": {
+        "oneOf": [
+          { "const": false },
+          {
+            "allOf": [
+              { "$ref": "#/$defs/scriptPath" },
+              { "pattern": "\\.(?:py|sh|bash|ps1|js|mjs|cjs)$" }
+            ]
+          },
+          {
+            "type": "object",
+            "required": ["path", "interpreter"],
+            "properties": {
+              "path": { "$ref": "#/$defs/scriptPath" },
+              "interpreter": { "$ref": "#/$defs/interpreter" },
+              "os": { "$ref": "#/$defs/osList" }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "harness": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/harnessId" },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "context": { "type": "array", "items": { "$ref": "#/$defs/relPath" } },
+          "skills": { "type": "boolean" },
+          "model": { "type": "string", "minLength": 1 },
+          "effort": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": { "$ref": "#/$defs/value" }
+      }
+    },
     "server": {
-      "type": "object", "required": ["name", "transport"],
+      "type": "object",
+      "required": ["name", "transport"],
       "properties": {
         "name": { "$ref": "#/$defs/toolName" },
         "transport": { "enum": ["stdio", "streamable-http"] },
         "timeout": { "type": "number", "exclusiveMinimum": 0 },
         "command": { "type": "string", "minLength": 1 },
         "args": { "type": "array", "items": { "type": "string" } },
-        "env": { "type": "object", "propertyNames": { "$ref": "#/$defs/envName" }, "additionalProperties": { "type": "string" } },
+        "env": { "$ref": "#/$defs/envMap" },
         "env_passthrough": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/envName" } },
         "url": { "type": "string", "format": "uri", "pattern": "^https?://" },
-        "headers_env": { "type": "object", "propertyNames": { "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$" }, "additionalProperties": { "$ref": "#/$defs/envName" } }
+        "headers_env": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$" },
+          "additionalProperties": { "$ref": "#/$defs/envName" }
+        }
       },
       "allOf": [
-        { "if": { "properties": { "transport": { "const": "stdio" } }, "required": ["transport"] }, "then": { "required": ["command"], "not": { "anyOf": [{ "required": ["url"] }, { "required": ["headers_env"] }] } } },
-        { "if": { "properties": { "transport": { "const": "streamable-http" } }, "required": ["transport"] }, "then": { "required": ["url"], "not": { "anyOf": [{ "required": ["command"] }, { "required": ["args"] }, { "required": ["env"] }, { "required": ["env_passthrough"] }] } } }
+        {
+          "if": { "properties": { "transport": { "const": "stdio" } }, "required": ["transport"] },
+          "then": { "required": ["command"], "not": { "anyOf": [{ "required": ["url"] }, { "required": ["headers_env"] }] } }
+        },
+        {
+          "if": { "properties": { "transport": { "const": "streamable-http" } }, "required": ["transport"] },
+          "then": { "required": ["url"], "not": { "anyOf": [{ "required": ["command"] }, { "required": ["args"] }, { "required": ["env"] }, { "required": ["env_passthrough"] }] } }
+        }
       ],
       "additionalProperties": false
     },
-    "skillLink": { "type": "object", "required": ["name", "server"], "properties": { "name": { "$ref": "#/$defs/toolName" }, "server": { "$ref": "#/$defs/toolName" } }, "additionalProperties": false },
-    "mcp": { "type": "object", "properties": { "servers": { "type": "array", "items": { "$ref": "#/$defs/server" } }, "skills": { "type": "array", "items": { "$ref": "#/$defs/skillLink" } } }, "additionalProperties": false }
+    "skillLink": {
+      "type": "object",
+      "required": ["name", "server"],
+      "properties": {
+        "name": { "$ref": "#/$defs/toolName" },
+        "server": { "$ref": "#/$defs/toolName" }
+      },
+      "additionalProperties": false
+    },
+    "mcp": {
+      "type": "object",
+      "properties": {
+        "servers": { "type": "array", "items": { "$ref": "#/$defs/server" } },
+        "skills": { "type": "array", "items": { "$ref": "#/$defs/skillLink" } }
+      },
+      "additionalProperties": false
+    }
   }
 }

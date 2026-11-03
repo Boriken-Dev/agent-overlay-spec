@@ -1,32 +1,156 @@
 # Manifest
 
-**Core.** `overlay.toml` is optional UTF-8 TOML using TOML 1.0 syntax. A consumer MUST accept a package with no manifest. The parsed TOML document is an object/table. The JSON Schema at [`schemas/overlay.schema.json`](../../schemas/overlay.schema.json) describes field types and MCP shapes; JSON Schema cannot enforce all TOML syntax or filesystem constraints.
+**Core.** An overlay MAY carry a manifest named `overlay.cfg` at its root. A consumer MUST accept an
+overlay with no manifest; it reads as the empty mapping.
 
-The manifest does not contain a required format version. AOS specification versioning is maintained separately. Introducing a required `version` or `schema_version` field would make existing manifest-free and legacy manifests fail strict validators; it is **Proposed**, not part of this draft.
+> **Status:** dotagents, the reference implementation, reads `overlay.toml` (TOML only) today. The
+> name `overlay.cfg` and the format line are **Proposed** until an implementation reads them.
 
-The JSON Schema is a strict authoring profile for recognized field shapes, not a byte-for-byte model of dotagents' tolerant fallback behavior. For example, dotagents falls back when `name` is empty or has the wrong type; the schema accepts an empty string but rejects a non-string `name`. Unknown top-level keys are allowed. JSON Schema does not validate filesystem paths after symlink resolution, duplicate server/skill names, cross-reference existence, or all URL credential/fragment restrictions; consumers need semantic checks for those conditions.
+## Reading `overlay.cfg`
+
+A reader turns the file's bytes into a value of the [data model](#data-model) in these steps. The
+same steps apply to every other file AOS reads as a document, such as an
+[env file](environment.md#env-files).
+
+1. **Byte-order mark.** One leading UTF-8 byte-order mark (`EF BB BF`) is dropped. Only one.
+2. **Format line.** If the remaining bytes start with `#!`, the first line names the format:
+    - the line runs to the first line feed (`0x0A`), which is not part of it;
+    - it is split on runs of space, tab, form feed and carriage return (so a carriage return
+      before the line feed is whitespace), and the **last word** is taken;
+    - of that word, the part after the last `/` or `\` is taken, leading `.` characters are
+      dropped, and ASCII letters are lowercased;
+    - the result is the format name: `#!json`, `#!/usr/bin/env yaml` and `#!.TOML` name `json`,
+      `yaml` and `toml`.
+
+    The line, with its line feed, is removed before the rest is parsed; a parse error's line number
+    still counts it. A line that yields no name (`#!` alone, or only whitespace) is an error.
+3. **Default.** Otherwise the format is `toml`, and the bytes are parsed whole.
+4. **No guessing.** Nothing else selects a format: not the content (`{`, `---`, `%YAML`), not
+   another marker, not the file's extension, not a retry with another parser. A document starting
+   `{` without a format line is TOML, and fails as TOML.
+5. **Parse** with the selected format's rules below, then check the result against the data model.
+
+The text is UTF-8. Invalid UTF-8 is an error in every format. A document whose remaining text is
+empty or only spaces, tabs and line breaks reads as the empty mapping, in every format.
+
+### Formats
+
+| Name | Aliases | Class | Syntax |
+| --- | --- | --- | --- |
+| `toml` | | **Core**: every reader MUST read it | [TOML 1.0](https://toml.io/en/v1.0.0) |
+| `json` | | **Optional Extension** | [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259) |
+| `yaml` | `yml` | **Optional Extension** | [YAML 1.2](https://yaml.org/spec/1.2.2/), one document, core schema |
+
+A reader MAY support further formats under names of its own. A reader that meets a format name it
+does not support MUST refuse the document with an error that names the format; it MUST NOT fall back
+to another format. An error names the format only when the name is ASCII letters, digits, `-`, `_`
+and `.`; otherwise it says that the line names no supported format.
+
+### Static reading
+
+Reading a manifest MUST NOT execute anything, read any other file, or consult the environment.
+Whatever library a reader is built on, it reads the manifest this way:
+
+- **No includes or imports.** No directive pulls in another file or URL (`include`, `import`,
+  `$ref`, `extends`, `!include`). Such keys are ordinary data.
+- **No interpolation or templating.** `$NAME`, `${NAME}`, `%(name)s`, `{{ name }}` and `<NAME>` in a
+  string are those characters. A field that gives a string meaning (a path relative to the root,
+  a routing line) says so itself, and acts only when the declaration is applied.
+- **YAML:** only the core schema. A reader MUST refuse an explicit tag (`!include`, `!!python/...`,
+  `!!binary`, any `!...`), an anchor, an alias, and a mapping key `<<`. Plain scalars resolve by the
+  YAML 1.2 core schema, so `yes`, `on` and `2026-11-04` are strings.
+- **JSON:** a reader MUST refuse a duplicate key in one object, and the non-standard `NaN`,
+  `Infinity` and comments.
+- Libraries that offer includes, relative imports, variable expansion or templating (some
+  general configuration readers do) MUST have those features off for AOS documents.
+
+### Data model
+
+The result of reading is a **mapping** whose keys are strings. Values are:
+
+| Type | TOML | JSON | YAML |
+| --- | --- | --- | --- |
+| string | string | string | string scalar |
+| integer, signed 64-bit | integer | number with no fraction and no exponent | core-schema int |
+| float, finite | float | number with a fraction or an exponent | core-schema float |
+| boolean | boolean | `true` / `false` | core-schema bool |
+| array | array | array | sequence |
+| mapping, string keys | table | object | mapping |
+
+A reader MUST refuse:
+
+- a null (`null`, `~`), anywhere, including in keys it does not recognise;
+- a TOML date, time or date-time value;
+- a non-finite float (`nan`, `inf`);
+- an integer outside the signed 64-bit range;
+- a mapping key that is not a string, and two keys equal in one mapping;
+- a string that is not valid Unicode (a lone surrogate escape in JSON).
+
+Two documents in different formats are the same manifest when their data model values are equal.
+Where a field takes an integer, a float of equal value is not accepted (`30.0` is not `30`).
+Mapping order carries no meaning anywhere in AOS.
+
+A reader MUST bound what it reads: a size in bytes and a nesting depth. Both are settings with
+defaults (1 MiB and 64 are RECOMMENDED); there is no floor.
+
+## Validation
+
+The JSON Schema at [`schemas/overlay.schema.json`](../../schemas/overlay.schema.json) describes the
+data model a manifest must have, in any format. JSON Schema cannot express every rule (an integer
+field refusing a float, cross references, files that must exist); a validator checks those
+semantically, as each section states.
+
+The schema is the strict authoring profile. dotagents is more tolerant of ordinary fields: it
+replaces a value of the wrong type with the default, with a warning. A strict failure does not mean
+dotagents would refuse the overlay.
+
+**Unknown keys.** Unknown top-level keys are allowed and MUST be preserved by a parser that exposes
+the document. A consumer MUST NOT act on an unknown key. Inside a table this specification defines,
+unknown keys are errors unless the table says otherwise.
+
+There is no manifest version field. The edition is a property of the specification, not of a
+manifest.
 
 ## Fields
 
-| Field | Type | Default and verified dotagents behavior |
-|---|---|---|
-| `name` | string | Directory name when absent, empty, or not a non-empty string. Used as a sort/display tiebreaker; the installed identity is directory-based. |
-| `description` | string | Empty string when absent or wrong type. Informational. |
-| `requires` | array of strings | Empty. Dotagents filters non-string/blank entries, validates names, normalizes them, and deduplicates in order. Used by add/remove operations, not a complete runtime dependency solver. |
-| `routing` | array of strings | Empty. Non-string and blank entries are dropped; surrounding newlines are trimmed. Entries are appended to the managed routing section by dotagents. |
-| `rules` | array of strings | Empty. Dotagents treats each string as an overlay-relative Markdown path, extracts leading bullet blocks up to the next `## ` heading, and appends those bullets to always-on rules. |
-| `priority` | integer | `500`. Dotagents sorts ascending by `(priority, manifest name, directory name)`; higher numbers therefore appear later. Boolean is not accepted as an integer. |
-| `setup_timeout` | integer ≥ 0 | Unset means 300 seconds; `0` means unlimited. Invalid values are ignored with a warning. A command-line override can take precedence. |
-| `[scripts]` | table of string keys to relative path strings or `false` | Empty. Maps command names to script paths or disables an automatically discovered `bin/<name>.py` command. Invalid entries are ignored with a warning by dotagents. |
-| `[mcp]` | table with `servers` and `skills` arrays | Absent means no MCP declarations. Dotagents rejects unknown keys inside this table. See [MCP](mcp.md). |
+| Field | Type | Class | Default | Section |
+| --- | --- | --- | --- | --- |
+| `name` | string | Core | the directory name | [Package](package.md#names-and-paths) |
+| `description` | string | Core | `""` | |
+| `requires` | array of overlay names | Core | `[]` | [Dependencies](dependencies.md) |
+| `routing` | array of strings | Core | `[]` | [Composition](composition.md#merging) |
+| `rules` | array of relative paths | Core | `[]` | [Composition](composition.md#merging) |
+| `priority` | integer | Core | `500` | [Composition](composition.md#deterministic-ordering) |
+| `context` | array of relative paths | Optional Extension, **Proposed** | `[]` | [Context and harnesses](harness.md) |
+| `skills` | array of skill names | Optional Extension, **Proposed** | every `skills/*/SKILL.md` | [Skills](skills.md) |
+| `env` | mapping of variable to env value | Optional Extension, **Proposed** | `{}` | [Environment](environment.md#env) |
+| `env_files` | array of env files | Optional Extension, **Proposed** | `[]` | [Environment](environment.md#env-files) |
+| `paths` | array of path additions | Optional Extension, **Proposed** | `[]` | [Environment](environment.md#path-additions) |
+| `env_scripts` | array of scripts | Optional Extension, **Proposed** | `[]` | [Environment](environment.md#env-scripts) |
+| `runtime` | mapping | Optional Extension, **Proposed** | `{}` | [Runtime and setup](runtime.md#runtime) |
+| `setup` | array of setup variants | Optional Extension, **Proposed** | `[]` | [Runtime and setup](runtime.md#setup) |
+| `scripts` | mapping of command name to script | Optional Extension | `{}` | [Commands](commands.md) |
+| `mcp` | mapping | Optional Extension | absent | [MCP](mcp.md) |
+| `harness` | mapping of harness id to hints | Optional Extension, **Proposed** | `{}` | [Context and harnesses](harness.md#harness-hints) |
 
-For ordinary fields, dotagents is deliberately tolerant: wrong types often become defaults or filtered values rather than a hard error. AOS validators SHOULD report invalid values clearly. A strict validation failure does not mean dotagents would reject the overlay.
+A **relative path** is `/`-separated and relative to the overlay root: no empty component, no `.`
+or `..` component, no `\`, no `:`, no control character, and not absolute. A consumer resolves it
+under the root and MUST refuse a path that leaves the root after symbolic links are resolved.
 
-## `scripts` names and paths
+### Core fields in dotagents
 
-Dotagents accepts launcher names matching `[A-Za-z0-9][A-Za-z0-9._-]*`, except `.exe` endings and reserved command names. A path is slash-separated, relative, contains only the accepted filename characters, and excludes `.`/`..` path components, backslashes, empty components, absolute paths, and drive prefixes. These are compatibility constraints of its launcher generation.
+| Field | dotagents 0.8.3 |
+| --- | --- |
+| `name` | The directory name when absent, empty, or not a string. A sort and display tiebreaker; the installed identity is the directory name. |
+| `description` | `""` when absent or not a string. |
+| `requires` | Non-strings and invalid names dropped with a warning; normalized and deduplicated in order. Used by add and remove. |
+| `routing` | Non-strings and blanks dropped; surrounding newlines trimmed. Appended to the managed routing section. |
+| `rules` | Each path's leading run of `- **` bullets, up to the next `## ` heading, appended to the always-on rules. |
+| `priority` | `500`; a boolean is not an integer. Sorted ascending by `(priority, name, directory)`. |
 
-Complete example:
+## Examples
+
+TOML, the default:
 
 ```toml
 name = "python-quality"
@@ -35,35 +159,38 @@ requires = ["engineering"]
 routing = ["- Python changes → `$PYTHON_QUALITY_OVERLAY_ROOT/kb/PYTHON.md`"]
 rules = ["rules/always-on.md"]
 priority = 420
-setup_timeout = 60
 
-[scripts]
-check-python = "bin/check_python.py"
-legacy-check = false
+[[paths]]
+variable = "PYTHONPATH"
+path = "lib"
 ```
 
-Complete MCP example:
+The same manifest in JSON. The format line is required, since TOML is the default:
 
-```toml
-[mcp]
+```json
+#!json
+{
+  "name": "python-quality",
+  "description": "Python review conventions and reusable checks.",
+  "requires": ["engineering"],
+  "routing": ["- Python changes → `$PYTHON_QUALITY_OVERLAY_ROOT/kb/PYTHON.md`"],
+  "rules": ["rules/always-on.md"],
+  "priority": 420,
+  "paths": [{ "variable": "PYTHONPATH", "path": "lib" }]
+}
+```
 
-[[mcp.servers]]
-name = "docs"
-transport = "stdio"
-command = "node"
-args = ["server.js"]
-env = { DOCS_MODE = "read-only" }
-env_passthrough = ["DOCS_TOKEN"]
-timeout = 30
+And in YAML:
 
-[[mcp.skills]]
-name = "search-docs"
-server = "docs"
-
-[[mcp.servers]]
-name = "remote-docs"
-transport = "streamable-http"
-url = "https://mcp.example.org/agent"
-headers_env = { Authorization = "DOCS_AUTHORIZATION" }
-timeout = 20
+```yaml
+#!yaml
+name: python-quality
+description: Python review conventions and reusable checks.
+requires: [engineering]
+routing: ["- Python changes → `$PYTHON_QUALITY_OVERLAY_ROOT/kb/PYTHON.md`"]
+rules: [rules/always-on.md]
+priority: 420
+paths:
+  - variable: PYTHONPATH
+    path: lib
 ```

@@ -1,21 +1,35 @@
 # Resolution and errors
 
-Resolution has three distinct parts: selecting a package source, identifying an overlay within that source, and composing the selected packages.
+Resolution has three parts: selecting a source, identifying an overlay in it, and composing the
+active overlays.
 
 ## Name identity
 
-The dotagents compatibility normalizer lowercases ASCII names and replaces `.` and `_` with `-`. Directory names are used as installation identity. Registries may use aliases, but an alias does not rewrite a manifest or package directory. A manager SHOULD detect multiple source entries that resolve to the same normalized identity.
+Identities normalize as [Package](package.md#names-and-paths) says. A registry may give an overlay
+an alias; the alias does not rename the overlay. A resolver SHOULD detect two source entries that
+resolve to the same identity.
 
 ## Ordering and overrides
 
-Priority ordering is defined in [Composition](composition.md). AOS `priority` is an ordering hint for managers that merge ordered contributions; it is not a universal override instruction. Managers MUST NOT infer that a later file replaces an earlier file unless their own policy says so.
+[Composition](composition.md#deterministic-ordering) defines the order. Consumers MUST NOT infer
+that a later file replaces an earlier one unless their own policy says so.
 
 ## Errors
 
-A parser SHOULD report malformed TOML and invalid recognized fields. A read-only consumer MAY still expose package files if an optional manifest is malformed, provided it clearly reports that it ignored or could not parse the manifest. A manager MUST NOT silently execute an invalid setup or MCP declaration.
+A reader reports malformed documents and invalid fields. A read-only consumer MAY still expose an
+overlay's files when its manifest is invalid, provided it says that it ignored the manifest. A
+consumer MUST NOT apply any declaration of a manifest it could not read and validate: no setup, no
+environment, no MCP server, no command.
 
-Dotagents ignores an invalid ordinary manifest as a whole for contributions, warns on many malformed ordinary values, and applies stricter errors to invalid MCP declarations when loading the gateway. This difference is intentional in the compatibility notes; AOS validators can be stricter without claiming that dotagents uses the same error policy.
+> **Status:** dotagents ignores an unreadable `overlay.toml` as a whole for contributions, replaces
+> malformed ordinary values with defaults and warns, and refuses invalid MCP declarations when the
+> gateway loads.
 
 ## Recomposition
 
-When an overlay is removed or updated, a manager SHOULD regenerate derived configuration from the base plus the currently selected overlays. It SHOULD avoid destructive edits to user-owned regions and SHOULD retain provenance for generated assets. Dotagents preserves edits outside its marker block and separately backs up locally edited installed files before replacement/removal during synchronization.
+When an overlay is removed or updated, a manager regenerates derived configuration from the base and
+the active overlays. It does not destroy user-owned text, and it keeps the provenance of what it
+generated.
+
+> **Status:** dotagents keeps text outside its managed block, and backs up locally edited installed
+> files before replacing or removing them.

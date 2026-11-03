@@ -1,30 +1,34 @@
 # Dependencies
 
-`requires` is a list of overlay names. It identifies required packages; it does not itself say where to obtain them or whether to execute them.
+**Core.** `requires` lists overlay names the overlay needs. It says nothing about where to obtain
+them; that is the consumer's [source](distribution.md) configuration.
 
-## Dotagents compatibility behavior
+## Resolution
 
-`dotagents overlays add` installs named requirements first unless already present. Names are validated and normalized; invalid entries are ignored and duplicate normalized names are removed. Listing and showing can flag requirements with no installed provider. Removal refuses to remove a required overlay unless forced. The format does not encode version ranges, optional dependencies, or source pins.
+A resolver computes the active overlays from the ones it was asked for:
 
-## AOS manager guidance
+1. Visit each requested overlay in the order given. Visiting an overlay visits each of its
+   `requires`, normalized, in order, then adds the overlay itself, once.
+2. An overlay reached again while it is being visited is a **cycle**: an error that names the chain,
+   `a -> b -> a`.
+3. A required name no source offers is **missing**: reported with the overlay that requires it.
+4. The active overlays are every overlay added. They are then sorted into
+   [composition order](composition.md#deterministic-ordering); the visiting order decides only what
+   is installed first.
 
-A manager that resolves dependencies SHOULD:
-
-- resolve each required name to exactly one package using a documented source precedence;
-- install or activate prerequisites before the dependent overlay;
-- detect cycles and fail with a readable dependency chain;
-- report missing dependencies before partially applying composition;
-- distinguish a package name from a registry alias and a source location;
-- make the result deterministic and record source identity and revision.
-
-These are **manager recommendations**, not verified requirements of every dotagents path. Dotagents behavior for cyclic and conflicting manually installed graphs is not a portable contract in this draft.
+A resolver MUST report every cycle and missing requirement before it applies any composition. It
+MAY refuse (a session that must be complete) or continue without the missing overlay (an
+interactive install), and says which it does.
 
 ```mermaid
 graph LR
-  A[application] --> B[overlay: python]
-  B --> C[overlay: engineering]
-  C --> D[base instructions]
-  D --> E[compose in stable order]
+  A[python-review] --> B[engineering]
+  C[rust] --> B
 ```
 
-**Proposed:** a future versioned extension may define dependency version constraints and lock data. Existing overlays need no migration for this draft.
+> **Status:** dotagents' `overlays add` installs requirements first, depth first; a cycle is an
+> error; a requirement no source offers is a warning and the requested overlay still installs.
+> Removal refuses to remove an overlay another requires unless forced.
+
+There are no version constraints, optional dependencies or source pins in `requires`. A consumer pins
+the overlays it installs in its own configuration ([Integrity](integrity.md)).

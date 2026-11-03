@@ -40,10 +40,14 @@ nav:
       - Composition: spec/v0/composition.md
       - Dependencies: spec/v0/dependencies.md
       - Resolution: spec/v0/resolution.md
-      - Distribution: spec/v0/distribution.md
-      - Skills: spec/v0/skills.md
+      - Environment: spec/v0/environment.md
+      - Runtime and setup: spec/v0/runtime.md
       - Commands: spec/v0/commands.md
+      - Skills: spec/v0/skills.md
+      - Context and harnesses: spec/v0/harness.md
       - MCP: spec/v0/mcp.md
+      - Distribution: spec/v0/distribution.md
+      - Integrity: spec/v0/integrity.md
       - Security: spec/v0/security.md
       - Conformance: spec/v0/conformance.md
   - Implementations: implementations.md

@@ -1,0 +1,2 @@
+# Read by the tool through TOOL_CONFIG, which the overlay sets to this file's absolute path.
+mode = "read-only"

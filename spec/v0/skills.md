@@ -1,9 +1,43 @@
 # Skills
 
-**Optional Extension.** `skills/<name>/SKILL.md` is a portable convention for a skill package. The Markdown instructions are portable content; runtime discovery, front matter, publication path, and invocation semantics belong to the target runtime or manager.
+**Optional Extension.** `skills/<name>/SKILL.md` is the portable layout of a skill: a directory named
+after the skill with a `SKILL.md` inside. The Markdown is portable content; how a runtime discovers,
+presents and invokes a skill belongs to that runtime.
 
-Dotagents publishes each overlay skill directory into a scope's shared skills directory, preferring symlinks where possible and using copies where needed. It tracks ownership so removing an overlay can unpublish its skill without removing a separately owned copy. A skill must contain `SKILL.md` for dotagents discovery. Other runtimes may impose additional metadata.
+## Declaring skills
 
-Skill folders MAY contain scripts, examples, references, and assets. An implementation MUST NOT assume these scripts are safe because they are stored under `skills/`. It MAY support scripts in any language. Python execution is not a core requirement.
+**Proposed.** `skills` lists the overlay's skills by name:
 
-`requirements.txt`, `package.json`, lock files, and other dependency manifests MAY be included as assets. Installing dependencies is optional and requires an explicit manager policy and trust decision. AOS defines no universal dependency installation step or environment variable contract.
+```toml
+skills = ["summarize-docs", "search-docs"]
+```
+
+Each name matches `[A-Za-z0-9][A-Za-z0-9_.-]*`, and `skills/<name>/SKILL.md` MUST exist; a validator
+refuses a listed skill without it. When `skills` is present it is the complete list: a directory under
+`skills/` that is not listed is not a skill of the overlay. When it is absent, every
+`skills/<name>/SKILL.md` is a skill. A consumer that delivers skills delivers exactly these.
+
+A skill's `SKILL.md` MAY begin with front matter that names it and describes it (`name:`,
+`description:`). AOS does not require front matter; a runtime may.
+
+## Delivery
+
+A consumer delivers a skill the way its harness takes one: natively where the harness loads skill
+directories, or by a routing line naming the `SKILL.md`, since a skill is a file an agent can read.
+A [harness hint](harness.md#harness-hints) can turn native delivery off for one harness.
+
+Two active overlays with a skill of the same name collide. A consumer reports the collision, and the
+skill of the overlay later in [composition order](composition.md#deterministic-ordering) is the one
+delivered.
+
+> **Status:** dotagents publishes every `skills/<name>/` directory that holds a `SKILL.md` into a
+> shared skills directory (a symlink where it can, a copy otherwise), tracks which overlay published
+> it, and lists skills with their front matter in the context it assembles. It does not read
+> `skills`.
+
+## Contents
+
+A skill directory MAY contain scripts, examples, references and other assets. A consumer MUST NOT
+treat a script as safe because it is under `skills/`. Dependencies a skill needs are declared by the
+overlay's [`runtime`](runtime.md#runtime); a dependency file inside a skill is an asset, and nothing
+installs it by its name.

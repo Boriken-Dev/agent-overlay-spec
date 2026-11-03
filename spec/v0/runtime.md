@@ -1,0 +1,158 @@
+# Runtime and setup
+
+**Optional Extension, Proposed.** An overlay declares what must exist where it runs (`runtime`) and
+what to run once to prepare it (`setup`). A consumer reads both without running anything, so it can
+decide where an overlay can go, and refuse with a reason, before it fetches or starts anything.
+
+> **Status:** dotagents runs `setup.py` at the overlay root under its own Python, on every add and
+> sync unless `--no-setup` is given, stopped after `setup_timeout` seconds (default 300, `0` for no
+> limit). It installs `requirements.txt` into a Python environment by file name. It reads none of
+> the fields below yet.
+
+## Operating systems
+
+Fields with an `os` key take an array of these names; an absent `os` means every OS.
+
+| Name | Matches |
+| --- | --- |
+| `windows` | Windows |
+| `macos` | macOS |
+| `linux` | Linux, including Android and WSL |
+| `freebsd`, `openbsd`, `netbsd` | that BSD |
+| `unix` | every OS above except `windows` |
+
+Other lowercase names (`[a-z][a-z0-9-]*`) are allowed for other systems; a name a consumer does not
+know matches nothing. An array that would match nothing on any OS is not an error.
+
+Where a field is an array of **variants** (`setup`, the entries of `runtime.python`), the first
+variant whose `os` matches the current OS is the one that applies; the others are ignored. No
+matching variant means the field does not apply on this OS.
+
+## Interpreters
+
+A script names its interpreter; nothing is inferred from its content or a `#!` line.
+
+| Name | Runs | Invocation |
+| --- | --- | --- |
+| `python` | Python 3 | the [Python runtime](#runtime)'s interpreter, `<python> <script> <args>` |
+| `bash` | GNU Bash | `bash <script> <args>` |
+| `sh` | a POSIX shell | `sh <script> <args>` |
+| `powershell` | PowerShell 7 or later | `pwsh -NoLogo -NoProfile -NonInteractive -File <script> <args>` |
+| `node` | Node.js | `node <script> <args>` |
+
+`<script>` is the absolute path of the script under the root, passed as one argument; arguments are
+passed as a list, never through a shell's parsing. A consumer MAY support further interpreters under
+names of its own. A consumer that meets an interpreter it does not support MUST refuse the overlay
+on that OS with an error naming the interpreter, before running anything of it.
+
+An interpreter that a selected setup variant, env script or script names is a requirement, as if
+`runtime` had declared it.
+
+## Runtime
+
+`runtime` is a mapping:
+
+| Key | Type | Meaning |
+| --- | --- | --- |
+| `os` | array of OS names | The OSes the overlay supports. On any other a consumer refuses it, naming the OS. |
+| `commands` | array of command names, or `{ name, os }` | Programs that must be found on the `PATH` the overlay runs with (after [path additions](environment.md#path-additions)). |
+| `python` | array of variants | A Python the overlay's code runs under, and its dependencies |
+| `node` | array of variants | A Node.js the overlay's code runs under |
+
+A `python` variant:
+
+| Key | Type | Meaning |
+| --- | --- | --- |
+| `version` | string, dotted numbers (`"3.9"`, `"3.11.4"`) | The minimum version, compared numerically, missing parts as `0` |
+| `requirements` | relative path | A pip requirements file, not locked. A [weakening](security.md#weakenings): `unlocked-dependencies`. |
+| `lock` | relative path | A pip requirements file in which every requirement is pinned with `==` and carries `--hash`; installed in hash-checking mode |
+| `lock_digest` | [digest](integrity.md#digest-form) | The SHA-256 of the lock file's bytes; a mismatch refuses the install |
+| `os` | array of OS names | The OSes this variant applies on |
+
+`requirements` and `lock` are exclusive. `lock_digest` needs `lock`. A `node` variant has `version`
+and `os`; installing Node.js dependencies is not defined in this edition.
+
+```toml
+[runtime]
+os = ["linux", "macos", "windows"]
+commands = ["git", { name = "gh", os = ["linux", "macos"] }]
+
+[[runtime.python]]
+os = ["windows"]
+version = "3.11"
+lock = "locks/windows.txt"
+lock_digest = "sha256:…"
+
+[[runtime.python]]
+version = "3.9"
+lock = "locks/posix.txt"
+```
+
+A consumer **probes** a target before it places an overlay there: the OS, each command, each
+interpreter, and each runtime's version. A target that lacks one is passed over, with the reason
+naming what is missing. Dependencies are installed outside the agent's sandbox, before the agent
+starts, into an environment that belongs to the overlay's [tree digest](integrity.md) (one per
+digest and OS), so an overlay's dependencies change only when its digest does.
+
+## Setup
+
+`setup` is an array of variants, each one program to run:
+
+| Key | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `interpreter` | [interpreter name](#interpreters) | required | How it runs |
+| `path` | relative path | required | The script |
+| `args` | array of strings | `[]` | Arguments after the script |
+| `timeout` | integer seconds, `0` for no limit | `300` | Stopped, and failed, after this |
+| `network` | boolean | `false` | Whether it needs the network |
+| `os` | array of OS names | every OS | The OSes this variant applies on |
+
+```toml
+[[setup]]
+os = ["windows"]
+interpreter = "powershell"
+path = "setup/setup.ps1"
+timeout = 120
+
+[[setup]]
+os = ["unix"]
+interpreter = "sh"
+path = "setup/setup.sh"
+network = true
+```
+
+Setup is code, and a [trust decision](security.md#execution-and-dependencies). A consumer that runs
+it:
+
+- runs the selected variant **once per overlay digest and OS**, after dependencies are installed and
+  before the overlay is first activated, and again only when the digest changes or its user asks;
+- runs it **outside the agent's sandbox**, as part of preparing the overlay, never from the agent's
+  session;
+- stops it after `timeout` and treats that as a failure; a consumer MAY lower or raise the timeout by
+  its own setting, and `0` (no limit) is a [weakening](security.md#weakenings), `no-timeout`;
+- denies it the network when `network` is `false`, or reports `network-not-enforced` when it cannot;
+  `network = true` is a weakening, `setup-network`;
+- does not activate the overlay when setup fails, and reports the failure with the exit status.
+
+Setup MUST be idempotent: running it twice leaves what running it once did.
+
+## What a step receives
+
+A setup variant and an env script run with:
+
+- the **working directory** set to the overlay root, which MAY be read-only;
+- the environment the consumer built for the overlay ([Environment](environment.md#order-of-application)),
+  plus:
+    - `AOS_OVERLAY_ROOT`: the absolute root, as the root variable;
+    - `AOS_OVERLAY_NAME`: the normalized identity;
+    - `AOS_OVERLAY_STATE`: an absolute, writable directory outside the root that belongs to this
+      overlay's digest. Setup writes what it produces here, never into the root, since a write in the
+      root changes the [tree digest](integrity.md).
+
+A consumer sets `<NAME>_OVERLAY_STATE` to the same directory for every process the overlay serves,
+so its tools find what setup produced.
+
+> **Status:** dotagents runs setup with the installed directory as working directory and keeps setup
+> output in the installed directory, excluded from its copy by the overlay's root `.gitignore`. It
+> sets `AGENTS_OVERLAY_DIR`, `AGENTS_HOME`, `AGENTS_SCOPE_ROOT` and `AGENTS_SCOPE`, not the `AOS_`
+> variables.

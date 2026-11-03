@@ -1,20 +1,58 @@
 # Agent Overlay Specification
 
-AOS is a draft format for packaging reusable instructions and capabilities for AI agents. It lets teams distribute focused overlays that can be combined with a user's existing setup.
+**A vendor-neutral format for agent overlays: directories of instructions, skills, tools and
+environment that any agent manager can read without running anything.** Teams keep their engineering
+guidance, skills and helpers in focused overlays, and each project or agent takes the ones it needs.
 
-An overlay is a directory of assets. `overlay.toml` is optional metadata. An overlay manager chooses how to install and compose packages for a particular agent product; the package does not require a particular runtime.
+An overlay is a directory. `overlay.cfg` is its optional manifest: TOML unless its first line names
+another format, and always static data. It declares what the overlay needs (environment variables,
+path additions, a runtime, a setup step) so a consumer can decide where it can run before running
+anything, and it can be pinned by one digest of the whole tree.
 
-## Why overlays?
+## Installation
 
-Complete agent configurations often repeat the same engineering guidance, skills, and workflows across projects. Overlays let teams keep those pieces separately reusable. A project can select the overlays it needs while leaving target-specific settings to the manager.
+Nothing to install. The format is this text, a
+[JSON Schema](schemas/overlay.schema.json) of the manifest's data model, and
+[conformance vectors](https://github.com/Boriken-Dev/agent-overlay-spec/tree/main/tests/vectors) any
+implementation can test against.
 
-## Start here
+## 30-second tour
 
-- [Quick start](getting-started.md)
-- [Author an overlay](authoring.md)
-- [Format reference](spec/v0/index.md)
-- [Implement AOS support](implementations.md)
-- [Compatibility and open decisions](compatibility.md)
-- [Security guidance](spec/v0/security.md)
+```text
+team-review/
+├── overlay.cfg
+├── kb/review.md
+├── bin/review-check.py
+└── skills/review/SKILL.md
+```
 
-The current specification is `0.1.0-draft`. It is not a final 1.0 standard. [dotagents](https://github.com/jose-pr/dotagents) is the reference implementation, not a required dependency.
+```toml
+name = "team-review"
+description = "Review conventions for shared services."
+requires = ["engineering"]
+routing = ["- Service reviews → `$TEAM_REVIEW_OVERLAY_ROOT/kb/review.md`"]
+skills = ["review"]
+
+[env]
+REVIEW_TOKEN = { provider = "env", key = "REVIEW_TOKEN", optional = true }
+
+[[paths]]
+variable = "PATH"
+path = "bin"
+```
+
+A consumer reads this without executing anything, sets `TEAM_REVIEW_OVERLAY_ROOT`, puts `bin/` first
+on `PATH`, takes the token from its own environment (and reports that it did), and offers the
+`review` skill.
+
+## Learn more
+
+- [Quick start](getting-started.md) and [authoring](authoring.md)
+- [Format reference](spec/v0/index.md): [manifest](spec/v0/manifest.md),
+  [environment](spec/v0/environment.md), [runtime and setup](spec/v0/runtime.md),
+  [integrity](spec/v0/integrity.md), [security](spec/v0/security.md)
+- [Implementations](implementations.md) and [compatibility with dotagents](compatibility.md)
+- [Changelog](changelog.md)
+
+The current edition is `0.1.0-draft`, not a 1.0 standard. [dotagents](https://github.com/jose-pr/dotagents)
+is the reference implementation, not a required dependency.
