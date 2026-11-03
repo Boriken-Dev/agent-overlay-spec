@@ -32,9 +32,12 @@
       "additionalProperties": { "$ref": "#/$defs/value" }
     },
     "relPath": {
-      "description": "A /-separated path under the overlay root: no empty, '.' or '..' component, no backslash, colon or control character, not absolute.",
+      "description": "A /-separated path under the overlay root, as the manifest section defines it: no empty component, none ending in '.' or a space, no character Windows refuses or Unicode ignores, no excluded or device name in any case, no '.pyc' entry, no '~' followed by a digit.",
       "type": "string",
-      "pattern": "^(?:[^/\\\\:.\\x00-\\x1f\\x7f][^/\\\\:\\x00-\\x1f\\x7f]*|\\.[^/\\\\:.\\x00-\\x1f\\x7f][^/\\\\:\\x00-\\x1f\\x7f]*|\\.\\.[^/\\\\:\\x00-\\x1f\\x7f]+)(?:/(?:[^/\\\\:.\\x00-\\x1f\\x7f][^/\\\\:\\x00-\\x1f\\x7f]*|\\.[^/\\\\:.\\x00-\\x1f\\x7f][^/\\\\:\\x00-\\x1f\\x7f]*|\\.\\.[^/\\\\:\\x00-\\x1f\\x7f]+))*$"
+      "allOf": [
+        { "pattern": "^[^/\\\\:*?\"<>|\\x00-\\x1f\\x7f-\\x9f\\u200c-\\u200f\\u202a-\\u202e\\u2066-\\u206f\\ufeff]*[^/\\\\:*?\"<>|\\x00-\\x1f\\x7f-\\x9f\\u200c-\\u200f\\u202a-\\u202e\\u2066-\\u206f\\ufeff. ](?:/[^/\\\\:*?\"<>|\\x00-\\x1f\\x7f-\\x9f\\u200c-\\u200f\\u202a-\\u202e\\u2066-\\u206f\\ufeff]*[^/\\\\:*?\"<>|\\x00-\\x1f\\x7f-\\x9f\\u200c-\\u200f\\u202a-\\u202e\\u2066-\\u206f\\ufeff. ])*$" },
+        { "not": { "pattern": "(?:^|/)(?:(?:\\.[Gg][Ii][Tt]|\\.[Hh][Gg]|\\.[Ss][Vv][Nn]|__[Pp][Yy][Cc][Aa][Cc][Hh][Ee]__|\\.[Mm][Yy][Pp][Yy]_[Cc][Aa][Cc][Hh][Ee]|\\.[Pp][Yy][Tt][Ee][Ss][Tt]_[Cc][Aa][Cc][Hh][Ee]|\\.[Rr][Uu][Ff][Ff]_[Cc][Aa][Cc][Hh][Ee]|\\.[Tt][Oo][Xx]|\\.[Vv][Ee][Nn][Vv]|[Nn][Oo][Dd][Ee]_[Mm][Oo][Dd][Uu][Ll][Ee][Ss])(?:/|$)|(?:[Cc][Oo][Nn]|[Pp][Rr][Nn]|[Aa][Uu][Xx]|[Nn][Uu][Ll]|[Cc][Oo][Nn][Ii][Nn]\\$|[Cc][Oo][Nn][Oo][Uu][Tt]\\$|(?:[Cc][Oo][Mm]|[Ll][Pp][Tt])[0-9¹²³])(?:\\.[^/]*)?(?:/|$)|[^/]*\\.[Pp][Yy][Cc](?:/|$))|~[0-9]" } }
+      ]
     },
     "overlayName": { "type": "string", "pattern": "^[A-Za-z](?:[A-Za-z0-9_.-]*[A-Za-z0-9])?$" },
     "toolName": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$" },
@@ -44,14 +47,21 @@
     "interpreter": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
     "harnessId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
     "digest": { "type": "string", "pattern": "^sha256:[0-9a-fA-F]{64}$" },
-    "timeout": { "type": "integer", "minimum": 0 },
+    "timeout": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+    "text": { "type": "string", "pattern": "^[^\\x00]*$" },
+    "variable": {
+      "allOf": [
+        { "$ref": "#/$defs/envName" },
+        { "not": { "pattern": "^(?:[Aa][Oo][Ss]_.*|.*_[Oo][Vv][Ee][Rr][Ll][Aa][Yy]_(?:[Rr][Oo][Oo][Tt]|[Ss][Tt][Aa][Tt][Ee]))$" } }
+      ]
+    },
     "envValue": {
       "oneOf": [
-        { "type": "string" },
+        { "$ref": "#/$defs/text" },
         {
           "type": "object",
           "required": ["value"],
-          "properties": { "value": { "type": "string" }, "if_unset": { "type": "boolean" } },
+          "properties": { "value": { "$ref": "#/$defs/text" }, "if_unset": { "type": "boolean" } },
           "additionalProperties": false
         },
         {
@@ -75,20 +85,30 @@
           "required": ["provider", "key"],
           "properties": {
             "provider": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
-            "key": { "type": "string", "minLength": 1 },
+            "key": { "type": "string", "minLength": 1, "pattern": "^[^\\x00]*$" },
             "if_unset": { "type": "boolean" },
             "optional": { "type": "boolean" },
             "value": false,
             "path": false,
             "secret": false
           },
+          "allOf": [
+            {
+              "if": { "properties": { "provider": { "const": "file" } } },
+              "then": { "properties": { "key": { "$ref": "#/$defs/relPath" } } }
+            },
+            {
+              "if": { "properties": { "provider": { "const": "env" } } },
+              "then": { "properties": { "key": { "$ref": "#/$defs/envName" } } }
+            }
+          ],
           "additionalProperties": { "type": ["string", "integer", "boolean"] }
         }
       ]
     },
     "envMap": {
       "type": "object",
-      "propertyNames": { "$ref": "#/$defs/envName" },
+      "propertyNames": { "$ref": "#/$defs/variable" },
       "additionalProperties": { "$ref": "#/$defs/envValue" }
     },
     "envFile": {
@@ -110,7 +130,7 @@
       "type": "object",
       "required": ["variable", "path"],
       "properties": {
-        "variable": { "$ref": "#/$defs/envName" },
+        "variable": { "$ref": "#/$defs/variable" },
         "path": { "$ref": "#/$defs/relPath" },
         "position": { "enum": ["prepend", "append"] },
         "os": { "$ref": "#/$defs/osList" }
@@ -123,7 +143,7 @@
       "properties": {
         "interpreter": { "$ref": "#/$defs/interpreter" },
         "path": { "$ref": "#/$defs/relPath" },
-        "args": { "type": "array", "items": { "type": "string" } },
+        "args": { "type": "array", "items": { "$ref": "#/$defs/text" } },
         "timeout": { "$ref": "#/$defs/timeout" },
         "os": { "$ref": "#/$defs/osList" }
       },
@@ -135,14 +155,14 @@
       "properties": {
         "interpreter": { "$ref": "#/$defs/interpreter" },
         "path": { "$ref": "#/$defs/relPath" },
-        "args": { "type": "array", "items": { "type": "string" } },
+        "args": { "type": "array", "items": { "$ref": "#/$defs/text" } },
         "timeout": { "$ref": "#/$defs/timeout" },
         "network": { "type": "boolean" },
         "os": { "$ref": "#/$defs/osList" }
       },
       "additionalProperties": false
     },
-    "version": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+){0,2}$" },
+    "version": { "type": "string", "pattern": "^[0-9]{1,9}(?:\\.[0-9]{1,9}){0,2}$" },
     "pythonVariant": {
       "type": "object",
       "properties": {
@@ -192,7 +212,10 @@
     },
     "scriptPath": {
       "type": "string",
-      "pattern": "^[A-Za-z0-9_+-][A-Za-z0-9._+-]*(?:/[A-Za-z0-9_+-][A-Za-z0-9._+-]*)*$"
+      "allOf": [
+        { "pattern": "^[A-Za-z0-9_+-][A-Za-z0-9._+-]*(?:/[A-Za-z0-9_+-][A-Za-z0-9._+-]*)*$" },
+        { "$ref": "#/$defs/relPath" }
+      ]
     },
     "scripts": {
       "type": "object",
@@ -239,12 +262,12 @@
       "properties": {
         "name": { "$ref": "#/$defs/toolName" },
         "transport": { "enum": ["stdio", "streamable-http"] },
-        "timeout": { "type": "number", "exclusiveMinimum": 0 },
-        "command": { "type": "string", "minLength": 1 },
-        "args": { "type": "array", "items": { "type": "string" } },
+        "timeout": { "type": "number", "minimum": 0.001, "maximum": 2147483647 },
+        "command": { "type": "string", "minLength": 1, "pattern": "^[^\\x00]*$" },
+        "args": { "type": "array", "items": { "$ref": "#/$defs/text" } },
         "env": { "$ref": "#/$defs/envMap" },
         "env_passthrough": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/envName" } },
-        "url": { "type": "string", "format": "uri", "pattern": "^https?://" },
+        "url": { "type": "string", "format": "uri", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://[^/?#@\\s]+(?:[/?][^#\\s]*)?$" },
         "headers_env": {
           "type": "object",
           "propertyNames": { "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$" },

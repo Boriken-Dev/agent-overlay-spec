@@ -124,6 +124,42 @@
       }
     },
     {
+      "id": "name-scalar-order",
+      "description": "Names compare by Unicode scalar value: U+FFFD before U+1F600, the reverse of UTF-16 code units.",
+      "overlays": {
+        "emoji": {
+          "name": "😀"
+        },
+        "replacement": {
+          "name": "�"
+        }
+      },
+      "requested": [
+        "emoji",
+        "replacement"
+      ],
+      "expect": {
+        "install_order": [
+          "emoji",
+          "replacement"
+        ],
+        "active": [
+          "replacement",
+          "emoji"
+        ],
+        "missing": [],
+        "root_variables": {
+          "replacement": "REPLACEMENT_OVERLAY_ROOT",
+          "emoji": "EMOJI_OVERLAY_ROOT"
+        },
+        "routing": [],
+        "rules": [],
+        "context": [],
+        "skills": {},
+        "skill_collisions": []
+      }
+    },
+    {
       "id": "requires-normalized",
       "description": "Requirements are normalized; each overlay is active once.",
       "overlays": {
@@ -269,14 +305,15 @@
     },
     {
       "id": "skills",
-      "description": "Declared skills, discovered skills, and a collision won by the overlay later in order.",
+      "description": "Declared skills, discovered skills, and collisions (names compare without ASCII case) won by the overlay later in order.",
       "overlays": {
         "base": {
           "priority": 100
         },
         "docs": {
           "skills": [
-            "search"
+            "search",
+            "Lint"
           ],
           "priority": 600
         },
@@ -296,7 +333,8 @@
           "skills/README.md"
         ],
         "docs": [
-          "skills/search/SKILL.md"
+          "skills/search/SKILL.md",
+          "skills/Lint/SKILL.md"
         ],
         "extra": [
           "skills/hidden/SKILL.md"
@@ -323,10 +361,11 @@
         "rules": [],
         "context": [],
         "skills": {
-          "lint": "base",
+          "Lint": "docs",
           "search": "docs"
         },
         "skill_collisions": [
+          "lint",
           "search"
         ]
       }

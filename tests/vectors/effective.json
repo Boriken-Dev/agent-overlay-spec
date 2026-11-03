@@ -1,5 +1,5 @@
 {
-  "description": "Applying one overlay. 'facts' describe the consumer: os, root, identity, pinned, base_env (the environment being built), host_env (its own), secrets (named), secret_files (the secrets directory), files (env file contents), providers, env_scripts_enabled, enforces_network. 'expect' gives the resulting environment, the selected setup and runtime variants, what a probe needs, and the weakenings as [id, subject]; or the refusal.",
+  "description": "Applying one overlay. 'facts' describe the consumer: os, root, identity, state (its state directory), pinned, grants (what this overlay may read, by provider: secret names, file keys, host variables), base_env (the environment being built), host_env (its own), secrets (named), secret_files (the secrets directory), files (env file contents), providers, env_scripts_enabled, enforces_network. 'expect' gives the resulting environment, the selected setup and runtime variants, what a probe needs, and the weakenings as [id, subject]; or the refusal.",
   "spec": "spec/v0/environment.md#order-of-application",
   "cases": [
     {
@@ -13,6 +13,7 @@
         "pinned": false
       },
       "expect": {
+        "ungranted": [],
         "supported": true,
         "env": {
           "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools"
@@ -101,9 +102,18 @@
         },
         "secrets": {
           "docs-release-key": "k3y"
+        },
+        "grants": {
+          "env": [
+            "DOCS_TOKEN"
+          ],
+          "secret": [
+            "docs-release-key"
+          ]
         }
       },
       "expect": {
+        "ungranted": [],
         "supported": true,
         "env": {
           "PATH": "/srv/ov/docs-tools/bin:/usr/bin:/bin",
@@ -130,6 +140,10 @@
           [
             "env-passthrough",
             "DOCS_TOKEN"
+          ],
+          [
+            "secret-read",
+            "secret:docs-release-key"
           ]
         ]
       }
@@ -198,9 +212,17 @@
         },
         "host_env": {
           "docs_token": "t0ken"
+        },
+        "grants": {
+          "env": [
+            "DOCS_TOKEN"
+          ]
         }
       },
       "expect": {
+        "ungranted": [
+          "secret:docs-release-key"
+        ],
         "supported": true,
         "env": {
           "Path": "C:\\ov\\docs-tools\\bin;C:\\Windows",
@@ -232,6 +254,123 @@
       }
     },
     {
+      "id": "ungranted",
+      "description": "Nothing granted: an optional reference stays unset and is listed; the host value is never read.",
+      "manifest": {
+        "env_files": [
+          "env/defaults.cfg",
+          {
+            "path": "env/windows.cfg",
+            "os": [
+              "windows"
+            ]
+          },
+          {
+            "path": "env/banner.env",
+            "format": "dotenv"
+          }
+        ],
+        "env": {
+          "TOOL_CONFIG": {
+            "path": "conf/tool.toml"
+          },
+          "SYSHTTP_PREFIX": {
+            "value": "AGENTS_",
+            "if_unset": true
+          },
+          "DOCS_TOKEN": {
+            "provider": "env",
+            "key": "DOCS_TOKEN",
+            "optional": true
+          },
+          "RELEASE_KEY": {
+            "secret": "docs-release-key",
+            "optional": true
+          },
+          "TOOL_MODE": "strict"
+        },
+        "paths": [
+          {
+            "variable": "PATH",
+            "path": "bin"
+          },
+          {
+            "variable": "PYTHONPATH",
+            "path": "lib",
+            "position": "append"
+          }
+        ]
+      },
+      "facts": {
+        "os": "linux",
+        "root": "/srv/ov/docs-tools",
+        "identity": "docs-tools",
+        "pinned": true,
+        "files": {
+          "env/defaults.cfg": "#!toml\nTOOL_MODE = \"read-only\"\nTOOL_CACHE = { value = \"off\", if_unset = true }\n",
+          "env/windows.cfg": "#!json\n{\"TOOL_SHELL\": \"pwsh\"}\n",
+          "env/banner.env": "TOOL_BANNER=\"Docs: read only\"\nexport TOOL_LOCALE=en\n"
+        },
+        "host_env": {
+          "DOCS_TOKEN": "t0ken"
+        },
+        "secrets": {
+          "docs-release-key": "k3y"
+        }
+      },
+      "expect": {
+        "ungranted": [
+          "env:DOCS_TOKEN",
+          "secret:docs-release-key"
+        ],
+        "supported": true,
+        "env": {
+          "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools",
+          "TOOL_MODE": "strict",
+          "TOOL_CACHE": "off",
+          "TOOL_BANNER": "Docs: read only",
+          "TOOL_LOCALE": "en",
+          "TOOL_CONFIG": "/srv/ov/docs-tools/conf/tool.toml",
+          "SYSHTTP_PREFIX": "AGENTS_",
+          "PATH": "/srv/ov/docs-tools/bin",
+          "PYTHONPATH": "/srv/ov/docs-tools/lib"
+        },
+        "env_scripts": [],
+        "setup": null,
+        "python": null,
+        "node": null,
+        "needs": {
+          "interpreters": [],
+          "commands": []
+        },
+        "weakenings": []
+      }
+    },
+    {
+      "id": "ungranted-required",
+      "description": "A required reference that is not granted cannot be resolved.",
+      "manifest": {
+        "env": {
+          "KEY": {
+            "secret": "deploy-key"
+          }
+        }
+      },
+      "facts": {
+        "os": "linux",
+        "root": "/srv/ov/docs-tools",
+        "identity": "docs-tools",
+        "pinned": true,
+        "secrets": {
+          "deploy-key": "k"
+        }
+      },
+      "expect": {
+        "error": "unresolved-reference",
+        "subject": "KEY"
+      }
+    },
+    {
       "id": "optional-unresolved",
       "description": "Optional references that cannot be resolved leave the variable unset.",
       "manifest": {
@@ -259,6 +398,11 @@
         "pinned": true
       },
       "expect": {
+        "ungranted": [
+          "env:ABSENT",
+          "secret:absent",
+          "vault:k"
+        ],
         "supported": true,
         "env": {
           "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools"
@@ -271,12 +415,7 @@
           "interpreters": [],
           "commands": []
         },
-        "weakenings": [
-          [
-            "env-passthrough",
-            "ABSENT"
-          ]
-        ]
+        "weakenings": []
       }
     },
     {
@@ -352,9 +491,17 @@
           "keys/a": "alpha\n",
           "keys/b": "beta\r\n\n",
           "c": "gamma"
+        },
+        "grants": {
+          "file": [
+            "keys/a",
+            "keys/b",
+            "c"
+          ]
         }
       },
       "expect": {
+        "ungranted": [],
         "supported": true,
         "env": {
           "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools",
@@ -370,7 +517,20 @@
           "interpreters": [],
           "commands": []
         },
-        "weakenings": []
+        "weakenings": [
+          [
+            "secret-read",
+            "file:c"
+          ],
+          [
+            "secret-read",
+            "file:keys/a"
+          ],
+          [
+            "secret-read",
+            "file:keys/b"
+          ]
+        ]
       }
     },
     {
@@ -439,6 +599,7 @@
         }
       },
       "expect": {
+        "ungranted": [],
         "supported": true,
         "env": {
           "A": "",
@@ -457,11 +618,13 @@
     },
     {
       "id": "sensitive",
-      "description": "Setting a sensitive variable through env is reported; a path addition is not.",
+      "description": "Setting a sensitive variable through env is reported; a path addition to PATH or PYTHONPATH is not.",
       "manifest": {
         "env": {
           "LD_PRELOAD": "/x.so",
           "https_proxy": "http://p",
+          "OPENAI_BASE_URL": "http://x",
+          "GIT_CONFIG_COUNT": "1",
           "SAFE": "1"
         },
         "paths": [
@@ -478,11 +641,14 @@
         "pinned": true
       },
       "expect": {
+        "ungranted": [],
         "supported": true,
         "env": {
           "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools",
           "LD_PRELOAD": "/x.so",
           "https_proxy": "http://p",
+          "OPENAI_BASE_URL": "http://x",
+          "GIT_CONFIG_COUNT": "1",
           "SAFE": "1",
           "PYTHONPATH": "/srv/ov/docs-tools/lib"
         },
@@ -497,13 +663,128 @@
         "weakenings": [
           [
             "env-sensitive",
+            "GIT_CONFIG_COUNT"
+          ],
+          [
+            "env-sensitive",
             "LD_PRELOAD"
+          ],
+          [
+            "env-sensitive",
+            "OPENAI_BASE_URL"
           ],
           [
             "env-sensitive",
             "https_proxy"
           ]
         ]
+      }
+    },
+    {
+      "id": "sensitive-path-addition",
+      "description": "A path addition to any other sensitive variable is reported.",
+      "manifest": {
+        "paths": [
+          {
+            "variable": "LD_LIBRARY_PATH",
+            "path": "lib"
+          },
+          {
+            "variable": "PSModulePath",
+            "path": "ps"
+          },
+          {
+            "variable": "MANPATH",
+            "path": "man"
+          }
+        ]
+      },
+      "facts": {
+        "os": "linux",
+        "root": "/srv/ov/docs-tools",
+        "identity": "docs-tools",
+        "pinned": true
+      },
+      "expect": {
+        "ungranted": [],
+        "supported": true,
+        "env": {
+          "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools",
+          "LD_LIBRARY_PATH": "/srv/ov/docs-tools/lib",
+          "PSModulePath": "/srv/ov/docs-tools/ps",
+          "MANPATH": "/srv/ov/docs-tools/man"
+        },
+        "env_scripts": [],
+        "setup": null,
+        "python": null,
+        "node": null,
+        "needs": {
+          "interpreters": [],
+          "commands": []
+        },
+        "weakenings": [
+          [
+            "env-sensitive",
+            "LD_LIBRARY_PATH"
+          ],
+          [
+            "env-sensitive",
+            "PSModulePath"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "env-file-reserved",
+      "description": "An env file cannot set a reserved variable.",
+      "manifest": {
+        "env_files": [
+          "env/a.cfg"
+        ]
+      },
+      "facts": {
+        "os": "linux",
+        "root": "/srv/ov/docs-tools",
+        "identity": "docs-tools",
+        "pinned": true,
+        "files": {
+          "env/a.cfg": "ENGINEERING_OVERLAY_ROOT = \"/tmp/fake\"\n"
+        }
+      },
+      "expect": {
+        "error": "invalid-env-file",
+        "subject": "env/a.cfg"
+      }
+    },
+    {
+      "id": "env-file-path-conflict",
+      "description": "An env file cannot set a variable the overlay's paths name.",
+      "manifest": {
+        "env_files": [
+          {
+            "path": "env/a.env",
+            "format": "dotenv"
+          }
+        ],
+        "paths": [
+          {
+            "variable": "PATH",
+            "path": "bin"
+          }
+        ]
+      },
+      "facts": {
+        "os": "linux",
+        "root": "/srv/ov/docs-tools",
+        "identity": "docs-tools",
+        "pinned": true,
+        "files": {
+          "env/a.env": "PATH=/tmp\n"
+        }
+      },
+      "expect": {
+        "error": "env-path-conflict",
+        "subject": "PATH"
       }
     },
     {
@@ -552,6 +833,7 @@
         }
       },
       "expect": {
+        "ungranted": [],
         "supported": true,
         "env": {
           "PATH": "/srv/ov/docs-tools/a:/srv/ov/docs-tools/b:/usr/bin:/srv/ov/docs-tools/z",
@@ -603,6 +885,7 @@
         "pinned": true
       },
       "expect": {
+        "ungranted": [],
         "supported": true,
         "env": {
           "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools"
@@ -654,6 +937,7 @@
         "enforces_network": false
       },
       "expect": {
+        "ungranted": [],
         "supported": true,
         "env": {
           "DOCS_TOOLS_OVERLAY_ROOT": "C:\\ov\\docs-tools"
@@ -683,6 +967,50 @@
       }
     },
     {
+      "id": "state-directory",
+      "description": "With a state directory, its variable is set beside the root's.",
+      "manifest": {
+        "setup": [
+          {
+            "interpreter": "sh",
+            "path": "s.sh"
+          }
+        ]
+      },
+      "facts": {
+        "os": "linux",
+        "root": "/srv/ov/docs-tools",
+        "identity": "docs-tools",
+        "pinned": true,
+        "state": "/var/lib/consumer/state/docs-tools"
+      },
+      "expect": {
+        "ungranted": [],
+        "supported": true,
+        "env": {
+          "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools",
+          "DOCS_TOOLS_OVERLAY_STATE": "/var/lib/consumer/state/docs-tools"
+        },
+        "env_scripts": [],
+        "setup": {
+          "interpreter": "sh",
+          "path": "s.sh",
+          "args": [],
+          "timeout": 300,
+          "network": false
+        },
+        "python": null,
+        "node": null,
+        "needs": {
+          "interpreters": [
+            "sh"
+          ],
+          "commands": []
+        },
+        "weakenings": []
+      }
+    },
+    {
       "id": "setup-none-for-os",
       "description": "No variant matches: no setup on this OS.",
       "manifest": {
@@ -703,6 +1031,7 @@
         "pinned": true
       },
       "expect": {
+        "ungranted": [],
         "supported": true,
         "env": {
           "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools"
@@ -780,6 +1109,7 @@
         "pinned": true
       },
       "expect": {
+        "ungranted": [],
         "supported": true,
         "env": {
           "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools"
@@ -830,6 +1160,7 @@
         "pinned": true
       },
       "expect": {
+        "ungranted": [],
         "supported": false,
         "env": {
           "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools"
@@ -863,6 +1194,7 @@
         "pinned": true
       },
       "expect": {
+        "ungranted": [],
         "supported": true,
         "env": {
           "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools"
@@ -912,6 +1244,7 @@
         "env_scripts_enabled": true
       },
       "expect": {
+        "ungranted": [],
         "supported": true,
         "env": {
           "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools"
@@ -958,7 +1291,7 @@
     },
     {
       "id": "mcp-passthrough",
-      "description": "MCP servers that read the host environment.",
+      "description": "MCP servers that read the host environment and secrets: granted ones are reported, the rest listed as not granted; plain http to a remote host is reported.",
       "manifest": {
         "mcp": {
           "servers": [
@@ -971,6 +1304,9 @@
                 "T": {
                   "provider": "env",
                   "key": "HOST_T"
+                },
+                "K": {
+                  "secret": "api-key"
                 }
               },
               "env_passthrough": [
@@ -984,6 +1320,16 @@
               "headers_env": {
                 "Authorization": "AUTH"
               }
+            },
+            {
+              "name": "plain",
+              "transport": "streamable-http",
+              "url": "http://h.example:8080/x"
+            },
+            {
+              "name": "local",
+              "transport": "streamable-http",
+              "url": "http://127.0.0.1:9000/x"
             }
           ]
         }
@@ -992,9 +1338,21 @@
         "os": "linux",
         "root": "/srv/ov/docs-tools",
         "identity": "docs-tools",
-        "pinned": true
+        "pinned": true,
+        "grants": {
+          "env": [
+            "HOST_T",
+            "HOME_DIR"
+          ],
+          "secret": [
+            "api-key"
+          ]
+        }
       },
       "expect": {
+        "ungranted": [
+          "env:AUTH"
+        ],
         "supported": true,
         "env": {
           "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools"
@@ -1010,15 +1368,19 @@
         "weakenings": [
           [
             "env-passthrough",
-            "AUTH"
-          ],
-          [
-            "env-passthrough",
             "HOME_DIR"
           ],
           [
             "env-passthrough",
             "HOST_T"
+          ],
+          [
+            "insecure-transport",
+            "plain"
+          ],
+          [
+            "secret-read",
+            "secret:api-key"
           ]
         ]
       }
@@ -1109,6 +1471,7 @@
         }
       },
       "expect": {
+        "ungranted": [],
         "supported": true,
         "env": {
           "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools",

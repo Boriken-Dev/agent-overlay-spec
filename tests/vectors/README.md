@@ -18,10 +18,11 @@ Error classes:
 
 - reading: `invalid-utf8`, `no-format-named`, `unsupported-format`, `parse-error`, `not-a-mapping`,
   `null-value`, `duplicate-key`, `non-string-key`, `datetime-value`, `non-finite-float`,
-  `integer-range`, `invalid-unicode`, `yaml-tag`, `yaml-anchor`, `yaml-merge-key`, `too-deep`,
-  `too-large`, `dotenv-syntax`;
-- digest: `symlink`, `special-file`, `non-utf8-name`, `backslash-name`;
-- applying: `unresolved-reference`, `invalid-reference`, `missing-file`, `invalid-env-file`;
+  `integer-range`, `invalid-unicode`, `yaml-tag`, `yaml-anchor`, `yaml-merge-key`,
+  `yaml-directive`, `too-deep`, `too-large`, `dotenv-syntax`;
+- digest: `symlink`, `special-file`, `non-utf8-name`, `invalid-name`, `case-collision`;
+- applying: `unresolved-reference`, `invalid-reference`, `missing-file`, `invalid-env-file`,
+  `env-path-conflict`;
 - resolving: `cycle`, `invalid-source`.
 
 `python -m pytest tests/test_vectors.py tests/test_digest.py` runs them through this repository's

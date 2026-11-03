@@ -26,9 +26,11 @@ A consumer delivers a skill the way its harness takes one: natively where the ha
 directories, or by a routing line naming the `SKILL.md`, since a skill is a file an agent can read.
 A [harness hint](harness.md#harness-hints) can turn native delivery off for one harness.
 
-Two active overlays with a skill of the same name collide. A consumer reports the collision, and the
-skill of the overlay later in [composition order](composition.md#deterministic-ordering) is the one
-delivered.
+Two active overlays with skills whose names are equal without regard to ASCII case collide, since
+a shared skills directory on Windows or macOS holds them as one. A consumer reports the collision; by
+default the skill of the overlay later in [composition order](composition.md#deterministic-ordering)
+is the one delivered, and a consumer SHOULD let its configuration refuse the collision or name the
+winner instead.
 
 > **Status:** dotagents publishes every `skills/<name>/` directory that holds a `SKILL.md` into a
 > shared skills directory (a symlink where it can, a copy otherwise), tracks which overlay published

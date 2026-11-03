@@ -30,26 +30,39 @@ server = "docs"
 `mcp` holds only `servers` and `skills`, both arrays of mappings. Server names are unique within one
 overlay, and so are skill names; each matches `[A-Za-z0-9][A-Za-z0-9_.-]*`.
 
-- Every server has `name` and `transport`, and optionally a positive, finite `timeout` in seconds
-  (default 60).
+- Every server has `name` and `transport`, and optionally a `timeout` in seconds, from 0.001 to
+  2147483647 (default 60).
 - `transport = "stdio"` requires a non-empty `command`. Optional: `args`, an array of strings;
   `env`, a mapping of variable name to [env value](environment.md#env); `env_passthrough`, unique
   variable names copied from the consumer's own environment when set.
-- `transport = "streamable-http"` requires an absolute `http` or `https` `url`, with no user
-  information and no fragment. Optional: `headers_env`, a mapping of HTTP header name to a variable
-  name whose value, from the consumer's own environment, is sent as that header.
+- `transport = "streamable-http"` requires an absolute `http` or `https` `url` (scheme in any case)
+  with a host, no user information and no fragment. Optional: `headers_env`, a mapping of HTTP
+  header name to a variable name whose value, from the consumer's own environment, is sent as that
+  header. Plain `http` to a host other than `localhost`, `127.0.0.0/8` or `[::1]` is the weakening
+  `insecure-transport`, and a consumer never sends a `headers_env` value over it unless its policy
+  says so.
 - `mcp.skills` entries hold exactly `name` and `server`. The server MUST be declared in the same
   overlay, and `skills/<name>/SKILL.md` MUST exist.
 
 **Proposed:** an `env` value may be any [env value](environment.md#env), including a path under the
 root and a secret reference; dotagents takes strings only. A stdio server starts with the overlay
 root as its working directory, so `args = ["server.js"]` names the overlay's file; dotagents starts
-it in the gateway's own working directory. A `command` without a separator is found on the `PATH`
-the overlay runs with, after its [path additions](environment.md#path-additions).
+it in the gateway's own working directory. A `command` without a separator is found on the base
+environment's `PATH` plus that overlay's own [path additions](environment.md#path-additions); a
+`command` with a separator is a [relative path](manifest.md#fields) under the root. On Windows a
+command that resolves to a batch file (`.cmd`, `.bat`) is refused, as for
+[interpreters](runtime.md#interpreters).
 
-`env_passthrough` and `headers_env` read the consumer's own environment: each is a
-[weakening](security.md#weakenings), `env-passthrough`. A literal `env` value is in the overlay for
+`env_passthrough` and `headers_env` read the consumer's own environment, and like an `env`
+provider reference they need a [grant](environment.md#secret-references): a variable not granted is
+not passed, and is listed as not granted. Each one passed is the
+[weakening](security.md#weakenings) `env-passthrough`. A literal `env` value is in the overlay for
 anyone to read, so a credential never goes there; a secret reference does.
+
+Starting a stdio server runs the overlay's code, so it is a
+[trust decision](security.md#execution-and-dependencies) like setup. A consumer says whether it runs
+servers inside the agent's sandbox or outside it, shows each server, its transport and the
+variables it reads before starting it, and gives it only that overlay's environment.
 
 ## Gateway behaviour
 

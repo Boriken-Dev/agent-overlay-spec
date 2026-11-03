@@ -17,9 +17,14 @@ source   = [ "git+" ] location [ "@" ref ] [ "#" path ]
 - `ref` exists only for a Git location: a branch, tag or commit, with no `/`, `:` or `\`. It is the
   part after the last `@`, when that `@` is not part of `git@host`, a URL's user information, or a
   scheme. Absent, the remote's default branch.
-- `path` is the part after the first `#`: the overlay's root inside the location, `/`-separated, with
-  leading and trailing `/` removed. Absent, the location's root is the overlay.
-- A Git location or ref starting with `-` is refused, since it would reach `git` as an option.
+- `path` is the part after the first `#`: the overlay's root inside the location, with leading and
+  trailing `/` removed; what remains is a [relative path](manifest.md#fields), or the source is
+  refused. Absent, the location's root is the overlay.
+- A Git location is a local path, an scp-like `user@host:path`, or a URL whose scheme is `https`,
+  `http`, `ssh`, `git` or `file`. A location holding `::` (Git's remote-helper syntax, which runs a
+  program) is refused, and so is a location, ref or host starting with `-`, since it would reach
+  `git` or `ssh` as an option. A consumer passes the location after `--`, and limits Git's
+  transports (`protocol.allow`) to the ones it accepts.
 
 | Source | Kind | Location | Ref | Path |
 | --- | --- | --- | --- | --- |
@@ -37,8 +42,8 @@ A **pinned source** pairs a source with a [pin](integrity.md#pins). For a reprod
 ref is a full commit id (40 or 64 hexadecimal digits) and the pin is the tree digest; a branch or a
 tag can move.
 
-A consumer that logs or stores a source removes any user information from it first
-(`https://user:secret@host/x.git` is shown as `https://host/x.git`).
+A consumer that logs or stores a source removes any user information and query string from it first
+(`https://user:secret@host/x.git?token=t` is shown as `https://host/x.git`).
 
 > **Status:** dotagents parses exactly this form (`<location>[@<ref>][#<path>]`) for repositories and
 > overlays. It also reads registries (a JSON, TOML or YAML mapping from name or alias to source,

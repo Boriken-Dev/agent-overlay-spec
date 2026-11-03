@@ -208,13 +208,58 @@
     },
     {
       "id": "source-21",
-      "source": "",
+      "source": "https://h.example/a.git#../../..",
       "expect": {
         "error": "invalid-source"
       }
     },
     {
       "id": "source-22",
+      "source": "git+ext::sh -c x",
+      "expect": {
+        "error": "invalid-source"
+      }
+    },
+    {
+      "id": "source-23",
+      "source": "ssh://-oProxyCommand=x/a.git",
+      "expect": {
+        "error": "invalid-source"
+      }
+    },
+    {
+      "id": "source-24",
+      "source": "git@-oProxyCommand=x:a.git",
+      "expect": {
+        "error": "invalid-source"
+      }
+    },
+    {
+      "id": "source-25",
+      "source": "ftp://h.example/a.git",
+      "expect": {
+        "error": "invalid-source"
+      }
+    },
+    {
+      "id": "source-26",
+      "source": "HTTPS://h.example/a.git@v1",
+      "expect": {
+        "kind": "git",
+        "location": "HTTPS://h.example/a.git",
+        "ref": "v1",
+        "path": null
+      }
+    },
+    {
+      "id": "source-27",
+      "source": "",
+      "expect": {
+        "error": "invalid-source"
+      }
+    },
+    {
+      "id": "source-28",
       "source": "   ",
       "expect": {
         "error": "invalid-source"

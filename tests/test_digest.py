@@ -45,27 +45,33 @@ def test_digest_vector(case_id):
 
 
 def materialize(case: dict, root) -> bool:
-    """Builds the case's tree under ``root``; False when this platform cannot hold it."""
+    """Builds the case's tree under ``root``; False when this platform cannot hold it as given."""
     for item in case["tree"]:
-        if "path_base64" in item or "\\" in item.get("path", ""):
+        if "path_base64" in item or "\\" in item["path"] or "\0" in item["path"]:
             return False
         path = root / item["path"]
-        path.parent.mkdir(parents=True, exist_ok=True)
         kind = item.get("type", "file")
-        if kind == "dir":
-            path.mkdir(parents=True, exist_ok=True)
-        elif kind == "symlink":
-            try:
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if kind == "dir":
+                path.mkdir(parents=True, exist_ok=True)
+            elif kind == "symlink":
                 os.symlink(item["target"], path, target_is_directory=item["path"] == "docs")
-            except (OSError, NotImplementedError):
+            elif kind == "special":
+                if not hasattr(os, "mkfifo"):
+                    return False
+                os.mkfifo(path)
+            else:
+                data = base64.b64decode(item["base64"]) if "base64" in item else item["text"]
+                path.write_bytes(data if isinstance(data, bytes) else data.encode())
+        except (OSError, NotImplementedError, ValueError):
+            return False
+        # Windows drops trailing dots and spaces and folds case: the name must be held exactly.
+        here = root
+        for part in item["path"].split("/"):
+            if part not in os.listdir(here):
                 return False
-        elif kind == "special":
-            if not hasattr(os, "mkfifo"):
-                return False
-            os.mkfifo(path)
-        else:
-            data = base64.b64decode(item["base64"]) if "base64" in item else item["text"].encode()
-            path.write_bytes(data)
+            here = here / part
     return True
 
 
@@ -75,8 +81,10 @@ def test_digest_vector_on_this_filesystem(case_id, tmp_path):
     if not materialize(case, tmp_path):
         pytest.skip("this platform cannot hold the tree")
     expect = case["expect"]
-    if case_id == "case-pair" and len(list(tmp_path.iterdir())) < 2:
-        pytest.skip("a case-insensitive filesystem holds one of the two names")
+    if len({p.as_posix() for p in tmp_path.rglob("*") if p.is_file()}) < sum(
+        1 for item in case["tree"] if item.get("type", "file") == "file"
+    ):
+        pytest.skip("a case-insensitive filesystem holds one name for two")
     if "error" in expect:
         with pytest.raises(aos.DigestError) as raised:
             aos.tree_digest(tmp_path)

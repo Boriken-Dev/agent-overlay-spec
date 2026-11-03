@@ -41,8 +41,11 @@ A script names its interpreter; nothing is inferred from its content or a `#!` l
 | `node` | Node.js | `node <script> <args>` |
 
 `<script>` is the absolute path of the script under the root, passed as one argument; arguments are
-passed as a list, never through a shell's parsing. A consumer MAY support further interpreters under
-names of its own. A consumer that meets an interpreter it does not support MUST refuse the overlay
+passed as a list, never through a shell's parsing, and none holds a zero byte. A consumer finds the
+interpreter on the base environment's `PATH`, never through an overlay's
+[path additions](environment.md#path-additions). On Windows it MUST NOT resolve an interpreter to a
+batch file (`.cmd`, `.bat`): `cmd.exe` would parse the arguments again. A consumer MAY support
+further interpreters under names of its own. A consumer that meets an interpreter it does not support MUST refuse the overlay
 on that OS with an error naming the interpreter, before running anything of it.
 
 An interpreter that a selected setup variant, env script or script names is a requirement, as if
@@ -55,7 +58,7 @@ An interpreter that a selected setup variant, env script or script names is a re
 | Key | Type | Meaning |
 | --- | --- | --- |
 | `os` | array of OS names | The OSes the overlay supports. On any other a consumer refuses it, naming the OS. |
-| `commands` | array of command names, or `{ name, os }` | Programs that must be found on the `PATH` the overlay runs with (after [path additions](environment.md#path-additions)). |
+| `commands` | array of command names, or `{ name, os }` | Programs that must be found on the base environment's `PATH`. A name has no path separator. |
 | `python` | array of variants | A Python the overlay's code runs under, and its dependencies |
 | `node` | array of variants | A Node.js the overlay's code runs under |
 
@@ -63,14 +66,23 @@ A `python` variant:
 
 | Key | Type | Meaning |
 | --- | --- | --- |
-| `version` | string, dotted numbers (`"3.9"`, `"3.11.4"`) | The minimum version, compared numerically, missing parts as `0` |
-| `requirements` | relative path | A pip requirements file, not locked. A [weakening](security.md#weakenings): `unlocked-dependencies`. |
-| `lock` | relative path | A pip requirements file in which every requirement is pinned with `==` and carries `--hash`; installed in hash-checking mode |
+| `version` | string, one to three dotted numbers of at most nine digits (`"3.9"`, `"3.11.4"`) | The minimum version, compared numerically, missing parts as `0` |
+| `requirements` | relative path | A requirements file, not locked. A [weakening](security.md#weakenings): `unlocked-dependencies`. |
+| `lock` | relative path | A locked requirements file, installed in hash-checking mode |
 | `lock_digest` | [digest](integrity.md#digest-form) | The SHA-256 of the lock file's bytes; a mismatch refuses the install |
 | `os` | array of OS names | The OSes this variant applies on |
 
 `requirements` and `lock` are exclusive. `lock_digest` needs `lock`. A `node` variant has `version`
 and `os`; installing Node.js dependencies is not defined in this edition.
+
+Both files hold only requirement lines and comments, never options: pip would otherwise follow
+`-r` and `-c` to other files or URLs, change the index (`--index-url`, `--extra-index-url`,
+`--find-links`, `--trusted-host`), or install editable and direct-URL packages. A line is
+`name[extras]<specifier>[; marker]`, continued with `\` at the end of a line, and in a lock file
+every requirement is pinned with `==` and carries at least one `--hash=sha256:<hex>`. A consumer
+refuses a file with any other line, and installs a lock with
+`--require-hashes --no-deps --only-binary=:all:` from an index its own configuration names, so no
+source distribution is built and no build dependency is fetched unhashed.
 
 ```toml
 [runtime]
@@ -97,9 +109,10 @@ needs:
   `scripts` entry that applies to the OS (a string path's interpreter follows from its extension);
 - `python` or `node`, at the selected variant's minimum version, when a variant applies.
 
-A target that lacks one is passed over, with the reason naming what is missing. Dependencies are installed outside the agent's sandbox, before the agent
-starts, into an environment that belongs to the overlay's [tree digest](integrity.md) (one per
-digest and OS), so an overlay's dependencies change only when its digest does.
+A target that lacks one is passed over, with the reason naming what is missing. Dependencies are
+installed outside the agent's sandbox, before the agent starts, into an environment that belongs to
+the overlay's identity, [tree digest](integrity.md) and OS, so they change only when the digest does.
+Inside the sandbox that environment is read-only.
 
 ## Setup
 
@@ -110,7 +123,7 @@ digest and OS), so an overlay's dependencies change only when its digest does.
 | `interpreter` | [interpreter name](#interpreters) | required | How it runs |
 | `path` | relative path | required | The script |
 | `args` | array of strings | `[]` | Arguments after the script |
-| `timeout` | integer seconds, `0` for no limit | `300` | Stopped, and failed, after this |
+| `timeout` | integer seconds, `0` for no limit, at most 2147483647 | `300` | Stopped, and failed, after this |
 | `network` | boolean | `false` | Whether it needs the network |
 | `os` | array of OS names | every OS | The OSes this variant applies on |
 
@@ -137,6 +150,8 @@ it:
   session;
 - stops it after `timeout` and treats that as a failure; a consumer MAY lower or raise the timeout by
   its own setting, and `0` (no limit) is a [weakening](security.md#weakenings), `no-timeout`;
+- runs it in its own process group (a job object on Windows) and, when it ends or is stopped, ends
+  every process it started, so nothing it launched outlives it; it bounds the output it keeps;
 - denies it the network when `network` is `false`, or reports `network-not-enforced` when it cannot;
   `network = true` is a weakening, `setup-network`;
 - does not activate the overlay when setup fails, and reports the failure with the exit status.
@@ -148,16 +163,17 @@ Setup MUST be idempotent: running it twice leaves what running it once did.
 A setup variant and an env script run with:
 
 - the **working directory** set to the overlay root, which MAY be read-only;
-- the environment the consumer built for the overlay ([Environment](environment.md#order-of-application)),
-  plus:
+- the environment of that overlay's own processes
+  ([Environment](environment.md#order-of-application)), plus:
     - `AOS_OVERLAY_ROOT`: the absolute root, as the root variable;
     - `AOS_OVERLAY_NAME`: the normalized identity;
     - `AOS_OVERLAY_STATE`: an absolute, writable directory outside the root that belongs to this
-      overlay's digest. Setup writes what it produces here, never into the root, since a write in the
-      root changes the [tree digest](integrity.md).
+      overlay's identity, digest and OS, and to no other overlay. Setup writes what it produces
+      here, never into the root, since a write in the root changes the [tree digest](integrity.md).
 
 A consumer sets `<NAME>_OVERLAY_STATE` to the same directory for every process the overlay serves,
-so its tools find what setup produced.
+so its tools find what setup produced. Inside the agent's sandbox the state directory is read-only:
+what setup and env scripts read there, outside the sandbox, an agent must not be able to plant.
 
 > **Status:** dotagents runs setup with the installed directory as working directory and keeps setup
 > output in the installed directory, excluded from its copy by the overlay's root `.gitignore`. It

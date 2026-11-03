@@ -23,6 +23,8 @@ except ModuleNotFoundError:  # Python < 3.11
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = json.loads((ROOT / "schemas" / "overlay.schema.json").read_text(encoding="utf-8"))
 VALIDATOR = Draft202012Validator(SCHEMA, format_checker=FormatChecker())
+_RELPATH = re.compile(SCHEMA["$defs"]["relPath"]["allOf"][0]["pattern"])
+_RELPATH_EXCLUDED = re.compile(SCHEMA["$defs"]["relPath"]["allOf"][1]["not"]["pattern"])
 
 #: Formats this reader supports, by every name a format line may use.
 FORMATS = {"toml": "toml", "json": "json", "yaml": "yaml", "yml": "yaml"}
@@ -82,6 +84,8 @@ def read_document(
         text = payload.decode("utf-8")
     except UnicodeDecodeError:
         raise ReadError("invalid-utf8")
+    if text.startswith("﻿"):
+        raise ReadError("parse-error", "a byte-order mark where the document starts")
     if not text.strip(" \t\r\n"):
         return {}
     kind = FORMATS[name]
@@ -152,6 +156,8 @@ def _yaml_scalar(event: "yaml.ScalarEvent") -> Any:
 
 def _read_yaml(text: str) -> Any:
     """One YAML document, built from parser events so no tag, anchor or merge key is applied."""
+    if any(c in text for c in "\x85  "):
+        raise ReadError("parse-error", "a Unicode line break YAML 1.1 and 1.2 read differently")
     try:
         events = list(yaml.parse(text, Loader=yaml.SafeLoader))
     except yaml.YAMLError as error:
@@ -189,6 +195,8 @@ def _read_yaml(text: str) -> Any:
         if getattr(event, "tag", None) is not None:
             raise ReadError("yaml-tag")
         if isinstance(event, yaml.DocumentStartEvent):
+            if event.version is not None or event.tags:
+                raise ReadError("yaml-directive")
             documents += 1
             if documents > 1:
                 raise ReadError("parse-error", "more than one document")
@@ -270,7 +278,7 @@ def read_dotenv(data: bytes) -> "dict[str, str]":
         name, value = match.group(1), match.group(2).strip(" \t")
         if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
             value = value[1:-1]
-        if name in out:
+        if name.upper() in (key.upper() for key in out):
             raise ReadError("duplicate-key", name)
         out[name] = value
     return out
@@ -300,6 +308,19 @@ def valid_overlay_name(name: str) -> bool:
 
 def normalize_name(name: str) -> str:
     return name.lower().replace("_", "-").replace(".", "-")
+
+
+_RESERVED_VARIABLE = re.compile(r"^(?:AOS_.*|.*_OVERLAY_(?:ROOT|STATE))$", re.IGNORECASE)
+
+
+def is_reserved_variable(name: str) -> bool:
+    """Variables a consumer sets and no overlay may: ``AOS_*`` and ``*_OVERLAY_ROOT/STATE``."""
+    return bool(_RESERVED_VARIABLE.match(name))
+
+
+def valid_relpath(path: str) -> bool:
+    """A relative path as the manifest defines it, excluded names and ``.pyc`` refused."""
+    return bool(_RELPATH.match(path)) and not _RELPATH_EXCLUDED.search(path)
 
 
 def validate(doc: "dict[str, Any]", files: "Optional[set[str]]" = None) -> "list[tuple[str, str]]":
@@ -348,6 +369,8 @@ def _semantic(doc: "dict[str, Any]") -> "list[tuple[str, str]]":
             folded = name.upper()
             if folded in env_names:
                 found.append(("env-name-case-duplicate", "/env/%s" % name))
+            if is_reserved_variable(name):
+                found.append(("reserved-variable", "/env/%s" % name))
             env_names.setdefault(folded, name)
     paths = doc.get("paths")
     if isinstance(paths, list):
@@ -355,6 +378,17 @@ def _semantic(doc: "dict[str, Any]") -> "list[tuple[str, str]]":
             if isinstance(entry, dict) and isinstance(entry.get("variable"), str):
                 if entry["variable"].upper() in env_names:
                     found.append(("env-path-conflict", "/paths/%d/variable" % index))
+                if is_reserved_variable(entry["variable"]):
+                    found.append(("reserved-variable", "/paths/%d/variable" % index))
+    mcp = doc.get("mcp")
+    if isinstance(mcp, dict) and isinstance(mcp.get("servers"), list):
+        for index, server in enumerate(mcp["servers"]):
+            if isinstance(server, dict) and isinstance(server.get("env"), dict):
+                for name in server["env"]:
+                    if is_reserved_variable(name):
+                        found.append(
+                            ("reserved-variable", "/mcp/servers/%d/env/%s" % (index, name))
+                        )
     found += _mcp(doc.get("mcp"))
     return found
 
@@ -372,6 +406,10 @@ def _mcp(mcp: Any) -> "list[tuple[str, str]]":
         if name in names:
             found.append(("mcp-duplicate-server", "/mcp/servers/%d/name" % index))
         names.add(name)
+        command = server.get("command")
+        if isinstance(command, str) and ("/" in command or "\\" in command):
+            if not valid_relpath(command):
+                found.append(("mcp-command", "/mcp/servers/%d/command" % index))
         url = server.get("url")
         if isinstance(url, str) and ("#" in url or "@" in url.split("://", 1)[-1].split("/", 1)[0]):
             found.append(("mcp-url", "/mcp/servers/%d/url" % index))
@@ -536,10 +574,16 @@ def digest_entries(
                 component.decode("utf-8")
             except UnicodeDecodeError:
                 raise DigestError("non-utf8-name", _shown(components))
-            if b"\\" in component:
-                raise DigestError("backslash-name", _shown(components))
         path = b"/".join(components)
+        if not valid_relpath(path.decode("utf-8")):
+            raise DigestError("invalid-name", _shown(components))
         lines.append(path + b"\0" + sha256_digest(data).encode("ascii") + b"\n")
+    folded: "dict[bytes, bytes]" = {}
+    for line in lines:
+        path = line.split(b"\0", 1)[0]
+        other = folded.setdefault(path.lower(), path)
+        if other != path:
+            raise DigestError("case-collision", path.decode("utf-8"))
     lines.sort(key=lambda line: line.split(b"\0", 1)[0])
     return sha256_digest(b"".join(lines)), lines
 
@@ -624,9 +668,22 @@ def parse_source(text: str) -> "dict[str, Optional[str]]":
         and (explicit_git or _is_git_location(head))
     ):
         location, ref = head, tail
+    if path is not None and not valid_relpath(path):
+        raise ValueError("path")
     if explicit_git or _is_git_location(location):
         if location.startswith("-") or (ref or "").startswith("-"):
             raise ValueError("option-like")
+        if "::" in location:
+            raise ValueError("git remote helper")
+        if "://" in location:
+            scheme, rest = location.split("://", 1)
+            if scheme.lower() not in ("https", "http", "ssh", "git", "file"):
+                raise ValueError("scheme")
+            host = rest.split("/", 1)[0].rsplit("@", 1)[-1]
+        else:
+            host = location.split(":", 1)[0].rsplit("@", 1)[-1] if "@" in location else ""
+        if host.startswith("-"):
+            raise ValueError("option-like host")
         return {"kind": "git", "location": location, "ref": ref, "path": path}
     kind = "url" if "://" in location else "directory"
     return {"kind": kind, "location": location, "ref": None, "path": path}
@@ -705,13 +762,31 @@ def skills_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[str]"
 # --------------------------------------------------------------------------------------------
 
 SENSITIVE_NAMES = frozenset(
-    """PATH PATHEXT HOME USERPROFILE SHELL COMSPEC BASH_ENV ENV ZDOTDIR PROMPT_COMMAND IFS
-    PYTHONPATH PYTHONHOME PYTHONSTARTUP NODE_OPTIONS NODE_PATH PERL5OPT PERL5LIB RUBYOPT RUBYLIB
-    CLASSPATH JAVA_TOOL_OPTIONS _JAVA_OPTIONS GIT_SSH_COMMAND GIT_EXEC_PATH GIT_CONFIG_GLOBAL
-    GIT_CONFIG_SYSTEM SSL_CERT_FILE SSL_CERT_DIR REQUESTS_CA_BUNDLE CURL_CA_BUNDLE
-    NODE_EXTRA_CA_CERTS HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY""".split()
+    """PATH PATHEXT HOME USERPROFILE SHELL COMSPEC SYSTEMROOT BASH_ENV ENV ZDOTDIR PROMPT_COMMAND
+    IFS EDITOR VISUAL PAGER LESSOPEN LESSCLOSE XDG_CONFIG_HOME XDG_DATA_HOME APPDATA LOCALAPPDATA
+    TMPDIR TEMP TMP PSMODULEPATH CLASSPATH JAVA_TOOL_OPTIONS _JAVA_OPTIONS JDK_JAVA_OPTIONS
+    PERL5OPT PERL5LIB RUBYOPT RUBYLIB RUSTFLAGS GOPROXY GONOSUMDB GONOSUMCHECK GOPRIVATE GOFLAGS
+    SSH_ASKPASS SSLKEYLOGFILE REQUESTS_CA_BUNDLE CURL_CA_BUNDLE""".split()
 )
-SENSITIVE_PREFIXES = ("LD_", "DYLD_")
+SENSITIVE_PREFIXES = (
+    "LD_",
+    "DYLD_",
+    "GIT_",
+    "PYTHON",
+    "NODE_",
+    "NPM_CONFIG_",
+    "PIP_",
+    "UV_",
+    "CARGO_",
+    "RUSTC_",
+    "DOTNET_",
+    "COR_",
+    "CORECLR_",
+    "SSL_",
+)
+SENSITIVE_SUFFIXES = ("_PROXY", "_BASE_URL")
+#: Path additions exist for these, so adding to them is not a weakening.
+PATH_VARIABLES = frozenset(("PATH", "PYTHONPATH"))
 UNIX_NAMES = frozenset(("macos", "linux", "freebsd", "openbsd", "netbsd"))
 SCRIPT_EXTENSIONS = {
     ".py": "python",
@@ -749,7 +824,11 @@ def first_variant(variants: "list[dict[str, Any]]", current: str) -> "Optional[d
 
 def is_sensitive(name: str) -> bool:
     upper = name.upper()
-    return upper in SENSITIVE_NAMES or upper.startswith(SENSITIVE_PREFIXES)
+    return (
+        upper in SENSITIVE_NAMES
+        or upper.startswith(SENSITIVE_PREFIXES)
+        or upper.endswith(SENSITIVE_SUFFIXES)
+    )
 
 
 class Environment:
@@ -784,8 +863,27 @@ def resolve_path(root: str, relative: str, windows: bool) -> str:
     return root.rstrip("/\\") + separator + relative.replace("/", separator)
 
 
+def reference_name(entry: "dict[str, Any]") -> str:
+    """How a report names a reference: never a value, never a provider's other fields."""
+    if "secret" in entry:
+        return "secret:" + entry["secret"]
+    return "%s:%s" % (entry["provider"], entry["key"])
+
+
+def granted(entry: "dict[str, Any]", facts: "dict[str, Any]") -> bool:
+    """Whether the consumer's configuration lets this overlay read this reference."""
+    grants = facts.get("grants", {})
+    if "secret" in entry:
+        return entry["secret"] in grants.get("secret", [])
+    return entry["key"] in grants.get(entry["provider"], [])
+
+
 def _secret(entry: "dict[str, Any]", facts: "dict[str, Any]", windows: bool) -> "Optional[str]":
-    """A secret reference's value, or None when it cannot be resolved."""
+    """A granted secret reference's value, or None when it cannot be resolved."""
+    if "provider" in entry and entry["provider"] == "file" and not valid_relpath(entry["key"]):
+        raise Refused("invalid-reference", entry["key"])
+    if not granted(entry, facts):
+        return None
     if "secret" in entry:
         return facts.get("secrets", {}).get(entry["secret"])
     provider = entry["provider"]
@@ -794,21 +892,15 @@ def _secret(entry: "dict[str, Any]", facts: "dict[str, Any]", windows: bool) -> 
     if provider == "env":
         return Environment(facts.get("host_env", {}), windows).get(entry["key"])
     if provider == "file":
-        key = entry["key"]
-        if not SCHEMA_RELPATH.match(key):
-            raise Refused("invalid-reference", key)
         files = facts.get("secret_files")
-        if files is None or key not in files:
+        if files is None or entry["key"] not in files:
             return None
-        value = files[key]
+        value = files[entry["key"]]
         for ending in ("\r\n", "\n"):
             if value.endswith(ending):
                 return value[: -len(ending)]
         return value
     return facts.get("provider_values", {}).get(provider, {}).get(entry["key"])
-
-
-SCHEMA_RELPATH = re.compile(SCHEMA["$defs"]["relPath"]["pattern"])
 
 
 def _apply_mapping(
@@ -821,6 +913,8 @@ def _apply_mapping(
     windows = env.windows
     before = env.copy()
     for name, entry in mapping.items():
+        if is_reserved_variable(name):
+            raise Refused("reserved-variable", name)
         if isinstance(entry, str):
             entry = {"value": entry}
         if entry.get("if_unset") and before.get(name) is not None:
@@ -830,19 +924,27 @@ def _apply_mapping(
         elif "path" in entry:
             value = resolve_path(root, entry["path"], windows)
         else:
-            if entry.get("provider") == "env":
-                weakenings.append(["env-passthrough", entry["key"]])
             value = _secret(entry, facts, windows)
             if value is None:
                 if entry.get("optional"):
                     continue
                 raise Refused("unresolved-reference", name)
+            if entry.get("provider") == "env":
+                weakenings.append(["env-passthrough", entry["key"]])
+            else:
+                weakenings.append(["secret-read", reference_name(entry)])
         if is_sensitive(name):
             weakenings.append(["env-sensitive", name])
         env.set(name, value)
 
 
-def _apply_paths(env: Environment, paths: "list[dict[str, Any]]", root: str, os_name: str) -> None:
+def _apply_paths(
+    env: Environment,
+    paths: "list[dict[str, Any]]",
+    root: str,
+    os_name: str,
+    weakenings: "list[list[str]]",
+) -> None:
     windows = env.windows
     separator = ";" if windows else ":"
     grouped: "dict[str, list[dict[str, Any]]]" = {}
@@ -854,6 +956,9 @@ def _apply_paths(env: Environment, paths: "list[dict[str, Any]]", root: str, os_
         names.setdefault(key, entry["variable"])
         grouped.setdefault(key, []).append(entry)
     for key, entries in grouped.items():
+        variable = names[key]
+        if is_sensitive(variable) and variable.upper() not in PATH_VARIABLES:
+            weakenings.append(["env-sensitive", variable])
         prepend: "list[str]" = []
         append: "list[str]" = []
         seen: "set[str]" = set()
@@ -863,9 +968,9 @@ def _apply_paths(env: Environment, paths: "list[dict[str, Any]]", root: str, os_
                 continue
             seen.add(resolved)
             (append if entry.get("position") == "append" else prepend).append(resolved)
-        current = env.get(names[key]) or ""
+        current = env.get(variable) or ""
         kept = [c for c in current.split(separator) if c and c not in seen]
-        env.set(names[key], separator.join(prepend + kept + append))
+        env.set(variable, separator.join(prepend + kept + append))
 
 
 def apply_overlay(
@@ -893,9 +998,13 @@ def apply_overlay(
             raise Refused("invalid-env-file", item["path"])
         if validate({"env": mapping}):
             raise Refused("invalid-env-file", item["path"])
+        listed = {entry["variable"].upper() for entry in manifest.get("paths", [])}
+        for name in mapping:
+            if name.upper() in listed:
+                raise Refused("env-path-conflict", name)
         _apply_mapping(env, mapping, facts, root, weakenings)
     _apply_mapping(env, manifest.get("env", {}), facts, root, weakenings)
-    _apply_paths(env, manifest.get("paths", []), root, os_name)
+    _apply_paths(env, manifest.get("paths", []), root, os_name, weakenings)
     scripts = []
     if facts.get("env_scripts_enabled", False):
         for script in manifest.get("env_scripts", []):
@@ -922,6 +1031,8 @@ def effective(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
     supported = "os" not in runtime or os_matches(runtime, os_name)
     env = Environment(facts.get("base_env", {}), windows)
     env.set(root_variable(facts["identity"]), root)
+    if "state" in facts:
+        env.set(root_variable(facts["identity"])[: -len("ROOT")] + "STATE", facts["state"])
     try:
         scripts = apply_overlay(env, manifest, facts, root, weakenings)
     except Refused as refused:
@@ -967,15 +1078,35 @@ def effective(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
             commands.append(command)
         elif os_matches(command, os_name):
             commands.append(command["name"])
+    ungranted: "set[str]" = set()
+    host_grants = facts.get("grants", {}).get("env", [])
     for server in manifest.get("mcp", {}).get("servers", []):
         for value in server.get("env", {}).values():
-            if isinstance(value, dict) and value.get("provider") == "env":
-                weakenings.append(["env-passthrough", value["key"]])
-        for name in server.get("env_passthrough", []):
-            weakenings.append(["env-passthrough", name])
-        for name in server.get("headers_env", {}).values():
-            weakenings.append(["env-passthrough", name])
+            if isinstance(value, dict) and ("provider" in value or "secret" in value):
+                if not granted(value, facts):
+                    ungranted.add(reference_name(value))
+                elif value.get("provider") == "env":
+                    weakenings.append(["env-passthrough", value["key"]])
+                else:
+                    weakenings.append(["secret-read", reference_name(value)])
+        for name in list(server.get("env_passthrough", [])) + list(
+            server.get("headers_env", {}).values()
+        ):
+            if name in host_grants:
+                weakenings.append(["env-passthrough", name])
+            else:
+                ungranted.add("env:" + name)
+        url = server.get("url", "")
+        if url[:7].lower() == "http://":
+            host = url[7:].split("/", 1)[0].split("?", 1)[0].rsplit(":", 1)[0].lower()
+            if host not in ("localhost", "[::1]") and not host.startswith("127."):
+                weakenings.append(["insecure-transport", server["name"]])
+    for name, entry in manifest.get("env", {}).items():
+        if isinstance(entry, dict) and ("provider" in entry or "secret" in entry):
+            if entry.get("optional") and not granted(entry, facts):
+                ungranted.add(reference_name(entry))
     return {
+        "ungranted": sorted(ungranted),
         "supported": supported,
         "env": env.values,
         "env_scripts": scripts,
@@ -1009,14 +1140,14 @@ def compose(
         "rules": [[i, path] for i in active for path in overlays[i].get("rules", [])],
         "context": [[i, path] for i in active for path in overlays[i].get("context", [])],
     }
-    skills: "dict[str, str]" = {}
+    winners: "dict[str, tuple[str, str]]" = {}
     collisions: "set[str]" = set()
     for identity in active:
         for name in skills_of(overlays[identity], files.get(identity, [])):
-            if name in skills:
-                collisions.add(name)
-            skills[name] = identity
-    result["skills"] = skills
+            if name.lower() in winners:
+                collisions.add(name.lower())
+            winners[name.lower()] = (name, identity)
+    result["skills"] = {name: identity for name, identity in winners.values()}
     result["skill_collisions"] = sorted(collisions)
     if facts is not None:
         env = Environment(facts.get("base_env", {}), facts["os"] == "windows")

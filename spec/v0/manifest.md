@@ -30,14 +30,16 @@ same steps apply to every other file AOS reads as a document, such as an
    `{` without a format line is TOML, and fails as TOML.
 5. **Parse** with the selected format's rules below, then check the result against the data model.
 
-The text is UTF-8. Invalid UTF-8 is an error in every format. A document whose remaining text is
-empty or only spaces, tabs and line breaks reads as the empty mapping, in every format.
+The text is UTF-8. Invalid UTF-8 is an error in every format. A byte-order mark where the parser's
+text starts (a second one, or one after the format line) is an error, since parsers disagree on it.
+A document whose remaining text is empty or only spaces, tabs and line breaks reads as the empty
+mapping, in every format.
 
 ### Formats
 
 | Name | Aliases | Class | Syntax |
 | --- | --- | --- | --- |
-| `toml` | | **Core**: every reader MUST read it | [TOML 1.0](https://toml.io/en/v1.0.0) |
+| `toml` | | **Core**: every reader MUST read it | [TOML 1.0](https://toml.io/en/v1.0.0) exactly: constructs a later TOML adds (a newline or trailing comma in an inline table, the `\e` and `\xHH` escapes) are refused |
 | `json` | | **Optional Extension** | [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259) |
 | `yaml` | `yml` | **Optional Extension** | [YAML 1.2](https://yaml.org/spec/1.2.2/), one document, core schema |
 
@@ -57,8 +59,10 @@ Whatever library a reader is built on, it reads the manifest this way:
   string are those characters. A field that gives a string meaning (a path relative to the root,
   a routing line) says so itself, and acts only when the declaration is applied.
 - **YAML:** only the core schema. A reader MUST refuse an explicit tag (`!include`, `!!python/...`,
-  `!!binary`, any `!...`), an anchor, an alias, and a mapping key `<<`. Plain scalars resolve by the
-  YAML 1.2 core schema, so `yes`, `on` and `2026-11-04` are strings.
+  `!!binary`, any `!...`), an anchor, an alias, a mapping key `<<`, a directive (`%YAML`, `%TAG`),
+  and the characters U+0085, U+2028 and U+2029 anywhere in the document, which YAML 1.1 and 1.2
+  parsers split differently. Plain scalars resolve by the YAML 1.2 core schema, so `yes`, `on` and
+  `2026-11-04` are strings.
 - **JSON:** a reader MUST refuse a duplicate key in one object, and the non-standard `NaN`,
   `Infinity` and comments.
 - Libraries that offer includes, relative imports, variable expansion or templating (some
@@ -87,7 +91,9 @@ A reader MUST refuse:
 - a string that is not valid Unicode (a lone surrogate escape in JSON).
 
 Two documents in different formats are the same manifest when their data model values are equal.
-Where a field takes an integer, a float of equal value is not accepted (`30.0` is not `30`).
+A number's type follows how it is written, never its size: a JSON integer outside the signed 64-bit
+range is refused, not read as a float. Where a field takes an integer, a float of equal value is not
+accepted (`30.0` is not `30`).
 Mapping order carries no meaning anywhere in AOS.
 
 A reader MUST bound what it reads: a size in bytes and a nesting depth. Both are settings with
@@ -134,9 +140,21 @@ manifest.
 | `mcp` | mapping | Optional Extension | absent | [MCP](mcp.md) |
 | `harness` | mapping of harness id to hints | Optional Extension, **Proposed** | `{}` | [Context and harnesses](harness.md#harness-hints) |
 
-A **relative path** is `/`-separated and relative to the overlay root: no empty component, no `.`
-or `..` component, no `\`, no `:`, no control character, and not absolute. A consumer resolves it
-under the root and MUST refuse a path that leaves the root after symbolic links are resolved.
+A **relative path** is `/`-separated and relative to the overlay root, and every component of it:
+
+- is not empty and does not end in `.` or a space (so `.` and `..` are excluded, and so are names
+  Windows silently shortens);
+- holds none of `\ : * ? " < > |`, no control character (U+0000–U+001F, U+007F–U+009F), and no
+  character that some filesystems ignore or that reorders text (U+200C–U+200F, U+202A–U+202E,
+  U+2066–U+206F, U+FEFF);
+- is not, in any ASCII case, an [excluded name](package.md#layout) or a Windows device name (`con`,
+  `prn`, `aux`, `nul`, `conin$`, `conout$`, `com` or `lpt` followed by a digit or `¹²³`) with or
+  without an extension, and does not end in `.pyc` in any case;
+- holds no `~` followed by a digit, the shape of a Windows short name.
+
+The schema's `relPath` expresses exactly this. A consumer resolves a relative path under the root
+and opens it so that it cannot leave the root through a symbolic link, a junction or `..` (for
+example `openat2` with `RESOLVE_BENEATH`, or a check of the opened handle's final path).
 
 ### Core fields in dotagents
 

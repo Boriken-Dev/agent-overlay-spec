@@ -625,6 +625,60 @@
       }
     },
     {
+      "id": "bom-after-line",
+      "description": "A byte-order mark where the parser's text starts is an error, after a format line too.",
+      "format": "aos",
+      "text": "#!json\n﻿{\"name\": \"x\"}\n",
+      "expect": {
+        "error": "parse-error"
+      }
+    },
+    {
+      "id": "yaml-directive",
+      "description": "A %YAML or %TAG directive is refused: it switches some parsers to YAML 1.1 rules.",
+      "format": "aos",
+      "text": "#!yaml\n%YAML 1.1\n---\na: yes\n",
+      "expect": {
+        "error": "yaml-directive"
+      }
+    },
+    {
+      "id": "yaml-unicode-line-break",
+      "description": "U+2028, U+2029 and U+0085 are refused in YAML: YAML 1.1 and 1.2 parsers split on them differently.",
+      "format": "aos",
+      "text": "#!yaml\na: one two\n",
+      "expect": {
+        "error": "parse-error"
+      }
+    },
+    {
+      "id": "toml-1-1-inline-newline",
+      "description": "TOML 1.0 exactly: a newline inside an inline table is refused.",
+      "format": "aos",
+      "text": "a = { b = 1,\n c = 2 }\n",
+      "expect": {
+        "error": "parse-error"
+      }
+    },
+    {
+      "id": "toml-1-1-escape",
+      "description": "TOML 1.0 exactly: the \\e escape is refused.",
+      "format": "aos",
+      "text": "a = \"\\e[0m\"\n",
+      "expect": {
+        "error": "parse-error"
+      }
+    },
+    {
+      "id": "json-u64",
+      "description": "The type follows the text: an integer too large for signed 64-bit is refused, never read as a float.",
+      "format": "aos",
+      "text": "#!json\n{\"x_extension\": 18446744073709551616}\n",
+      "expect": {
+        "error": "integer-range"
+      }
+    },
+    {
       "id": "depth-limit",
       "description": "Depth counts arrays and mappings; the root is 1.",
       "format": "aos",
@@ -722,6 +776,15 @@
       "description": "A name given twice.",
       "format": "dotenv",
       "text": "A=1\nA=2\n",
+      "expect": {
+        "error": "duplicate-key"
+      }
+    },
+    {
+      "id": "dotenv-case-duplicate",
+      "description": "Names that differ only in ASCII case are one variable on Windows.",
+      "format": "dotenv",
+      "text": "a=1\nA=2\n",
       "expect": {
         "error": "duplicate-key"
       }

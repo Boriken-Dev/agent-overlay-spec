@@ -30,9 +30,10 @@ old-check = false
 | `.js`, `.mjs`, `.cjs` | `node` |
 
 A path with another extension needs the mapping form. A command name matches
-`[A-Za-z0-9][A-Za-z0-9._-]*` and does not end in `.exe`. A script path uses only `A`–`Z`, `a`–`z`,
-`0`–`9`, `_`, `+`, `-` and `.`, so a launcher can embed it without quoting. Two active overlays that
-expose the same command name are an error the consumer reports before exposing either.
+`[A-Za-z0-9][A-Za-z0-9._-]*` and does not end in `.exe` in any case. A script path is a
+[relative path](manifest.md#fields) that uses only `A`–`Z`, `a`–`z`, `0`–`9`, `_`, `+`, `-` and
+`.`, so a launcher can embed it without quoting. Two active overlays that expose command names equal
+without regard to ASCII case are an error the consumer reports before exposing either.
 
 An implementation that exposes commands documents how a name is resolved, the arguments, working
 directory, environment, interpreter, permissions, timeout, output and collision policy. Python is

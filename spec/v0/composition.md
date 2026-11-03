@@ -15,9 +15,14 @@ flowchart LR
 
 **Core.** The active overlays are sorted ascending by the triple `(priority, name, identity)`, where
 `name` is the manifest `name`, or the identity when it is absent or empty, and strings compare by
-their Unicode code points. A consumer MUST use this order wherever overlays contribute in order:
-rules, routing, context, environment and skills. The overlay with the higher `priority` comes later,
-and so wins a conflict. `requires` does not change the order.
+their Unicode scalar values (equivalently, their UTF-8 bytes), never by UTF-16 code units. A
+consumer MUST use this order wherever overlays contribute in order: rules, routing, context,
+environment and skills. The overlay with the higher `priority` comes later, and so wins a conflict.
+`requires` does not change the order.
+
+`priority` is the author's suggestion. A consumer's configuration MAY set or cap the priority of an
+overlay it installs, so that an overlay from elsewhere cannot place itself above the ones its user
+trusts; the order then uses that value.
 
 `priority` orders contributions; it does not make a later file replace an earlier one.
 

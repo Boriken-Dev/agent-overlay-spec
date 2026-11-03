@@ -30,12 +30,19 @@ The tree digest of an overlay is computed from its root directory:
    an excluded entry or inside one:
     - a symbolic link, a junction or another reparse point, to anything;
     - anything that is not a regular file or a directory (a device, a pipe, a socket);
-    - a name that is not valid UTF-8, or that contains `\`.
+    - a name that is not valid UTF-8 (a sequence of Unicode scalar values);
+    - a member whose path is not a [relative path](manifest.md#fields): this refuses `.GIT`,
+      `.git.`, `Node_Modules`, `x.PYC`, `GIT~1`, device names, `:`, control characters (the zero
+      byte included) and the other names a platform would alias or alter;
+    - two members whose paths are equal after ASCII lowercasing, which a case-insensitive filesystem
+      holds as one file.
 3. **Paths.** Each member's path is its components from the root joined by `/`, as UTF-8 bytes of
    the names exactly as stored: no case folding, no Unicode normalization.
 4. **Lines.** For each member, the line is its path, a zero byte (`0x00`), the member's
    [digest](#digest-form) of its bytes (`sha256:` and lowercase hex), and a line feed (`0x0A`).
-5. **Order.** Lines are sorted by their path bytes, compared as unsigned bytes.
+5. **Order.** Lines are sorted by their path bytes, compared as unsigned bytes, which is the order of
+   Unicode scalar values. Languages whose strings compare by UTF-16 code units (Dart, Java,
+   JavaScript, C#) sort `😀` before `�`; they compare the UTF-8 bytes instead.
 6. **Digest.** The tree digest is the [digest](#digest-form) of the concatenated lines. A tree with no
    members has the digest of no bytes,
    `sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
@@ -60,11 +67,20 @@ A file checked out with line-ending conversion has other bytes, so another diges
 computes the digest over the bytes as published:
 
 - **Git:** the blob bytes at the commit, as `git cat-file blob <commit>:<path>` prints them, with no
-  checkout filter, `text`/`eol` conversion or `export-subst` applied. A tree entry that is a symbolic
-  link (mode `120000`) or a submodule (mode `160000`) is a refusal, as on a filesystem.
+  checkout filter, `text`/`eol` conversion, `working-tree-encoding`, `ident` or `export-subst`
+  applied. A tree entry that is a symbolic link (mode `120000`) or a submodule (mode `160000`) is a
+  refusal, as on a filesystem. With a `#path`, only that subtree is the overlay.
 - **A directory:** its files as they are.
-- **An archive:** its entries' bytes; an archive entry that is a link, or whose path leaves the root,
-  is a refusal.
+- **An archive:** its entries' bytes. An entry that is a link of any kind (hard links included), an
+  entry named twice, and a name that normalizes to another (`a/../b`, `./a`, a trailing `/` on a
+  file) are refusals; where a format holds a name twice (a zip's local and central headers, a tar's
+  ustar and PAX names) the two must agree.
+
+**The copy a consumer uses is the copy it hashed.** A consumer writes each member, from the bytes it
+hashed, into a fresh directory it owns, and nothing else: no checkout filter, no excluded entry, no
+file outside the `#path` subtree. When it verifies an installed copy again, an entry that is not a
+member (an excluded name included) counts as a mismatch. The copy is read-only to the agent and to
+the overlay's own processes.
 
 An overlay author keeps a repository's `.gitattributes` at `* text=auto eol=lf` so that a checkout
 and the blobs hold the same bytes on every platform.
@@ -90,7 +106,10 @@ A consumer that enforces pins:
   not offer to continue;
 - keeps every copy it verified unchanged: setup and tools write into the
   [state directory](runtime.md#what-a-step-receives), and a consumer that cannot keep the copy
-  read-only verifies it before each use.
+  read-only verifies it before each use;
+- opens the files it uses so that they cannot leave the copy (see
+  [relative paths](manifest.md#fields)), since a file can change between being hashed and being
+  read only where something can write the copy.
 
 An overlay installed without a pin is a [weakening](security.md#weakenings), `unpinned`, that the
 consumer reports every time it activates the overlay. A pin cannot be overridden: to accept other

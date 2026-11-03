@@ -69,8 +69,12 @@
         "rules": [
           ".hidden/a.md",
           "a/..b/c.md",
-          "...",
-          "a b/c d.md"
+          "...x",
+          "a b/c d.md",
+          ".github/a.md",
+          "console/a.md",
+          "com10/a.md",
+          "x.pyco"
         ]
       },
       "expect": {
@@ -1414,6 +1418,416 @@
       "expect": {
         "valid": false,
         "at": "/requires"
+      }
+    },
+    {
+      "id": "relative-excluded",
+      "description": "A path into an excluded directory.",
+      "document": {
+        "rules": [
+          "node_modules/x.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "relative-excluded-case",
+      "description": "An excluded name in another case.",
+      "document": {
+        "context": [
+          ".GIT/x.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/context/0"
+      }
+    },
+    {
+      "id": "relative-pyc",
+      "description": "A .pyc entry, in any case.",
+      "document": {
+        "scripts": {
+          "x": {
+            "path": "bin/x.PYC",
+            "interpreter": "python"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/scripts/x"
+      }
+    },
+    {
+      "id": "relative-device",
+      "description": "A Windows device name.",
+      "document": {
+        "rules": [
+          "kb/aux.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "relative-trailing-dot",
+      "description": "A component ending in a dot.",
+      "document": {
+        "rules": [
+          "kb./a.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "relative-trailing-space",
+      "description": "A component ending in a space.",
+      "document": {
+        "rules": [
+          "kb /a.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "relative-short-name",
+      "description": "An 8.3 short name.",
+      "document": {
+        "rules": [
+          "KB~1/a.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "relative-question",
+      "description": "A character Windows refuses.",
+      "document": {
+        "rules": [
+          "kb/a?.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "relative-c1",
+      "description": "A C1 control character.",
+      "document": {
+        "rules": [
+          "kb/a.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "relative-bidi",
+      "description": "A bidirectional override.",
+      "document": {
+        "rules": [
+          "kb/a‮.md"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/rules/0"
+      }
+    },
+    {
+      "id": "reserved-root-variable",
+      "description": "An overlay cannot set another overlay's root variable.",
+      "document": {
+        "env": {
+          "ENGINEERING_OVERLAY_ROOT": {
+            "path": "fake"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/ENGINEERING_OVERLAY_ROOT"
+      }
+    },
+    {
+      "id": "reserved-state-variable",
+      "description": "Nor a state variable, in any case.",
+      "document": {
+        "env": {
+          "x_overlay_state": "y"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/x_overlay_state"
+      }
+    },
+    {
+      "id": "reserved-aos-variable",
+      "description": "Nor an AOS_ variable.",
+      "document": {
+        "env": {
+          "AOS_OVERLAY_ROOT": "y"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/AOS_OVERLAY_ROOT"
+      }
+    },
+    {
+      "id": "reserved-paths-variable",
+      "description": "Nor through a path addition.",
+      "document": {
+        "paths": [
+          {
+            "variable": "TEAM_OVERLAY_ROOT",
+            "path": "bin"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/paths/0/variable"
+      }
+    },
+    {
+      "id": "reserved-mcp-variable",
+      "description": "Nor in an MCP server's environment.",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "s",
+              "transport": "stdio",
+              "command": "x",
+              "env": {
+                "AOS_OVERLAY_STATE": "y"
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/mcp/servers/0/env"
+      }
+    },
+    {
+      "id": "file-key-escape",
+      "description": "A file provider's key is a relative path.",
+      "document": {
+        "env": {
+          "A": {
+            "provider": "file",
+            "key": "../id_ed25519"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/A"
+      }
+    },
+    {
+      "id": "env-key-name",
+      "description": "An env provider's key is a variable name.",
+      "document": {
+        "env": {
+          "A": {
+            "provider": "env",
+            "key": "A=B"
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/A"
+      }
+    },
+    {
+      "id": "env-value-nul",
+      "description": "A zero byte in a value.",
+      "document": {
+        "env": {
+          "A": "x\u0000y"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/env/A"
+      }
+    },
+    {
+      "id": "args-nul",
+      "description": "A zero byte in an argument.",
+      "document": {
+        "setup": [
+          {
+            "interpreter": "sh",
+            "path": "s.sh",
+            "args": [
+              "a\u0000b"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/setup/0/args/0"
+      }
+    },
+    {
+      "id": "timeout-too-large",
+      "description": "A timeout past the signed 32-bit range.",
+      "document": {
+        "setup": [
+          {
+            "interpreter": "sh",
+            "path": "s.sh",
+            "timeout": 2147483648
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/setup/0/timeout"
+      }
+    },
+    {
+      "id": "mcp-timeout-tiny",
+      "description": "An MCP timeout below a millisecond.",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "s",
+              "transport": "stdio",
+              "command": "x",
+              "timeout": 1e-300
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/mcp/servers/0/timeout"
+      }
+    },
+    {
+      "id": "version-too-long",
+      "description": "A version component of more than nine digits.",
+      "document": {
+        "runtime": {
+          "python": [
+            {
+              "version": "3.9999999999"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/runtime/python/0/version"
+      }
+    },
+    {
+      "id": "mcp-url-userinfo",
+      "description": "A URL with user information, checked without a format checker.",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "r",
+              "transport": "streamable-http",
+              "url": "https://u:p@h.example/x"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/mcp/servers/0/url"
+      }
+    },
+    {
+      "id": "mcp-command-absolute",
+      "description": "A command with a separator is a relative path under the root.",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "s",
+              "transport": "stdio",
+              "command": "/bin/sh",
+              "args": [
+                "-c",
+                "x"
+              ]
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/mcp/servers/0/command"
+      }
+    },
+    {
+      "id": "mcp-command-escape",
+      "description": "A command cannot leave the root.",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "s",
+              "transport": "stdio",
+              "command": "../tools/x"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/mcp/servers/0/command"
+      }
+    },
+    {
+      "id": "mcp-url-no-host",
+      "description": "A URL with no host.",
+      "document": {
+        "mcp": {
+          "servers": [
+            {
+              "name": "r",
+              "transport": "streamable-http",
+              "url": "http:///x"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/mcp/servers/0/url"
       }
     }
   ]

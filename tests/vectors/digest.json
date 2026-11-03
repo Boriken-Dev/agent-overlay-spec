@@ -209,7 +209,7 @@
     },
     {
       "id": "not-excluded",
-      "description": "Dot-files and near-miss names are members: .github, .gitignore, .GIT, x.pyco, x.PYC.",
+      "description": "Dot-files and names near an excluded one are members: .github, .gitignore, x.pyco.",
       "tree": [
         {
           "path": "overlay.cfg",
@@ -228,28 +228,251 @@
           "text": "* text=auto eol=lf\n"
         },
         {
-          "path": ".GIT/config",
-          "text": "x\n"
-        },
-        {
           "path": "lib/x.pyco",
           "text": "x\n"
-        },
+        }
+      ],
+      "expect": {
+        "digest": "sha256:ab9075079508cddfb5d895b320926336ca4a08d5cbb442caaeb9e4008e6f5ec1",
+        "lines": [
+          ".gitattributes\u0000sha256:d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c\n",
+          ".github/workflows/ci.yml\u0000sha256:b602f7ad4316adfd9f3e5ca998773702a5db1a1f1599a14516f40101665fb6d2\n",
+          ".gitignore\u0000sha256:318d9a16533732a69cda7bb7b174ee392fdd15be3d72a114cd8f2d51f3eab510\n",
+          "lib/x.pyco\u0000sha256:73cb3858a687a8494ca3323053016282f3dad39d42cf62ca4e79dda2aac7d9ac\n",
+          "overlay.cfg\u0000sha256:3eb10e9d710d38dc9fe5566f14f7d2cb97ca68a5c6c6b00150b73c69064410cc\n"
+        ]
+      }
+    },
+    {
+      "id": "alias-git-case",
+      "description": "An excluded name in another case is refused: on a case-insensitive filesystem it opens .git.",
+      "tree": [
+        {
+          "path": ".GIT/config",
+          "text": "x\n"
+        }
+      ],
+      "expect": {
+        "error": "invalid-name"
+      }
+    },
+    {
+      "id": "alias-pyc-case",
+      "description": "A .pyc entry in another case is refused.",
+      "tree": [
         {
           "path": "lib/x.PYC",
           "text": "x\n"
         }
       ],
       "expect": {
-        "digest": "sha256:583cad5be4a3b6d823914989720f72a83ffec8a019f993b24d54ccf48dde43ac",
+        "error": "invalid-name"
+      }
+    },
+    {
+      "id": "alias-node-modules-case",
+      "description": "Node_Modules is node_modules on Windows and macOS.",
+      "tree": [
+        {
+          "path": "Node_Modules/x.js",
+          "text": "x\n"
+        }
+      ],
+      "expect": {
+        "error": "invalid-name"
+      }
+    },
+    {
+      "id": "alias-trailing-dot",
+      "description": "Windows drops a trailing dot: .git. is .git.",
+      "tree": [
+        {
+          "path": ".git./config",
+          "text": "x\n"
+        }
+      ],
+      "expect": {
+        "error": "invalid-name"
+      }
+    },
+    {
+      "id": "alias-trailing-space",
+      "description": "Windows drops a trailing space.",
+      "tree": [
+        {
+          "path": "kb/a.md ",
+          "text": "x\n"
+        }
+      ],
+      "expect": {
+        "error": "invalid-name"
+      }
+    },
+    {
+      "id": "alias-short-name",
+      "description": "An 8.3 short name such as GIT~1.",
+      "tree": [
+        {
+          "path": "GIT~1/config",
+          "text": "x\n"
+        }
+      ],
+      "expect": {
+        "error": "invalid-name"
+      }
+    },
+    {
+      "id": "device-name",
+      "description": "A Windows device name, with or without an extension.",
+      "tree": [
+        {
+          "path": "kb/con.md",
+          "text": "x\n"
+        }
+      ],
+      "expect": {
+        "error": "invalid-name"
+      }
+    },
+    {
+      "id": "device-name-superscript",
+      "description": "COM and LPT with a superscript digit are devices too.",
+      "tree": [
+        {
+          "path": "lpt¹/a",
+          "text": "x\n"
+        }
+      ],
+      "expect": {
+        "error": "invalid-name"
+      }
+    },
+    {
+      "id": "colon-name",
+      "description": "A colon names an alternate data stream on NTFS.",
+      "tree": [
+        {
+          "path": "kb/a.md:stream",
+          "text": "x\n"
+        }
+      ],
+      "expect": {
+        "error": "invalid-name"
+      }
+    },
+    {
+      "id": "windows-reserved-character",
+      "description": "Characters Windows refuses in names.",
+      "tree": [
+        {
+          "path": "kb/a?.md",
+          "text": "x\n"
+        }
+      ],
+      "expect": {
+        "error": "invalid-name"
+      }
+    },
+    {
+      "id": "control-name",
+      "description": "A control character in a name.",
+      "tree": [
+        {
+          "path": "kb/a\u0001.md",
+          "text": "x\n"
+        }
+      ],
+      "expect": {
+        "error": "invalid-name"
+      }
+    },
+    {
+      "id": "c1-control-name",
+      "description": "A C1 control character (U+0085) in a name.",
+      "tree": [
+        {
+          "path": "kb/a.md",
+          "text": "x\n"
+        }
+      ],
+      "expect": {
+        "error": "invalid-name"
+      }
+    },
+    {
+      "id": "nul-name",
+      "description": "A zero byte in a name, which only an archive can carry.",
+      "tree": [
+        {
+          "path": "a\u0000sha256:x",
+          "text": "x\n"
+        }
+      ],
+      "expect": {
+        "error": "invalid-name"
+      }
+    },
+    {
+      "id": "bidi-name",
+      "description": "A bidirectional override (U+202E) in a name.",
+      "tree": [
+        {
+          "path": "kb/txt.‮exe.md",
+          "text": "x\n"
+        }
+      ],
+      "expect": {
+        "error": "invalid-name"
+      }
+    },
+    {
+      "id": "ignorable-name",
+      "description": "A code point HFS+ ignores (U+200D) in a name.",
+      "tree": [
+        {
+          "path": ".g‍it/config",
+          "text": "x\n"
+        }
+      ],
+      "expect": {
+        "error": "invalid-name"
+      }
+    },
+    {
+      "id": "case-collision",
+      "description": "Two members equal under ASCII case folding are refused: one file on a case-insensitive filesystem.",
+      "tree": [
+        {
+          "path": "README.md",
+          "text": "a\n"
+        },
+        {
+          "path": "readme.md",
+          "text": "b\n"
+        }
+      ],
+      "expect": {
+        "error": "case-collision"
+      }
+    },
+    {
+      "id": "scalar-order",
+      "description": "Paths sort by Unicode scalar values (UTF-8 bytes): U+FFFD before U+1F600, the reverse of UTF-16 code units.",
+      "tree": [
+        {
+          "path": "😀.md",
+          "text": "1\n"
+        },
+        {
+          "path": "�.md",
+          "text": "2\n"
+        }
+      ],
+      "expect": {
+        "digest": "sha256:b14d90e17f756443d1e44a29fc6ed1b7d7e9be957371f634c2900ddeaecd7642",
         "lines": [
-          ".GIT/config\u0000sha256:73cb3858a687a8494ca3323053016282f3dad39d42cf62ca4e79dda2aac7d9ac\n",
-          ".gitattributes\u0000sha256:d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c\n",
-          ".github/workflows/ci.yml\u0000sha256:b602f7ad4316adfd9f3e5ca998773702a5db1a1f1599a14516f40101665fb6d2\n",
-          ".gitignore\u0000sha256:318d9a16533732a69cda7bb7b174ee392fdd15be3d72a114cd8f2d51f3eab510\n",
-          "lib/x.PYC\u0000sha256:73cb3858a687a8494ca3323053016282f3dad39d42cf62ca4e79dda2aac7d9ac\n",
-          "lib/x.pyco\u0000sha256:73cb3858a687a8494ca3323053016282f3dad39d42cf62ca4e79dda2aac7d9ac\n",
-          "overlay.cfg\u0000sha256:3eb10e9d710d38dc9fe5566f14f7d2cb97ca68a5c6c6b00150b73c69064410cc\n"
+          "�.md\u0000sha256:53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3\n",
+          "😀.md\u0000sha256:4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865\n"
         ]
       }
     },
@@ -306,27 +529,6 @@
         "digest": "sha256:c12c50cf5cae985d727fffd063df8004a5ce1b06072d4d6605269207638ff7ab",
         "lines": [
           "kb/café.md\u0000sha256:73cb3858a687a8494ca3323053016282f3dad39d42cf62ca4e79dda2aac7d9ac\n"
-        ]
-      }
-    },
-    {
-      "id": "case-pair",
-      "description": "Two names that differ by case are two members; a consumer SHOULD refuse such a tree, but its digest is defined.",
-      "tree": [
-        {
-          "path": "README.md",
-          "text": "a\n"
-        },
-        {
-          "path": "readme.md",
-          "text": "b\n"
-        }
-      ],
-      "expect": {
-        "digest": "sha256:d36b8492124264e138c19ad382e6f6b0a16a9b467f712ad2accb5df3c3303b56",
-        "lines": [
-          "README.md\u0000sha256:87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7\n",
-          "readme.md\u0000sha256:0263829989b6fd954f72baaf2fc64bc2e2f01d692d4de72986ea808f6e99813f\n"
         ]
       }
     },
@@ -432,7 +634,7 @@
         }
       ],
       "expect": {
-        "error": "backslash-name"
+        "error": "invalid-name"
       }
     }
   ]
