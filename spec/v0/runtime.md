@@ -88,9 +88,16 @@ version = "3.9"
 lock = "locks/posix.txt"
 ```
 
-A consumer **probes** a target before it places an overlay there: the OS, each command, each
-interpreter, and each runtime's version. A target that lacks one is passed over, with the reason
-naming what is missing. Dependencies are installed outside the agent's sandbox, before the agent
+A consumer **probes** a target before it places an overlay there. On that target's OS the overlay
+needs:
+
+- an OS in `runtime.os`, when it is given;
+- each command in `runtime.commands` that applies to the OS;
+- each interpreter named by the selected setup variant, by an env script that will run, and by a
+  `scripts` entry that applies to the OS (a string path's interpreter follows from its extension);
+- `python` or `node`, at the selected variant's minimum version, when a variant applies.
+
+A target that lacks one is passed over, with the reason naming what is missing. Dependencies are installed outside the agent's sandbox, before the agent
 starts, into an environment that belongs to the overlay's [tree digest](integrity.md) (one per
 digest and OS), so an overlay's dependencies change only when its digest does.
 

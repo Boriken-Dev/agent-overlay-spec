@@ -38,7 +38,8 @@ expanded when the manifest is read.
 
 A mapping from variable name to **env value**. A variable name matches `[A-Za-z_][A-Za-z0-9_]*`.
 Two names in one overlay that differ only in ASCII case are an error, since Windows treats them as
-one variable.
+one variable. On Windows a consumer compares every variable name without regard to ASCII case, and
+setting a variable that exists under another case keeps the existing name.
 
 An env value is a string, or a mapping with exactly one **source key**:
 
@@ -84,7 +85,7 @@ Two providers are defined:
 | Provider | `key` | Value |
 | --- | --- | --- |
 | `env` | a variable name | That variable from the consumer's own environment (the host's, not the one being built). Reading it is a [weakening](security.md#weakenings), `env-passthrough`. |
-| `file` | a relative path | The content of that file under a secrets directory the consumer's configuration names, with one trailing line feed (`LF` or `CRLF`) removed. Never a file in the overlay. A consumer with no secrets directory cannot resolve it. |
+| `file` | a [relative path](manifest.md#fields) | The content of that file under a secrets directory the consumer's configuration names, with one trailing line feed (`LF` or `CRLF`) removed. Never a file in the overlay. A consumer with no secrets directory cannot resolve it; a key that is not a relative path is refused. |
 
 A consumer MAY support further providers (a vault, a system keychain, a password manager) under
 names of its own. A reference to a provider the consumer does not have, to a secret name it does not
@@ -103,7 +104,8 @@ or a mapping:
 | `format` | `"aos"` or `"dotenv"` | `"aos"` | How the file is read |
 | `os` | array of [OS names](runtime.md#operating-systems) | every OS | Apply only on these |
 
-A listed file that does not exist is an error. An env file cannot list further files.
+A listed file that does not exist, or that does not read as its format says, is an error and the
+overlay's environment is not applied. An env file cannot list further files.
 
 **`aos`** files are read exactly as [`overlay.cfg`](manifest.md#reading-overlaycfg) is (format line,
 TOML default, static), and the document is a mapping with the same rules as `env`: its values may be
@@ -161,8 +163,8 @@ The separator is `;` on Windows and `:` on every other OS. For each variable a c
 
 1. splits the current value on the separator and drops empty components, which would mean the
    working directory;
-2. removes every component equal to one of this overlay's entries for that variable (by exact
-   string after resolving to an absolute path);
+2. resolves each entry to an absolute path (an entry listed twice counts once, at its first
+   position) and removes every component equal to one of them, as an exact string;
 3. builds the result: this overlay's `prepend` entries in declaration order, then the remaining
    components, then its `append` entries in declaration order;
 4. joins with the separator. An unset variable starts empty.

@@ -13,6 +13,7 @@ examples, and conformance vectors. Nothing here is packaged or installed.
 | `examples/` | One overlay per feature, each valid against the schema |
 | `tests/fixtures/` | Valid and invalid manifests for the schema tests, with `invalid/expect.json` |
 | `tests/aos_reference.py` | The small Python reader and validator the tests use; the specification wins over it |
+| `tests/vectors/` | Conformance vectors as JSON data, for implementations in any language |
 | `docs/` | The site: hand-written pages, and `docs/spec/v0/*.md` snippet includes of `spec/v0/` |
 
 ## Rules
@@ -28,7 +29,7 @@ examples, and conformance vectors. Nothing here is packaged or installed.
 ## Commands
 
 ```sh
-python -m pytest                 # schema, examples and fixtures
+python -m pytest                 # schema, examples, fixtures and vectors
 python -m black --check tests
 mkdocs build --strict
 ```

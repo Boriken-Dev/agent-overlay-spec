@@ -46,6 +46,11 @@ The first edition, `0.1.0-draft`, a development draft open for review.
   `network-not-enforced`, `no-timeout`, `env-script`, `env-passthrough`, `env-sensitive`,
   `unlocked-dependencies`, with the list of sensitive variables.
 
+- Conformance vectors as JSON data in `tests/vectors/`: reading (format line, data model, static
+  reading, limits, `dotenv`), validation of every field, names and root variables, source strings,
+  the tree digest, resolution and composition, and one overlay's effective environment, setup,
+  runtime, needs and weakenings. Conformance classes name the vectors each one passes.
+
 ### Changed
 
 - `overlay.toml` is now `overlay.cfg`, with no second name.

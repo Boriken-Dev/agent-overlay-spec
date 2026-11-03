@@ -91,7 +91,8 @@ Where a field takes an integer, a float of equal value is not accepted (`30.0` i
 Mapping order carries no meaning anywhere in AOS.
 
 A reader MUST bound what it reads: a size in bytes and a nesting depth. Both are settings with
-defaults (1 MiB and 64 are RECOMMENDED); there is no floor.
+defaults (1 MiB and 64 are RECOMMENDED); there is no floor. The depth counts arrays and mappings: the
+top-level mapping is at depth 1, and an array or mapping inside one at depth `n` is at depth `n + 1`.
 
 ## Validation
 

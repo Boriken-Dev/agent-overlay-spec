@@ -1,10 +1,14 @@
 # Implementations
 
-Any application can add AOS support in its existing language and architecture. Python, Rust, JavaScript, Go, and other languages are equally suitable.
+Any application can add AOS support in its own language and architecture. Every declaration is
+static data, so a reader needs a TOML parser and nothing that executes; Python, Rust, Dart, Go and
+JavaScript are equally suitable.
 
 ## Reference implementation
 
-[dotagents](https://github.com/jose-pr/dotagents) is the reference implementation. Its overlay resolver, composition manager, and MCP gateway behavior are useful compatibility evidence. AOS does not depend on it.
+[dotagents](https://github.com/jose-pr/dotagents) is the reference implementation. Its resolver,
+composition and MCP gateway are the behaviour this specification was written from. AOS does not
+depend on it, and [Compatibility](compatibility.md) lists what it does not read yet.
 
 ## Potential consumers
 
@@ -18,15 +22,19 @@ These are possible integration targets, not claims of existing AOS support:
 - IDE extensions
 - Standalone configuration managers
 
-No listed application is claimed to support AOS unless that support has been independently verified and documented.
+No listed application is claimed to support AOS unless that support has been independently verified
+and documented.
 
-## Implementation levels
+## Where to start
 
-| Level | Minimum useful support |
+| Class | Minimum useful support |
 |---|---|
-| Read-only consumer | Enumerate an overlay directory and expose files safely; treat the manifest as optional. |
-| Manifest parser | Parse TOML, retain unknown top-level keys, validate recognized types, and report errors. |
-| Overlay resolver | Define source protocols, normalized identity, dependency behavior, deterministic order, and provenance. |
-| Full manager | Define installation, recomposition, scope precedence, collisions, removal, extension support, and execution policy. |
+| Read-only consumer | List an overlay's files and expose them; treat the manifest as optional. |
+| Manifest reader | Read `overlay.cfg` (format line, TOML, the data model, static reading), keep unknown top-level keys, report errors. |
+| Environment | Build an environment from the declarations, resolve secret references, report weakenings. |
+| Integrity | Compute the tree digest; refuse a pin mismatch. |
+| Resolver | Parse sources, normalize identities, resolve `requires`, order overlays. |
+| Manager | Install, compose, remove; document scopes, collisions and execution policy. |
 
-See [Conformance](spec/v0/conformance.md) for the obligations associated with each claim.
+Each class has [vectors](spec/v0/conformance.md#vectors) to test against. See
+[Conformance](spec/v0/conformance.md) for the obligations of each claim.

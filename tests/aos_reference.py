@@ -211,8 +211,8 @@ def _read_yaml(text: str) -> Any:
 
 
 def _check_model(value: Any, depth: int, max_depth: int) -> None:
-    """Refuse what the data model has no type for, at any depth."""
-    if depth > max_depth:
+    """Refuse what the data model has no type for; ``depth`` counts containers, the root being 1."""
+    if isinstance(value, (list, dict)) and depth > max_depth:
         raise ReadError("too-deep")
     if value is None:
         raise ReadError("null-value")
@@ -584,3 +584,451 @@ def tree_entries(root: Path) -> "list[tuple[tuple[bytes, ...], str, bytes]]":
 def tree_digest(root: Path) -> str:
     """The tree digest of the overlay at ``root``."""
     return digest_entries(tree_entries(root))[0]
+
+
+# --------------------------------------------------------------------------------------------
+# Names and sources.
+# --------------------------------------------------------------------------------------------
+
+
+def root_variable(identity: str) -> str:
+    """``<NAME>_OVERLAY_ROOT`` for an overlay identity."""
+    return re.sub(r"[^A-Z0-9]", "_", normalize_name(identity).upper()) + "_OVERLAY_ROOT"
+
+
+_GIT_PREFIXES = ("git@", "ssh://", "git://")
+
+
+def _is_git_location(location: str) -> bool:
+    return location.endswith(".git") or location.startswith(_GIT_PREFIXES)
+
+
+def parse_source(text: str) -> "dict[str, Optional[str]]":
+    """``[git+]<location>[@<ref>][#<path>]`` as ``{kind, location, ref, path}``."""
+    raw = text.strip()
+    if not raw:
+        raise ValueError("empty")
+    explicit_git = raw.startswith("git+")
+    if explicit_git:
+        raw = raw[len("git+") :]
+    body, hash_sep, path = raw.partition("#")
+    path = (path.strip().strip("/") or None) if hash_sep else None
+    location, ref = body.strip(), None
+    head, at, tail = location.rpartition("@")
+    if (
+        at
+        and head
+        and tail
+        and not re.search(r"[/:\\]", tail)
+        and not head.endswith(("://", ":"))
+        and (explicit_git or _is_git_location(head))
+    ):
+        location, ref = head, tail
+    if explicit_git or _is_git_location(location):
+        if location.startswith("-") or (ref or "").startswith("-"):
+            raise ValueError("option-like")
+        return {"kind": "git", "location": location, "ref": ref, "path": path}
+    kind = "url" if "://" in location else "directory"
+    return {"kind": kind, "location": location, "ref": None, "path": path}
+
+
+# --------------------------------------------------------------------------------------------
+# Resolution and composition.
+# --------------------------------------------------------------------------------------------
+
+
+class ResolveError(Exception):
+    def __init__(self, code: str, chain: "list[str]"):
+        super().__init__("%s: %s" % (code, " -> ".join(chain)))
+        self.code = code
+        self.chain = chain
+
+
+def resolve(
+    available: "dict[str, dict[str, Any]]", requested: "list[str]"
+) -> "tuple[list[str], list[list[str]]]":
+    """The visiting order of the active overlays and the missing requirements, or a cycle.
+
+    ``available`` maps a normalized identity to its manifest.
+    """
+    order: "list[str]" = []
+    missing: "list[list[str]]" = []
+
+    def visit(name: str, chain: "list[str]") -> None:
+        if name in order:
+            return
+        if name in chain:
+            raise ResolveError("cycle", chain[chain.index(name) :] + [name])
+        if name not in available:
+            missing.append([chain[-1] if chain else "", name])
+            return
+        for dep in available[name].get("requires", []):
+            visit(normalize_name(dep), chain + [name])
+        order.append(name)
+
+    for name in requested:
+        visit(normalize_name(name), [])
+    return order, missing
+
+
+def composition_order(
+    overlays: "dict[str, dict[str, Any]]", active: "Iterable[str]"
+) -> "list[str]":
+    """Ascending ``(priority, name, identity)``; strings by code point."""
+
+    def key(identity: str) -> "tuple[int, str, str]":
+        manifest = overlays[identity]
+        name = manifest.get("name")
+        return (
+            manifest.get("priority", 500),
+            name if isinstance(name, str) and name else identity,
+            identity,
+        )
+
+    return sorted(active, key=key)
+
+
+def skills_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[str]":
+    """The overlay's skills: its ``skills`` list, else every ``skills/<name>/SKILL.md``."""
+    if "skills" in manifest:
+        return list(manifest["skills"])
+    found = []
+    for path in files:
+        parts = path.split("/")
+        if len(parts) == 3 and parts[0] == "skills" and parts[2] == "SKILL.md":
+            found.append(parts[1])
+    return sorted(found)
+
+
+# --------------------------------------------------------------------------------------------
+# Applying declarations: the effective environment, setup, runtime and weakenings.
+# --------------------------------------------------------------------------------------------
+
+SENSITIVE_NAMES = frozenset(
+    """PATH PATHEXT HOME USERPROFILE SHELL COMSPEC BASH_ENV ENV ZDOTDIR PROMPT_COMMAND IFS
+    PYTHONPATH PYTHONHOME PYTHONSTARTUP NODE_OPTIONS NODE_PATH PERL5OPT PERL5LIB RUBYOPT RUBYLIB
+    CLASSPATH JAVA_TOOL_OPTIONS _JAVA_OPTIONS GIT_SSH_COMMAND GIT_EXEC_PATH GIT_CONFIG_GLOBAL
+    GIT_CONFIG_SYSTEM SSL_CERT_FILE SSL_CERT_DIR REQUESTS_CA_BUNDLE CURL_CA_BUNDLE
+    NODE_EXTRA_CA_CERTS HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY""".split()
+)
+SENSITIVE_PREFIXES = ("LD_", "DYLD_")
+UNIX_NAMES = frozenset(("macos", "linux", "freebsd", "openbsd", "netbsd"))
+SCRIPT_EXTENSIONS = {
+    ".py": "python",
+    ".sh": "sh",
+    ".bash": "bash",
+    ".ps1": "powershell",
+    ".js": "node",
+    ".mjs": "node",
+    ".cjs": "node",
+}
+
+
+class Refused(Exception):
+    """A declaration the consumer refuses to apply; ``code`` is the vectors' class."""
+
+    def __init__(self, code: str, subject: str):
+        super().__init__("%s: %s" % (code, subject))
+        self.code = code
+        self.subject = subject
+
+
+def os_matches(entry: Any, current: str) -> bool:
+    names = entry.get("os") if isinstance(entry, dict) else None
+    if names is None:
+        return True
+    return current in names or ("unix" in names and current != "windows" and current in UNIX_NAMES)
+
+
+def first_variant(variants: "list[dict[str, Any]]", current: str) -> "Optional[dict[str, Any]]":
+    for variant in variants:
+        if os_matches(variant, current):
+            return variant
+    return None
+
+
+def is_sensitive(name: str) -> bool:
+    upper = name.upper()
+    return upper in SENSITIVE_NAMES or upper.startswith(SENSITIVE_PREFIXES)
+
+
+class Environment:
+    """A variable mapping; on Windows names compare without regard to ASCII case."""
+
+    def __init__(self, values: "dict[str, str]", windows: bool):
+        self.windows = windows
+        self.values = dict(values)
+
+    def _key(self, name: str) -> "Optional[str]":
+        if name in self.values:
+            return name
+        if self.windows:
+            for key in self.values:
+                if key.upper() == name.upper():
+                    return key
+        return None
+
+    def get(self, name: str) -> "Optional[str]":
+        key = self._key(name)
+        return None if key is None else self.values[key]
+
+    def set(self, name: str, value: str) -> None:
+        self.values[self._key(name) or name] = value
+
+    def copy(self) -> "Environment":
+        return Environment(self.values, self.windows)
+
+
+def resolve_path(root: str, relative: str, windows: bool) -> str:
+    separator = "\\" if windows else "/"
+    return root.rstrip("/\\") + separator + relative.replace("/", separator)
+
+
+def _secret(entry: "dict[str, Any]", facts: "dict[str, Any]", windows: bool) -> "Optional[str]":
+    """A secret reference's value, or None when it cannot be resolved."""
+    if "secret" in entry:
+        return facts.get("secrets", {}).get(entry["secret"])
+    provider = entry["provider"]
+    if provider not in facts.get("providers", ["env", "file"]):
+        return None
+    if provider == "env":
+        return Environment(facts.get("host_env", {}), windows).get(entry["key"])
+    if provider == "file":
+        key = entry["key"]
+        if not SCHEMA_RELPATH.match(key):
+            raise Refused("invalid-reference", key)
+        files = facts.get("secret_files")
+        if files is None or key not in files:
+            return None
+        value = files[key]
+        for ending in ("\r\n", "\n"):
+            if value.endswith(ending):
+                return value[: -len(ending)]
+        return value
+    return facts.get("provider_values", {}).get(provider, {}).get(entry["key"])
+
+
+SCHEMA_RELPATH = re.compile(SCHEMA["$defs"]["relPath"]["pattern"])
+
+
+def _apply_mapping(
+    env: Environment,
+    mapping: "dict[str, Any]",
+    facts: "dict[str, Any]",
+    root: str,
+    weakenings: "list[list[str]]",
+) -> None:
+    windows = env.windows
+    before = env.copy()
+    for name, entry in mapping.items():
+        if isinstance(entry, str):
+            entry = {"value": entry}
+        if entry.get("if_unset") and before.get(name) is not None:
+            continue
+        if "value" in entry:
+            value: Optional[str] = entry["value"]
+        elif "path" in entry:
+            value = resolve_path(root, entry["path"], windows)
+        else:
+            if entry.get("provider") == "env":
+                weakenings.append(["env-passthrough", entry["key"]])
+            value = _secret(entry, facts, windows)
+            if value is None:
+                if entry.get("optional"):
+                    continue
+                raise Refused("unresolved-reference", name)
+        if is_sensitive(name):
+            weakenings.append(["env-sensitive", name])
+        env.set(name, value)
+
+
+def _apply_paths(env: Environment, paths: "list[dict[str, Any]]", root: str, os_name: str) -> None:
+    windows = env.windows
+    separator = ";" if windows else ":"
+    grouped: "dict[str, list[dict[str, Any]]]" = {}
+    names: "dict[str, str]" = {}
+    for entry in paths:
+        if not os_matches(entry, os_name):
+            continue
+        key = entry["variable"].upper() if windows else entry["variable"]
+        names.setdefault(key, entry["variable"])
+        grouped.setdefault(key, []).append(entry)
+    for key, entries in grouped.items():
+        prepend: "list[str]" = []
+        append: "list[str]" = []
+        seen: "set[str]" = set()
+        for entry in entries:
+            resolved = resolve_path(root, entry["path"], windows)
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            (append if entry.get("position") == "append" else prepend).append(resolved)
+        current = env.get(names[key]) or ""
+        kept = [c for c in current.split(separator) if c and c not in seen]
+        env.set(names[key], separator.join(prepend + kept + append))
+
+
+def apply_overlay(
+    env: Environment,
+    manifest: "dict[str, Any]",
+    facts: "dict[str, Any]",
+    root: str,
+    weakenings: "list[list[str]]",
+) -> "list[dict[str, Any]]":
+    """Steps 2.1 to 2.3 of the order of application; returns the env scripts that run."""
+    os_name = facts["os"]
+    for item in manifest.get("env_files", []):
+        item = {"path": item} if isinstance(item, str) else item
+        if not os_matches(item, os_name):
+            continue
+        text = facts.get("files", {}).get(item["path"])
+        if text is None:
+            raise Refused("missing-file", item["path"])
+        try:
+            if item.get("format", "aos") == "dotenv":
+                mapping: "dict[str, Any]" = dict(read_dotenv(text.encode("utf-8")))
+            else:
+                mapping = read_document(text.encode("utf-8"))
+        except ReadError:
+            raise Refused("invalid-env-file", item["path"])
+        if validate({"env": mapping}):
+            raise Refused("invalid-env-file", item["path"])
+        _apply_mapping(env, mapping, facts, root, weakenings)
+    _apply_mapping(env, manifest.get("env", {}), facts, root, weakenings)
+    _apply_paths(env, manifest.get("paths", []), root, os_name)
+    scripts = []
+    if facts.get("env_scripts_enabled", False):
+        for script in manifest.get("env_scripts", []):
+            if os_matches(script, os_name):
+                selected = {"interpreter": script["interpreter"], "path": script["path"]}
+                selected["args"] = script.get("args", [])
+                selected["timeout"] = script.get("timeout", 60)
+                scripts.append(selected)
+                weakenings.append(["env-script", script["path"]])
+                if selected["timeout"] == 0:
+                    weakenings.append(["no-timeout", script["path"]])
+    return scripts
+
+
+def effective(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str, Any]":
+    """What a consumer applies for one overlay: environment, setup, runtime, needs, weakenings."""
+    os_name = facts["os"]
+    windows = os_name == "windows"
+    root = facts["root"]
+    weakenings: "list[list[str]]" = []
+    if not facts.get("pinned", False):
+        weakenings.append(["unpinned", ""])
+    runtime = manifest.get("runtime", {})
+    supported = "os" not in runtime or os_matches(runtime, os_name)
+    env = Environment(facts.get("base_env", {}), windows)
+    env.set(root_variable(facts["identity"]), root)
+    try:
+        scripts = apply_overlay(env, manifest, facts, root, weakenings)
+    except Refused as refused:
+        return {"error": refused.code, "subject": refused.subject}
+    setup = first_variant(manifest.get("setup", []), os_name)
+    if setup is not None:
+        setup = {
+            "interpreter": setup["interpreter"],
+            "path": setup["path"],
+            "args": setup.get("args", []),
+            "timeout": setup.get("timeout", 300),
+            "network": setup.get("network", False),
+        }
+        if setup["network"]:
+            weakenings.append(["setup-network", setup["path"]])
+        elif not facts.get("enforces_network", True):
+            weakenings.append(["network-not-enforced", setup["path"]])
+        if setup["timeout"] == 0:
+            weakenings.append(["no-timeout", setup["path"]])
+    python = first_variant(runtime.get("python", []), os_name)
+    if python is not None:
+        python = {key: value for key, value in python.items() if key != "os"}
+        if "requirements" in python:
+            weakenings.append(["unlocked-dependencies", python["requirements"]])
+    node = first_variant(runtime.get("node", []), os_name)
+    if node is not None:
+        node = {key: value for key, value in node.items() if key != "os"}
+    interpreters = {s["interpreter"] for s in scripts}
+    if setup is not None:
+        interpreters.add(setup["interpreter"])
+    for target in manifest.get("scripts", {}).values():
+        if isinstance(target, str):
+            interpreters.add(SCRIPT_EXTENSIONS[target[target.rindex(".") :]])
+        elif isinstance(target, dict) and os_matches(target, os_name):
+            interpreters.add(target["interpreter"])
+    if python is not None:
+        interpreters.add("python")
+    if node is not None:
+        interpreters.add("node")
+    commands = []
+    for command in runtime.get("commands", []):
+        if isinstance(command, str):
+            commands.append(command)
+        elif os_matches(command, os_name):
+            commands.append(command["name"])
+    for server in manifest.get("mcp", {}).get("servers", []):
+        for value in server.get("env", {}).values():
+            if isinstance(value, dict) and value.get("provider") == "env":
+                weakenings.append(["env-passthrough", value["key"]])
+        for name in server.get("env_passthrough", []):
+            weakenings.append(["env-passthrough", name])
+        for name in server.get("headers_env", {}).values():
+            weakenings.append(["env-passthrough", name])
+    return {
+        "supported": supported,
+        "env": env.values,
+        "env_scripts": scripts,
+        "setup": setup,
+        "python": python,
+        "node": node,
+        "needs": {"interpreters": sorted(interpreters), "commands": sorted(set(commands))},
+        "weakenings": sorted({tuple(w) for w in weakenings}),
+    }
+
+
+def compose(
+    overlays: "dict[str, dict[str, Any]]",
+    requested: "list[str]",
+    files: "Optional[dict[str, list[str]]]" = None,
+    facts: "Optional[dict[str, Any]]" = None,
+) -> "dict[str, Any]":
+    """Resolution, composition order and what the active overlays contribute together."""
+    files = files or {}
+    try:
+        visited, missing = resolve(overlays, requested)
+    except ResolveError as error:
+        return {"error": error.code, "chain": error.chain}
+    active = composition_order(overlays, visited)
+    result: "dict[str, Any]" = {
+        "install_order": visited,
+        "active": active,
+        "missing": missing,
+        "root_variables": {identity: root_variable(identity) for identity in active},
+        "routing": [line for i in active for line in overlays[i].get("routing", [])],
+        "rules": [[i, path] for i in active for path in overlays[i].get("rules", [])],
+        "context": [[i, path] for i in active for path in overlays[i].get("context", [])],
+    }
+    skills: "dict[str, str]" = {}
+    collisions: "set[str]" = set()
+    for identity in active:
+        for name in skills_of(overlays[identity], files.get(identity, [])):
+            if name in skills:
+                collisions.add(name)
+            skills[name] = identity
+    result["skills"] = skills
+    result["skill_collisions"] = sorted(collisions)
+    if facts is not None:
+        env = Environment(facts.get("base_env", {}), facts["os"] == "windows")
+        roots = facts["roots"]
+        for identity in active:
+            env.set(root_variable(identity), roots[identity])
+        weakenings: "list[list[str]]" = []
+        try:
+            for identity in active:
+                apply_overlay(env, overlays[identity], facts, roots[identity], weakenings)
+        except Refused as refused:
+            result["env_error"] = {"error": refused.code, "subject": refused.subject}
+        else:
+            result["env"] = env.values
+    return result
