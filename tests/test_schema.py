@@ -33,6 +33,32 @@ def test_example_is_valid_with_its_files(root):
     assert not issues, issues
 
 
+def test_no_example_file_is_ignored_by_git():
+    """A case-insensitive checkout can ignore a file another platform's checkout needs."""
+    import shutil
+    import subprocess
+
+    if shutil.which("git") is None or not (ROOT / ".git").exists():
+        pytest.skip("not a git checkout")
+    ignored = subprocess.run(
+        [
+            "git",
+            "ls-files",
+            "--others",
+            "--ignored",
+            "--exclude-standard",
+            "--",
+            "examples",
+            "tests",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.split()
+    assert [path for path in ignored if "__pycache__" not in path] == []
+
+
 def test_no_example_uses_the_old_manifest_name():
     assert not list(EXAMPLES.rglob("overlay.toml"))
 
