@@ -55,7 +55,8 @@ The first edition, `0.1.0-draft`, a development draft open for review.
   trailing dot or space, no `\ : * ? " < > |`, control or invisible characters, no `~` and digit;
   a tree with two members equal under ASCII case has no digest.
 - Reading refuses a byte-order mark after the format line, YAML directives and the characters
-  U+0085, U+2028 and U+2029 in YAML, and TOML constructs newer than TOML 1.0.
+  U+0085, U+2028 and U+2029 in YAML. TOML constructs newer than TOML 1.0 are not portable: a reader
+  refuses them or reads them with their TOML meaning.
 - Harness hints act only on `context`, `skills`, `model` and `effort`; other keys are kept and not
   applied. MCP stdio commands with a separator are paths under the root; a batch file is never run
   as an interpreter or server on Windows.

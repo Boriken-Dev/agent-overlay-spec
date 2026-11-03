@@ -28,7 +28,8 @@ with an `id`, its input and an `expect`.
 - **Types are part of a value.** `30` and `30.0` differ, and so do `1` and `true`.
 - **Mapping order carries no meaning**; array order does.
 - **Errors are classes**, such as `parse-error` or `symlink`. An implementation maps its own errors
-  to them; where two classes are right, `expect.error` lists both.
+  to them; where two classes are right, `expect.error` lists both, and where reading and refusing
+  are both right, `expect` has both `data` and `error`.
 - A file names every input it needs: file contents, an OS, an environment, secrets. No vector reads
   the filesystem or the network, except that `digest.json` trees can also be built on a filesystem
   that can hold them.

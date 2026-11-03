@@ -57,7 +57,14 @@ def test_reading(case):
     limits = {"max_" + key[4:]: value for key, value in case.get("limits", {}).items()}
     expect = case["expect"]
     read = aos.read_dotenv if case["format"] == "dotenv" else aos.read_document
-    if "error" in expect:
+    if "error" in expect and "data" in expect:
+        try:
+            got = read(data, **limits)
+        except aos.ReadError as error:
+            assert error.code == expect["error"]
+        else:
+            assert strict(got) == strict(expect["data"])
+    elif "error" in expect:
         allowed = expect["error"] if isinstance(expect["error"], list) else [expect["error"]]
         with pytest.raises(aos.ReadError) as raised:
             read(data, **limits)

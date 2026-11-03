@@ -39,7 +39,7 @@ mapping, in every format.
 
 | Name | Aliases | Class | Syntax |
 | --- | --- | --- | --- |
-| `toml` | | **Core**: every reader MUST read it | [TOML 1.0](https://toml.io/en/v1.0.0) exactly: constructs a later TOML adds (a newline or trailing comma in an inline table, the `\e` and `\xHH` escapes) are refused |
+| `toml` | | **Core**: every reader MUST read it | [TOML 1.0](https://toml.io/en/v1.0.0). A construct a later TOML adds (a newline or trailing comma in an inline table, the `\e` and `\xHH` escapes) is not portable: a reader either refuses it or gives it the meaning that TOML defines, and authors do not use it |
 | `json` | | **Optional Extension** | [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259) |
 | `yaml` | `yml` | **Optional Extension** | [YAML 1.2](https://yaml.org/spec/1.2.2/), one document, core schema |
 

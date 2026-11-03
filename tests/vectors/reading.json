@@ -1,5 +1,5 @@
 {
-  "description": "Reading documents: format selection, the data model, static reading, limits, and the dotenv grammar. Input is 'text' (UTF-8) or 'base64'; 'format' is 'aos' (overlay.cfg rules) or 'dotenv'. 'expect' is the data, or an error class (a list when either class is right).",
+  "description": "Reading documents: format selection, the data model, static reading, limits, and the dotenv grammar. Input is 'text' (UTF-8) or 'base64'; 'format' is 'aos' (overlay.cfg rules) or 'dotenv'. 'expect' is the data, or an error class (a list when either class is right); with both 'data' and 'error', either outcome is right.",
   "spec": "spec/v0/manifest.md#reading-overlaycfg",
   "cases": [
     {
@@ -653,19 +653,28 @@
     },
     {
       "id": "toml-1-1-inline-newline",
-      "description": "TOML 1.0 exactly: a newline inside an inline table is refused.",
+      "description": "A newline inside an inline table (TOML 1.1): refused, or read with TOML 1.1's meaning.",
       "format": "aos",
       "text": "a = { b = 1,\n c = 2 }\n",
       "expect": {
+        "data": {
+          "a": {
+            "b": 1,
+            "c": 2
+          }
+        },
         "error": "parse-error"
       }
     },
     {
       "id": "toml-1-1-escape",
-      "description": "TOML 1.0 exactly: the \\e escape is refused.",
+      "description": "The \\e escape (TOML 1.1): refused, or read as ESC.",
       "format": "aos",
       "text": "a = \"\\e[0m\"\n",
       "expect": {
+        "data": {
+          "a": "\u001b[0m"
+        },
         "error": "parse-error"
       }
     },
