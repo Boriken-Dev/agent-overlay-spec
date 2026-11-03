@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jose-pr.github.io/agent-overlay-spec/schemas/overlay.schema.json",
+  "$id": "https://boriken-dev.github.io/agent-overlay-spec/schemas/overlay.schema.json",
   "title": "AOS overlay.toml parsed document",
   "description": "Schema for the parsed TOML manifest. TOML syntax and filesystem checks require additional validation.",
   "type": "object",

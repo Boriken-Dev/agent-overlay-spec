@@ -1,21 +1,35 @@
 # Contributing to AOS
 
-AOS is a draft. Contributions should distinguish verified compatibility behavior from new proposals.
+AOS is a draft. Contributions distinguish behaviour an implementation has from new proposals.
 
 ## Changes to the specification
 
 1. Open an issue describing the use case, affected implementations, and compatibility impact.
-2. Identify whether the change is editorial, clarifying, additive, or breaking. New required manifest fields and new required processing behavior are breaking unless introduced by a versioned specification.
-3. Update the normative section, compatibility notes, examples, schema, and fixtures together as applicable.
-4. Run `python -m pytest` and `mkdocs build --strict`.
-5. Do not mark a draft as final or claim implementation support without evidence.
+2. Say whether the change is editorial, clarifying, additive, or breaking. A new required field or
+   new required processing is breaking unless a new edition introduces it.
+3. Change the normative section, the schema, the examples, the fixtures and the vectors together,
+   and record the change in `CHANGELOG.md`.
+4. Run the checks:
 
-Use RFC 2119 terms only for normative interoperability requirements. Use **Proposed** for behavior that needs review. Keep vendor-specific behavior in implementation notes.
+   ```bash
+   python -m pytest
+   python -m black --check tests
+   mkdocs build --strict
+   ```
+
+5. Do not mark a draft as final or claim implementation support without evidence. A field no
+   implementation reads carries the **Proposed** label.
+
+Use RFC 2119 terms only for normative interoperability requirements. Keep vendor-specific behaviour
+in implementation notes.
 
 ## Proposal review
 
-Proposals should state: motivation; exact format or processing change; affected existing overlays; migration path; security impact; and tests or examples demonstrating the change. The maintainers record decisions in [`docs/design/decisions.md`](docs/design/decisions.md).
+A proposal states its motivation, the exact format or processing change, the overlays it affects,
+the migration path, its security impact, and the vectors or examples that show it. Decisions are
+recorded in [`docs/design/decisions.md`](docs/design/decisions.md).
 
 ## Scope
 
-The reference implementation is [dotagents](https://github.com/jose-pr/dotagents). Changes to dotagents are outside this repository and do not automatically change AOS.
+The reference implementation is [dotagents](https://github.com/jose-pr/dotagents). Changes to
+dotagents are outside this repository and do not change AOS by themselves.

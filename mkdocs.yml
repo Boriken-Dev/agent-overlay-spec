@@ -1,8 +1,8 @@
 site_name: Agent Overlay Specification
-site_description: A vendor-neutral draft specification for portable agent configuration overlays
-site_url: https://jose-pr.github.io/agent-overlay-spec/
-repo_url: https://github.com/jose-pr/agent-overlay-spec
-repo_name: jose-pr/agent-overlay-spec
+site_description: A vendor-neutral draft specification for agent overlays
+site_url: https://boriken-dev.github.io/agent-overlay-spec/
+repo_url: https://github.com/Boriken-Dev/agent-overlay-spec
+repo_name: Boriken-Dev/agent-overlay-spec
 docs_dir: docs
 theme:
   name: material
@@ -51,3 +51,4 @@ nav:
   - Governance: governance.md
   - Decisions: design/decisions.md
   - FAQ: faq.md
+  - Changelog: changelog.md
