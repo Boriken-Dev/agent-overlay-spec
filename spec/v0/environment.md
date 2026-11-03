@@ -188,7 +188,8 @@ one's, and a later overlay's `prepend` entries come before an earlier one's. So 
 the higher `priority` wins a conflict and is found first on a search path.
 
 A consumer MAY refuse to let an overlay set a variable (its own policy), and MUST report each refusal
-by variable name. Setting a process-control variable is a [weakening](security.md#weakenings).
+by variable name. Setting a [sensitive variable](security.md#sensitive-variables) is a
+[weakening](security.md#weakenings), `env-sensitive`.
 
 ## Env scripts
 

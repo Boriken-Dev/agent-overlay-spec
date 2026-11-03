@@ -72,3 +72,31 @@ lets each consumer resolve it from where its user keeps secrets.
 statically typed languages.
 
 **Status:** adopted.
+
+## D8 — A tree digest over bytes as published
+
+**Decision:** the tree digest hashes one line per regular file, `path NUL sha256:<hex> LF`, sorted by
+path bytes, with SHA-256. Nothing is normalized: not line endings, encodings or names. Version-control
+and cache directories and `.pyc` files are excluded by a fixed list; links, special files,
+non-UTF-8 names and names with `\` are refused. Git sources are hashed from blob bytes.
+
+**Reason:** two implementations must agree byte for byte, in any language. Deciding which files are
+text, to normalize their line endings, has no portable answer, so the digest covers the bytes and the
+author keeps them LF. The line format is the per-file manifest some consumers already pin skills
+with, so one digest serves both. The exclusions are what managers already refuse to copy, so a
+digest of the source and of an installed copy agree.
+
+**Status:** adopted; Proposed until an implementation computes it.
+
+## D9 — Weakenings are reported, not forbidden
+
+**Decision:** AOS names a fixed set of weakenings (`unpinned`, `setup-network`,
+`network-not-enforced`, `no-timeout`, `env-script`, `env-passthrough`, `env-sensitive`,
+`unlocked-dependencies`). A consumer reports each one it applies, every time, by identifier,
+overlay and subject, never a value; it may refuse any by its own policy.
+
+**Reason:** a user sometimes needs a setup that downloads, or an overlay that reads a token from the
+environment. Taking the choice away pushes people to work around the consumer; reporting keeps the
+default strict and every loosening visible.
+
+**Status:** adopted.

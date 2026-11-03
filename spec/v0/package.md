@@ -22,7 +22,7 @@ drop them.
 
 These path components are **not part of an overlay** wherever they appear: `.git`, `.hg`, `.svn`,
 `__pycache__`, `.mypy_cache`, `.pytest_cache`, `.ruff_cache`, `.tox`, `.venv`, `node_modules`, and
-files whose name ends in `.pyc`. A consumer does not install, read or run them as overlay content,
+any entry other than a directory whose name ends in `.pyc`. A consumer does not install, read or run them as overlay content,
 and they do not count in the [tree digest](integrity.md#tree-digest).
 
 ## Names and paths

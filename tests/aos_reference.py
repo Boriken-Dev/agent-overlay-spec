@@ -467,3 +467,120 @@ def tree_files(root: Path) -> "set[str]":
         for path in root.rglob("*")
         if path.is_file() and not path.is_symlink()
     }
+
+
+# --------------------------------------------------------------------------------------------
+# Integrity: the tree digest.
+# --------------------------------------------------------------------------------------------
+
+EXCLUDED_COMPONENTS = frozenset(
+    (
+        ".git",
+        ".hg",
+        ".svn",
+        "__pycache__",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".tox",
+        ".venv",
+        "node_modules",
+    )
+)
+_REPARSE_POINT = 0x400  # FILE_ATTRIBUTE_REPARSE_POINT: symlinks and junctions on Windows
+DIGEST_FORM = re.compile(r"^sha256:[0-9a-fA-F]{64}$")
+
+
+class DigestError(Exception):
+    """A tree whose digest cannot be computed. ``code`` is the vectors' error class."""
+
+    def __init__(self, code: str, path: str = ""):
+        super().__init__("%s: %s" % (code, path) if path else code)
+        self.code = code
+        self.path = path
+
+
+def sha256_digest(data: bytes) -> str:
+    import hashlib
+
+    return "sha256:" + hashlib.sha256(data).hexdigest()
+
+
+def same_digest(a: str, b: str) -> bool:
+    """Digests compare by their hexadecimal digits, without regard to case."""
+    if not (DIGEST_FORM.match(a) and DIGEST_FORM.match(b)):
+        raise ValueError("not a digest")
+    return a.lower() == b.lower()
+
+
+def digest_entries(
+    entries: "Iterable[tuple[tuple[bytes, ...], str, bytes]]",
+) -> "tuple[str, list[bytes]]":
+    """The tree digest of abstract entries ``(components, kind, data)``, and its lines.
+
+    ``kind`` is ``file``, ``dir``, ``symlink`` or ``special``; ``data`` is a file's bytes.
+    """
+    lines = []
+    for components, kind, data in entries:
+        if kind == "dir":
+            continue
+        names = _names(components)
+        if any(name in EXCLUDED_COMPONENTS for name in names) or names[-1].endswith(".pyc"):
+            continue  # an excluded name, or inside an excluded directory, never entered
+        if kind == "symlink":
+            raise DigestError("symlink", _shown(components))
+        if kind != "file":
+            raise DigestError("special-file", _shown(components))
+        for component in components:
+            try:
+                component.decode("utf-8")
+            except UnicodeDecodeError:
+                raise DigestError("non-utf8-name", _shown(components))
+            if b"\\" in component:
+                raise DigestError("backslash-name", _shown(components))
+        path = b"/".join(components)
+        lines.append(path + b"\0" + sha256_digest(data).encode("ascii") + b"\n")
+    lines.sort(key=lambda line: line.split(b"\0", 1)[0])
+    return sha256_digest(b"".join(lines)), lines
+
+
+def _names(components: "Iterable[bytes]") -> "list[str]":
+    return [c.decode("utf-8", "replace") for c in components]
+
+
+def _shown(components: "tuple[bytes, ...]") -> str:
+    return "/".join(_names(components))
+
+
+def tree_entries(root: Path) -> "list[tuple[tuple[bytes, ...], str, bytes]]":
+    """A directory's entries for :func:`digest_entries`, read without following any link."""
+    import os
+    import stat
+
+    out: "list[tuple[tuple[bytes, ...], str, bytes]]" = []
+
+    def walk(directory: Path, prefix: "tuple[bytes, ...]") -> None:
+        for entry in sorted(os.scandir(directory), key=lambda e: e.name):
+            components = prefix + (os.fsencode(entry.name),)
+            info = entry.stat(follow_symlinks=False)
+            reparse = getattr(info, "st_file_attributes", 0) & _REPARSE_POINT
+            if entry.name in EXCLUDED_COMPONENTS:
+                out.append((components, "dir" if stat.S_ISDIR(info.st_mode) else "file", b""))
+                continue
+            if stat.S_ISLNK(info.st_mode) or reparse:
+                out.append((components, "symlink", b""))
+            elif stat.S_ISDIR(info.st_mode):
+                out.append((components, "dir", b""))
+                walk(Path(entry.path), components)
+            elif stat.S_ISREG(info.st_mode):
+                out.append((components, "file", Path(entry.path).read_bytes()))
+            else:
+                out.append((components, "special", b""))
+
+    walk(root, ())
+    return out
+
+
+def tree_digest(root: Path) -> str:
+    """The tree digest of the overlay at ``root``."""
+    return digest_entries(tree_entries(root))[0]

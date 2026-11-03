@@ -25,6 +25,10 @@ table below is the list an implementation works from.
 | Scripts | `bin/*.py` and `[scripts]` strings, run under Python | Strings by extension, or `{ path, interpreter, os }` |
 | MCP stdio | Working directory inherited from the gateway; `env` strings | Working directory the overlay root; `env` values may be references |
 | Harness hints | None | `[harness.<id>]`: `context`, `skills`, `model`, `effort` |
+| Source form | `<location>[@<ref>][#<path>]`, registries, URI schemes | The same form, specified, with vectors |
+| Integrity | A SHA-256 per installed file in its install record; no tree digest, no pin | The tree digest, pins checked at install and at each activation, a mismatch refuses |
+| Installed copy | Keeps `.dotagents-install.json` and setup output inside the overlay directory | The copy stays as verified; state goes to `AOS_OVERLAY_STATE` |
+| Weakenings | Not reported | Eight identifiers reported each time, never silently |
 
 ## Ambiguities and interoperability risks
 

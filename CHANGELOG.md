@@ -36,6 +36,16 @@ The first edition, `0.1.0-draft`, a development draft open for review.
   extension. MCP server `env` values may be secret references, and stdio servers start in the
   overlay root (Proposed).
 
+- Integrity (Proposed): the tree digest (`path NUL sha256:<hex> LF` per regular file, sorted by
+  path bytes, SHA-256 of the lines; no normalization; `.git`, caches and `.pyc` excluded; links,
+  special files, non-UTF-8 names and `\` refused; Git sources hashed from blob bytes), with 20 test
+  vectors in `tests/vectors/digest.json`. Pins live in the consumer's configuration; a mismatch
+  refuses the overlay.
+- The source form `[git+]<location>[@<ref>][#<path>]`, specified with examples.
+- Weakenings a consumer reports every time it applies one: `unpinned`, `setup-network`,
+  `network-not-enforced`, `no-timeout`, `env-script`, `env-passthrough`, `env-sensitive`,
+  `unlocked-dependencies`, with the list of sensitive variables.
+
 ### Changed
 
 - `overlay.toml` is now `overlay.cfg`, with no second name.
