@@ -54,11 +54,11 @@ An interpreter that a selected setup variant, env script or script names is a re
 
 ## Default scripts
 
-**Optional Extension.** When the manifest does not write `env_scripts`, or `setup`, a consumer runs
-at most one script for it by [default](package.md#defaults): `env.<ext>`, or `setup.<ext>`, at the
-overlay root. It tries the extensions in this order and takes the first whose file is present, that
-applies on the current OS, and whose interpreter it can run (one it supports and finds on the base
-environment's `PATH`):
+**Optional Extension.** Unless `[defaults]` turns it off, a consumer runs at most one script by
+[default](package.md#defaults) for `env_scripts` and one for `setup`: `env.<ext>`, or
+`setup.<ext>`, at the overlay root. It tries the extensions in this order and takes the first whose
+file is present, that applies on the current OS, and whose interpreter it can run (one it supports
+and finds on the base environment's `PATH`):
 
 | Order | Extension | Interpreter | Applies on |
 | --- | --- | --- | --- |
@@ -77,14 +77,32 @@ consumers with the same interpreters run the same script:
   that ships `env.py` with shell fallbacks runs its Python wherever Python is found;
 - a PowerShell script applies on Windows and a shell script on the other systems, so `env.ps1`
   beside `env.sh` gives each OS its own without a manifest. To run `env.sh` on Windows, or `env.ps1`
-  elsewhere, declare it;
+  elsewhere, configure it, below;
 - `bash` comes before `sh`, the more specific before the more general.
 
 The script runs as a declared one does, with its field's defaults: an env script with no arguments
 and a timeout of 60 seconds; setup with no arguments, a timeout of 300 seconds, and `network = true`.
 A default setup declares nothing, so it is taken to need the network, which is reported as
-`setup-network`; to deny it the network, declare it in `setup` (which replaces the default), where
-`network` defaults to `false`. The selected interpreter is a requirement like a declared one.
+`setup-network`. The selected interpreter is a requirement like a declared one.
+
+**Configuring a default script.** A declared `env_scripts` or `setup` entry whose `path` is a root
+`env.<ext>` or `setup.<ext>` configures that file. The file keeps its place in the order above and
+is chosen as before, but with the entry's `interpreter`, `args`, `timeout` and `os` (an absent
+`os` is every OS), and for setup its `network`, which defaults to `false` as in any declared
+variant: this is how a default setup is denied the network. A configured file runs only if it is
+chosen, so it never runs beside the default.
+
+```toml
+# setup.sh, run by default, needs no network.
+[[setup]]
+interpreter = "sh"
+path = "setup.sh"
+network = false
+```
+
+Configuring a file does not move it up the order: with `setup.py` also present and Python found,
+`setup.py` is still chosen. Every other declared env script runs after the default one, and every
+other declared setup variant is tried before the default setup, which is the last variant.
 
 When a file is present and none of them can run on this OS with the consumer's interpreters, no
 script runs, the rest of the overlay still applies, and the consumer reports `script-not-run` for
@@ -156,9 +174,10 @@ Inside the sandbox that environment is read-only.
 
 ## Setup
 
-`setup` is an array of variants, each one program to run. When the manifest does not write it, its
-default is one `setup.<ext>` at the root, chosen as [Default scripts](#default-scripts) says;
-`setup = []` runs none.
+`setup` is an array of variants, each one program to run. After the declared variants comes the
+`setup` [default](package.md#defaults), one `setup.<ext>` at the root chosen as
+[Default scripts](#default-scripts) says, as the last variant; `[defaults] setup = false` turns it
+off.
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |

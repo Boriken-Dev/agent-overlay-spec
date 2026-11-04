@@ -1,6 +1,8 @@
 {
   "context-absolute.cfg": "/context/0",
   "context-backslash.cfg": "/context/0",
+  "defaults-string.cfg": "/defaults/bin",
+  "defaults-unknown-key.cfg": "/defaults",
   "env-bad-name.cfg": "/env",
   "env-case-duplicate.cfg": "/env/PATH",
   "env-files-absolute.cfg": "/env_files/0",

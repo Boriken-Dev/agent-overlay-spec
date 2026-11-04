@@ -4,15 +4,15 @@
 serves need: an agent session, a setup step, an MCP server, a command. Every declaration is static
 data; a consumer applies it when it builds an environment, never when it reads the manifest.
 
-A consumer that claims this extension applies `env`, `env_files` and `paths`, each field the
-manifest does not write with its [default](package.md#defaults), sets the
+A consumer that claims this extension applies `env`, `env_files` and `paths`, each after its
+[defaults](package.md#defaults), sets the
 [root variable](#the-root-variable), and reports what it refuses. [Env scripts](#env-scripts)
 execute code, and are reported each time they run.
 
-> **Status:** dotagents sets `<NAME>_OVERLAY_ROOT` and applies the `paths` default: it prepends
-> every overlay's `bin/` to `PATH`, even one that does not exist, and an existing `lib/` to
-> `PYTHONPATH`. It runs `env.py` and `pre.env.py`, and sources `env` and `pre.env` with bash, by
-> file name. It reads none of the fields below yet.
+> **Status:** dotagents sets `<NAME>_OVERLAY_ROOT` and applies the `bin` default, prepending
+> every overlay's `bin/` to `PATH` even when it does not exist. It prepends an existing bare `lib/`
+> to `PYTHONPATH`, where AOS's `lib` default is `lib/python/`. It runs `env.py` and `pre.env.py`,
+> and sources `env` and `pre.env` with bash, by file name. It reads none of the fields below yet.
 
 ## The root variable
 
@@ -114,11 +114,11 @@ value, and removes resolved values from any output it captures before showing it
 
 ## Env files
 
-`env_files` lists files of env values, applied in order before `env`. When the manifest does not
-write it, its default is the file `env` at the overlay root, read as `dotenv`, when present;
-`env_files = []` reads none. The default reads as an entry `{ path = "env", format = "dotenv" }`
-would, so it holds literal values only; secret references go in an `aos` env file, which the
-manifest names. Each entry is a relative path, or a mapping:
+`env_files` lists files of env values, applied in order before `env`. The `env`
+[default](package.md#defaults) comes first: the file `env` at the overlay root, when present, read
+as the entry `{ path = "env", format = "dotenv" }` would be, so it holds literal values only. A
+declared entry naming `env` replaces it, and `[defaults] env = false` turns it off. Each entry is a
+relative path, or a mapping:
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
@@ -140,9 +140,10 @@ TOOL_MODE = "read-only"
 DOCS_TOKEN = { provider = "env", key = "DOCS_TOKEN", optional = true }
 ```
 
-**`dotenv`** files are a line format for values that already exist in that form. Every value is a
-literal; there are no references, quotes escapes, expansion or command substitution (`$NAME`,
-`${NAME}`, `$(command)` and backticks are characters), and a file is never run:
+**`dotenv`** files are a line format for values that already exist in that form. **Every value is
+a literal string.** A `dotenv` file cannot hold a secret reference: references are written only in
+an `aos` env file (or in `env`). There are no quotes escapes, expansion or command substitution
+(`$NAME`, `${NAME}`, `$(command)` and backticks are characters), and a file is never run:
 
 - UTF-8; one leading byte-order mark is dropped; lines end at `LF`, and one `CR` before it is dropped.
 - A line that is empty or only spaces and tabs, or whose first character other than a space or a
@@ -163,9 +164,10 @@ export TOOL_BANNER="Docs: read only"
 
 ## Path additions
 
-`paths` adds directories inside the overlay to list variables such as `PATH` and `PYTHONPATH`. When
-the manifest does not write it, its default is `bin/` prepended to `PATH`, then `lib/` prepended to
-`PYTHONPATH`, each when present; written, it is exactly its entries, and `paths = []` adds nothing.
+`paths` adds directories inside the overlay to list variables such as `PATH` and `PYTHONPATH`. The
+[defaults](package.md#defaults) come first: `bin/` prepended to `PATH` (key `bin`), then
+`lib/python/` prepended to `PYTHONPATH` (key `lib`), each when present. A declared entry whose
+`path` is `bin` or `lib/python` replaces that default addition; other entries follow the defaults.
 A program in `bin/` runs only when something calls it. Each entry is a mapping:
 
 | Key | Type | Default | Meaning |
@@ -177,12 +179,12 @@ A program in `bin/` runs only when something calls it. Each entry is a mapping:
 
 ```toml
 [[paths]]
-variable = "PATH"
-path = "bin"
+variable = "MANPATH"
+path = "man"
 
 [[paths]]
 variable = "PYTHONPATH"
-path = "lib"
+path = "lib/python"
 position = "append"
 ```
 
@@ -197,9 +199,9 @@ The separator is `;` on Windows and `:` on every other OS. For each variable a c
 4. joins with the separator. An unset variable starts empty.
 
 An overlay MUST NOT name a variable both in `paths` and in `env` or an env file; a validator refuses
-it in `env`, and a consumer refuses the env file. `paths` here includes its default: an overlay with
-a `bin/` that does not write `paths` cannot set `PATH` in `env`, and a validator that knows the files
-refuses it. Adding to a
+it in `env`, and a consumer refuses the env file. `paths` here includes its defaults: an overlay
+with a `bin/` cannot set `PATH` in `env` unless `[defaults] bin = false`, and a validator that knows
+the files refuses it. Adding to a
 [sensitive variable](security.md#sensitive-variables) other than `PATH` and `PYTHONPATH` is the
 weakening `env-sensitive`.
 
@@ -215,8 +217,8 @@ MUST give the same result for the same inputs:
 
 1. Set the root variable of every overlay in play, and its state variable when it has a state
    directory.
-2. For each overlay in [composition order](composition.md#deterministic-ordering), with each field as
-   written or as its [default](package.md#defaults):
+2. For each overlay in [composition order](composition.md#deterministic-ordering), each field
+   with its [defaults](package.md#defaults) first:
     1. its `env_files` that apply to this OS, in order;
     2. its `env`;
     3. its `paths`;
@@ -238,12 +240,13 @@ by variable name. Setting a [sensitive variable](security.md#sensitive-variables
 
 ## Env scripts
 
-**Optional Extension, Proposed.** `env_scripts` runs programs that compute environment values. When
-the manifest does not write it, its default is one `env.<ext>` at the overlay root, chosen as
-[Default scripts](runtime.md#default-scripts) says; `env_scripts = []` runs none. They execute code
-each time an environment is built: a consumer runs them for an overlay it has activated, reports
-`env-script` every time it does, and MAY turn them off by its own policy, in which case none runs,
-declared or default.
+**Optional Extension, Proposed.** `env_scripts` runs programs that compute environment values. The
+`env_scripts` [default](package.md#defaults), one `env.<ext>` at the overlay root chosen as
+[Default scripts](runtime.md#default-scripts) says, runs first, then the declared scripts; a
+declared entry naming a root `env.<ext>` configures that file in the default choice. They execute
+code each time an environment is built: a consumer runs them for an overlay it has activated,
+reports `env-script` every time it does, and MAY turn them off by its own policy, in which case none
+runs, declared or default.
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
@@ -261,11 +264,19 @@ timeout = 10
 ```
 
 The script runs as a [step](runtime.md#what-a-step-receives) does, with the environment built so far
-for this overlay. Its standard output is UTF-8 lines, each ending in `LF` with an optional `CR`
-before it; blank lines are skipped. Every other line is a JSON object, read under the manifest's
-JSON rules (no duplicate keys, no `NaN`), whose keys are variable names that are not reserved and
-whose values are a string without a zero byte, to set the variable, or `null`, to unset it. The
-objects apply in order. A consumer bounds the output's size by a setting. Each variable the script
+for this overlay. Its standard output is UTF-8 JSON objects, read under the manifest's JSON rules
+(no duplicate keys, no `NaN`), in one of two shapes:
+
+- the whole output, without surrounding spaces, tabs and line breaks, is one JSON object, which
+  may span several lines (`json.dumps(values, indent=2)`); or else
+- every line that is not blank is one JSON object; lines end in `LF`, with an optional `CR`
+  before it.
+
+The two never disagree: an output that is one object over several lines has lines that are not
+objects, and several objects are not one. A reader tries the first shape, and the second when the
+output is not one JSON value. Each object's keys are variable names that are not reserved, and its
+values a string without a zero byte, to set the variable, or `null`, to unset it. The objects apply
+in order. A consumer bounds the output's size by a setting. Each variable the script
 sets passes the same checks as `env`: `env-sensitive` is reported. Any other output, a non-zero exit
 or a timeout fails the script; the consumer reports the failure without quoting the output, and
 applies nothing from it.

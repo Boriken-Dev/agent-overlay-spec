@@ -6,7 +6,7 @@ rules and the classes they serve are in
 
 | File | What it checks |
 | --- | --- |
-| `reading.json` | Format line, TOML default, JSON and YAML data model, static reading, limits, `dotenv` |
+| `reading.json` | Format line, TOML default, JSON and YAML data model, static reading, limits, `dotenv`, env-script output |
 | `validation.json` | Every field, valid and invalid, and files a field names |
 | `names.json` | Overlay identities, normalization, root variables |
 | `source.json` | `[git+]<location>[@<ref>][#<path>]` |
@@ -19,7 +19,7 @@ Error classes:
 - reading: `invalid-utf8`, `no-format-named`, `unsupported-format`, `parse-error`, `not-a-mapping`,
   `null-value`, `duplicate-key`, `non-string-key`, `datetime-value`, `non-finite-float`,
   `integer-range`, `invalid-unicode`, `yaml-tag`, `yaml-anchor`, `yaml-merge-key`,
-  `yaml-directive`, `too-deep`, `too-large`, `dotenv-syntax`;
+  `yaml-directive`, `too-deep`, `too-large`, `dotenv-syntax`, `env-script-output`;
 - digest: `symlink`, `special-file`, `non-utf8-name`, `invalid-name`, `case-collision`;
 - applying: `unresolved-reference`, `invalid-reference`, `missing-file`, `invalid-env-file`,
   `env-path-conflict`;

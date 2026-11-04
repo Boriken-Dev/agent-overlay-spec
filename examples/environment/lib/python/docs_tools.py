@@ -1,4 +1,4 @@
-"""Importable through PYTHONPATH, which the overlay appends `lib/` to."""
+"""Importable through PYTHONPATH, which the overlay appends `lib/python/` to."""
 
 
 def banner() -> str:

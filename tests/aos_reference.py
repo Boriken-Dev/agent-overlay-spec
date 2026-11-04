@@ -284,6 +284,42 @@ def read_dotenv(data: bytes) -> "dict[str, str]":
     return out
 
 
+def read_env_script_output(data: bytes) -> "dict[str, Optional[str]]":
+    """An env script's standard output: the variables it sets (a string) or unsets (None).
+
+    The whole output is one JSON object, possibly over several lines; or else every line that is
+    not blank is one. The objects apply in order.
+    """
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        raise ReadError("invalid-utf8")
+    whole = text.strip(" \t\r\n")
+    if not whole:
+        return {}
+    try:
+        objects = [_read_json(whole)]
+    except ReadError as error:
+        if error.code != "parse-error":
+            raise
+        objects = []
+        for line in text.split("\n"):
+            line = line[:-1] if line.endswith("\r") else line
+            if line.strip(" \t"):
+                objects.append(_read_json(line))
+    out: "dict[str, Optional[str]]" = {}
+    for value in objects:
+        if not isinstance(value, dict):
+            raise ReadError("env-script-output", "not an object")
+        for name, item in value.items():
+            if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", name) or is_reserved_variable(name):
+                raise ReadError("env-script-output", "variable name")
+            if item is not None and not (isinstance(item, str) and "\0" not in item):
+                raise ReadError("env-script-output", "value")
+            out[name] = item
+    return out
+
+
 # --------------------------------------------------------------------------------------------
 # Validation: the schema, then the rules JSON Schema cannot express.
 # --------------------------------------------------------------------------------------------
@@ -485,8 +521,8 @@ def named_files(doc: "dict[str, Any]") -> "list[tuple[str, str]]":
 def _files(doc: "dict[str, Any]", files: "set[str]") -> "list[tuple[str, str]]":
     found = [("missing-file", at) for at, path in named_files(doc) if path not in files]
     env = doc.get("env")
-    if isinstance(env, dict) and "paths" not in doc:
-        added = {entry["variable"] for entry in paths_of(doc, files)}
+    if isinstance(env, dict):
+        added = {entry["variable"] for entry in default_paths(doc, files)}
         for name in env:
             if name.upper() in added:
                 found.append(("env-path-conflict", "/env/%s" % name))
@@ -752,11 +788,13 @@ def composition_order(
 
 
 # --------------------------------------------------------------------------------------------
-# Defaults: the value of a field the manifest does not write, from the overlay's files.
+# Defaults: what conventional files contribute unless ``defaults`` turns them off.
 # --------------------------------------------------------------------------------------------
 
-#: Default path additions as ``(variable, directory)``, in the order they apply.
-DEFAULT_PATHS = (("PATH", "bin"), ("PYTHONPATH", "lib"))
+#: The keys of ``defaults``; each is true unless the manifest writes it false.
+DEFAULT_KEYS = ("bin", "lib", "env", "env_scripts", "setup", "context", "skills", "rules")
+#: Default path additions as ``(key, variable, directory)``, in the order they apply.
+DEFAULT_PATHS = (("bin", "PATH", "bin"), ("lib", "PYTHONPATH", "lib/python"))
 #: Default script extensions in the order a consumer tries them, with the OSes each applies on
 #: (``None``: every OS).
 DEFAULT_SCRIPTS = (
@@ -773,6 +811,11 @@ _SKILL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 _RULES_FILE = re.compile(r"^rules/[^/]+\.md$")
 
 
+def default_on(manifest: "dict[str, Any]", key: str) -> bool:
+    defaults = manifest.get("defaults")
+    return not (isinstance(defaults, dict) and defaults.get(key) is False)
+
+
 def _members(files: "Iterable[str]") -> "list[str]":
     """The files that make a path present: digest members, so no excluded name or ``.pyc``."""
     return [path for path in files if valid_relpath(path)]
@@ -782,67 +825,109 @@ def _by_bytes(paths: "Iterable[str]") -> "list[str]":
     return sorted(paths, key=lambda path: path.encode("utf-8"))
 
 
-def paths_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[dict[str, Any]]":
-    """``paths``, or by default ``bin/`` prepended to PATH and ``lib/`` to PYTHONPATH."""
-    if "paths" in manifest:
-        return list(manifest["paths"]) if isinstance(manifest["paths"], list) else []
+def _named(entry: Any) -> Any:
+    """The file or directory an entry names: a string entry, or a mapping's ``path``."""
+    return entry.get("path") if isinstance(entry, dict) else entry
+
+
+def _declared(manifest: "dict[str, Any]", field: str) -> "list[Any]":
+    value = manifest.get(field)
+    return list(value) if isinstance(value, list) else []
+
+
+def _merge(defaults: "list[Any]", declared: "list[Any]") -> "list[Any]":
+    """Default entries first, then declared ones; a declared entry naming the same file or
+    directory as a default entry replaces it."""
+    named = {_named(entry) for entry in declared}
+    return [entry for entry in defaults if _named(entry) not in named] + declared
+
+
+def default_paths(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[dict[str, Any]]":
+    """The default path additions that are on, present, and not replaced by a declared entry."""
     members = _members(files)
-    return [
+    found = [
         {"variable": variable, "path": directory}
-        for variable, directory in DEFAULT_PATHS
-        if any(path.startswith(directory + "/") for path in members)
+        for key, variable, directory in DEFAULT_PATHS
+        if default_on(manifest, key) and any(p.startswith(directory + "/") for p in members)
     ]
+    named = {_named(entry) for entry in _declared(manifest, "paths")}
+    return [entry for entry in found if entry["path"] not in named]
+
+
+def paths_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[dict[str, Any]]":
+    """The defaults ``bin`` and ``lib``, then ``paths``."""
+    return default_paths(manifest, files) + _declared(manifest, "paths")
 
 
 def rules_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[str]":
-    """``rules``, or by default every ``rules/<name>.md`` by path bytes."""
-    if "rules" in manifest:
-        return list(manifest["rules"])
-    return [path for path in _by_bytes(_members(files)) if _RULES_FILE.match(path)]
+    """Every ``rules/<name>.md`` by path bytes, then ``rules``."""
+    found = []
+    if default_on(manifest, "rules"):
+        found = [path for path in _by_bytes(_members(files)) if _RULES_FILE.match(path)]
+    return _merge(found, _declared(manifest, "rules"))
 
 
 def context_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[str]":
-    """``context``, or by default the root ``CONTEXT.md``."""
-    if "context" in manifest:
-        return list(manifest["context"])
-    return ["CONTEXT.md"] if "CONTEXT.md" in _members(files) else []
+    """The root ``CONTEXT.md``, then ``context``."""
+    found = []
+    if default_on(manifest, "context") and "CONTEXT.md" in _members(files):
+        found = ["CONTEXT.md"]
+    return _merge(found, _declared(manifest, "context"))
 
 
 def skills_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[str]":
-    """``skills``, or by default every ``skills/<name>/SKILL.md`` with a skill name."""
-    if "skills" in manifest:
-        return list(manifest["skills"])
-    found = []
-    for path in _members(files):
-        parts = path.split("/")
-        if len(parts) == 3 and parts[0] == "skills" and parts[2] == "SKILL.md":
-            if _SKILL_NAME.match(parts[1]):
-                found.append(parts[1])
+    """Every ``skills/<name>/SKILL.md`` with a skill name, and the skills ``skills`` lists."""
+    found = set(_declared(manifest, "skills"))
+    if default_on(manifest, "skills"):
+        for path in _members(files):
+            parts = path.split("/")
+            if len(parts) == 3 and parts[0] == "skills" and parts[2] == "SKILL.md":
+                if _SKILL_NAME.match(parts[1]):
+                    found.add(parts[1])
     return _by_bytes(found)
 
 
 def env_files_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[Any]":
-    """``env_files``, or by default the root file ``env`` read as dotenv."""
-    if "env_files" in manifest:
-        return list(manifest["env_files"])
-    return [{"path": "env", "format": "dotenv"}] if "env" in _members(files) else []
+    """The root file ``env`` read as dotenv, then ``env_files``."""
+    found = []
+    if default_on(manifest, "env") and "env" in _members(files):
+        found = [{"path": "env", "format": "dotenv"}]
+    return _merge(found, _declared(manifest, "env_files"))
 
 
 def default_script(
-    stem: str, files: "Iterable[str]", os_name: str, interpreters: "Iterable[str]"
-) -> "tuple[Optional[dict[str, str]], list[str]]":
-    """The ``<stem>.<ext>`` a consumer runs by default, and every such file present.
+    manifest: "dict[str, Any]",
+    field: str,
+    stem: str,
+    files: "Iterable[str]",
+    os_name: str,
+    interpreters: "Iterable[str]",
+) -> "tuple[Optional[dict[str, Any]], bool, list[str], list[Any]]":
+    """The default ``<stem>.<ext>`` a consumer runs for ``field``.
 
-    The first extension in :data:`DEFAULT_SCRIPTS` whose file is present, that applies on this
-    OS, and whose interpreter the consumer has.
+    Returns the chosen entry, whether a declared entry configured it, the candidate files
+    present (reported when none is chosen), and the declared entries that name no candidate.
+    A declared entry naming a candidate takes its place in the order, with its own settings.
     """
+    declared = _declared(manifest, field)
+    if not default_on(manifest, field):
+        return None, False, [], declared
     members = set(_members(files))
     present = [stem + ext for ext, _i, _o in DEFAULT_SCRIPTS if stem + ext in members]
+    configured = {
+        entry["path"]: entry
+        for entry in declared
+        if isinstance(entry, dict) and entry.get("path") in present
+    }
+    others = [entry for entry in declared if _named(entry) not in configured]
     for ext, interpreter, names in DEFAULT_SCRIPTS:
         path = stem + ext
-        if path in members and os_matches({"os": names}, os_name) and interpreter in interpreters:
-            return {"interpreter": interpreter, "path": path}, present
-    return None, present
+        if path not in present:
+            continue
+        entry = configured.get(path, {"interpreter": interpreter, "path": path, "os": names})
+        if os_matches(entry, os_name) and entry["interpreter"] in interpreters:
+            return entry, path in configured, present, others
+    return None, False, present, others
 
 
 # --------------------------------------------------------------------------------------------
@@ -1103,15 +1188,12 @@ def apply_overlay(
     _apply_paths(env, paths, root, os_name, weakenings)
     scripts = []
     if facts.get("env_scripts_enabled", True):
-        declared = manifest.get("env_scripts")
-        if declared is None:
-            chosen, present = default_script(
-                "env", tree, os_name, facts.get("interpreters", INTERPRETERS)
-            )
-            declared = [chosen] if chosen else []
-            if chosen is None:
-                weakenings.extend(["script-not-run", path] for path in present)
-        for script in declared:
+        chosen, _configured, present, others = default_script(
+            manifest, "env_scripts", "env", tree, os_name, facts.get("interpreters", INTERPRETERS)
+        )
+        if chosen is None:
+            weakenings.extend(["script-not-run", path] for path in present)
+        for script in ([chosen] if chosen else []) + others:
             if os_matches(script, os_name):
                 selected = {"interpreter": script["interpreter"], "path": script["path"]}
                 selected["args"] = script.get("args", [])
@@ -1141,15 +1223,21 @@ def effective(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
         scripts = apply_overlay(env, manifest, facts, root, weakenings, facts.get("files", {}))
     except Refused as refused:
         return {"error": refused.code, "subject": refused.subject}
-    if "setup" in manifest:
-        setup = first_variant(manifest["setup"], os_name)
-        network = False
-    else:
-        # A default setup declares nothing, so it is taken to need the network.
-        setup, present = default_script(
-            "setup", facts.get("files", {}), os_name, facts.get("interpreters", INTERPRETERS)
-        )
-        network = True
+    chosen, configured, present, others = default_script(
+        manifest,
+        "setup",
+        "setup",
+        facts.get("files", {}),
+        os_name,
+        facts.get("interpreters", INTERPRETERS),
+    )
+    # Declared variants come first; the default setup is the last one.
+    setup = first_variant(others, os_name)
+    network = False
+    if setup is None:
+        setup = chosen
+        # A default setup that declares nothing is taken to need the network.
+        network = not configured
         if setup is None:
             weakenings.extend(["script-not-run", path] for path in present)
     if setup is not None:

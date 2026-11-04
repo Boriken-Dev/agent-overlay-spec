@@ -1,6 +1,6 @@
 # Commands and executable assets
 
-**Optional Extension.** `bin/` and `lib/` go on `PATH` and `PYTHONPATH` by
+**Optional Extension.** `bin/` and `lib/python/` go on `PATH` and `PYTHONPATH` by
 [default](package.md#defaults), which makes their programs findable and runs nothing. A consumer
 exposes a command only for a `scripts` entry: no directory makes one, and `cmds/` and `scripts/`
 mean nothing by their name.

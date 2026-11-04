@@ -56,7 +56,11 @@ def test_reading(case):
     data = base64.b64decode(case["base64"]) if "base64" in case else case["text"].encode("utf-8")
     limits = {"max_" + key[4:]: value for key, value in case.get("limits", {}).items()}
     expect = case["expect"]
-    read = aos.read_dotenv if case["format"] == "dotenv" else aos.read_document
+    read = {
+        "aos": aos.read_document,
+        "dotenv": aos.read_dotenv,
+        "env-script": aos.read_env_script_output,
+    }[case["format"]]
     if "error" in expect and "data" in expect:
         try:
             got = read(data, **limits)

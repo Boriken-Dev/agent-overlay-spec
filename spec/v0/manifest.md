@@ -126,24 +126,25 @@ manifest.
 | `description` | string | Core | `""` | |
 | `requires` | array of overlay names | Core | `[]` | [Dependencies](dependencies.md) |
 | `routing` | array of strings | Core | `[]` | [Composition](composition.md#merging) |
-| `rules` | array of relative paths | Core | [from the files](package.md#defaults) | [Composition](composition.md#merging) |
+| `rules` | array of relative paths | Core | `[]`, after the [defaults](package.md#defaults) | [Composition](composition.md#merging) |
 | `priority` | integer | Core | `500` | [Composition](composition.md#deterministic-ordering) |
-| `context` | array of relative paths | Optional Extension, **Proposed** | [from the files](package.md#defaults) | [Context and harnesses](harness.md) |
-| `skills` | array of skill names | Optional Extension, **Proposed** | [from the files](package.md#defaults) | [Skills](skills.md) |
+| `defaults` | mapping of default to boolean | Core, **Proposed** | every default on | [Package](package.md#turning-a-default-off) |
+| `context` | array of relative paths | Optional Extension, **Proposed** | `[]`, after the [defaults](package.md#defaults) | [Context and harnesses](harness.md) |
+| `skills` | array of skill names | Optional Extension, **Proposed** | `[]`, after the [defaults](package.md#defaults) | [Skills](skills.md) |
 | `env` | mapping of variable to env value | Optional Extension, **Proposed** | `{}` | [Environment](environment.md#env) |
-| `env_files` | array of env files | Optional Extension, **Proposed** | [from the files](package.md#defaults) | [Environment](environment.md#env-files) |
-| `paths` | array of path additions | Optional Extension, **Proposed** | [from the files](package.md#defaults) | [Environment](environment.md#path-additions) |
-| `env_scripts` | array of scripts | Optional Extension, **Proposed** | [from the files](package.md#defaults) | [Environment](environment.md#env-scripts) |
+| `env_files` | array of env files | Optional Extension, **Proposed** | `[]`, after the [defaults](package.md#defaults) | [Environment](environment.md#env-files) |
+| `paths` | array of path additions | Optional Extension, **Proposed** | `[]`, after the [defaults](package.md#defaults) | [Environment](environment.md#path-additions) |
+| `env_scripts` | array of scripts | Optional Extension, **Proposed** | `[]`, after the [defaults](package.md#defaults) | [Environment](environment.md#env-scripts) |
 | `runtime` | mapping | Optional Extension, **Proposed** | `{}` | [Runtime and setup](runtime.md#runtime) |
-| `setup` | array of setup variants | Optional Extension, **Proposed** | [from the files](package.md#defaults) | [Runtime and setup](runtime.md#setup) |
+| `setup` | array of setup variants | Optional Extension, **Proposed** | `[]`, after the [defaults](package.md#defaults) | [Runtime and setup](runtime.md#setup) |
 | `scripts` | mapping of command name to script | Optional Extension | `{}` | [Commands](commands.md) |
 | `mcp` | mapping | Optional Extension | absent | [MCP](mcp.md) |
 | `harness` | mapping of harness id to hints | Optional Extension, **Proposed** | `{}` | [Context and harnesses](harness.md#harness-hints) |
 
-A field marked "from the files" takes its [default](package.md#defaults) from the overlay's files
-when the manifest does not write it; written, it is exactly what it says, and `[]` turns the
-default off. The field's class is the class of its declaration; the class of each default is in
-that table.
+Seven fields have [defaults](package.md#defaults) that come from the overlay's files. They apply
+first, the field's declared entries follow, and a declared entry naming the same file or directory
+as a default entry replaces it; `defaults` turns one off. A field's class is the class of its
+declaration; the class of each default is in that section.
 
 A **relative path** is `/`-separated and relative to the overlay root, and every component of it:
 
@@ -186,7 +187,7 @@ priority = 420
 
 [[paths]]
 variable = "PYTHONPATH"
-path = "lib"
+path = "lib/python"
 position = "append"
 ```
 
@@ -201,7 +202,7 @@ The same manifest in JSON. The format line is required, since TOML is the defaul
   "routing": ["- Python changes → `$PYTHON_QUALITY_OVERLAY_ROOT/kb/PYTHON.md`"],
   "rules": ["kb/always-on.md"],
   "priority": 420,
-  "paths": [{ "variable": "PYTHONPATH", "path": "lib", "position": "append" }]
+  "paths": [{ "variable": "PYTHONPATH", "path": "lib/python", "position": "append" }]
 }
 ```
 
@@ -217,6 +218,6 @@ rules: [kb/always-on.md]
 priority: 420
 paths:
   - variable: PYTHONPATH
-    path: lib
+    path: lib/python
     position: append
 ```

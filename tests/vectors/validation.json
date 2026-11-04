@@ -385,19 +385,22 @@
     },
     {
       "id": "defaults-off",
-      "description": "An empty list turns a field's default off.",
+      "description": "Every default turned off.",
       "document": {
-        "paths": [],
-        "rules": [],
-        "context": [],
-        "skills": [],
-        "env_files": [],
-        "env_scripts": [],
-        "setup": []
+        "defaults": {
+          "bin": false,
+          "lib": false,
+          "env": false,
+          "env_scripts": false,
+          "setup": false,
+          "context": false,
+          "skills": false,
+          "rules": false
+        }
       },
       "files": [
         "bin/tool",
-        "lib/m.py",
+        "lib/python/m.py",
         "rules/a.md",
         "CONTEXT.md",
         "skills/k/SKILL.md",
@@ -410,22 +413,32 @@
       }
     },
     {
-      "id": "env-path-paths-written",
-      "description": "env may set PATH when paths is written without it, bin/ or not.",
+      "id": "defaults-on",
+      "description": "true is the default, and may be written.",
+      "document": {
+        "defaults": {
+          "bin": true,
+          "skills": true
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "env-path-bin-off",
+      "description": "env may set PATH when the bin default is off.",
       "document": {
         "env": {
           "PATH": "/opt/bin"
         },
-        "paths": [
-          {
-            "variable": "PYTHONPATH",
-            "path": "lib"
-          }
-        ]
+        "defaults": {
+          "bin": false
+        }
       },
       "files": [
         "bin/tool",
-        "lib/m.py"
+        "lib/python/m.py"
       ],
       "expect": {
         "valid": true
@@ -433,15 +446,30 @@
     },
     {
       "id": "env-path-no-bin",
-      "description": "env may set PATH when the default paths has no bin/ to add.",
+      "description": "env may set PATH when no bin/ is present.",
       "document": {
         "env": {
           "PATH": "/opt/bin"
         }
       },
       "files": [
-        "lib/m.py",
+        "lib/python/m.py",
         "bin.txt"
+      ],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "env-pythonpath-bare-lib",
+      "description": "A bare lib/ is no convention: env may set PYTHONPATH.",
+      "document": {
+        "env": {
+          "PYTHONPATH": "/opt/lib"
+        }
+      },
+      "files": [
+        "lib/m.py"
       ],
       "expect": {
         "valid": true
@@ -471,6 +499,33 @@
       "expect": {
         "valid": false,
         "at": "/context/0"
+      }
+    },
+    {
+      "id": "fixture-defaults-string",
+      "description": "tests/fixtures/invalid/defaults-string.cfg",
+      "document": {
+        "defaults": {
+          "bin": "no"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/defaults/bin"
+      }
+    },
+    {
+      "id": "fixture-defaults-unknown-key",
+      "description": "tests/fixtures/invalid/defaults-unknown-key.cfg",
+      "document": {
+        "defaults": {
+          "bin": false,
+          "lib_node": false
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/defaults"
       }
     },
     {
@@ -1912,18 +1967,51 @@
     },
     {
       "id": "env-pythonpath-default-lib",
-      "description": "Likewise a lib/ and PYTHONPATH.",
+      "description": "Likewise a lib/python/ and PYTHONPATH.",
       "document": {
         "env": {
           "PYTHONPATH": "/opt/lib"
         }
       },
       "files": [
-        "lib/m.py"
+        "lib/python/m.py"
       ],
       "expect": {
         "valid": false,
         "at": "/env/PYTHONPATH"
+      }
+    },
+    {
+      "id": "env-path-declared-paths",
+      "description": "A paths entry for another directory keeps the bin default, so env still cannot set PATH.",
+      "document": {
+        "env": {
+          "PATH": "/opt/bin"
+        },
+        "paths": [
+          {
+            "variable": "MANPATH",
+            "path": "man"
+          }
+        ]
+      },
+      "files": [
+        "bin/tool"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/env/PATH"
+      }
+    },
+    {
+      "id": "defaults-not-table",
+      "description": "defaults is a table of booleans, not one switch.",
+      "document": {
+        "defaults": false
+      },
+      "expect": {
+        "valid": false,
+        "at": "/defaults"
       }
     }
   ]

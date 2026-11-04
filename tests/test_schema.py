@@ -104,7 +104,8 @@ def test_every_default_in_the_conventions_example():
     facts = {"os": "linux", "root": "/ov/c", "identity": "conventions", "pinned": True}
     texts = {path: (root / path).read_text(encoding="utf-8") for path in files}
     result = aos.effective({}, dict(facts, files=texts))
-    assert result["env"]["PATH"] == "/ov/c/bin" and result["env"]["PYTHONPATH"] == "/ov/c/lib"
+    assert result["env"]["PATH"] == "/ov/c/bin"
+    assert result["env"]["PYTHONPATH"] == "/ov/c/lib/python"
     assert result["env"]["TOOL_BANNER"] == "Conventions: read only"
     assert [s["path"] for s in result["env_scripts"]] == ["env.py"]
     assert result["setup"]["path"] == "setup.sh" and result["setup"]["network"] is True

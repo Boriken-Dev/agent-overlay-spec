@@ -13,10 +13,10 @@ skills = ["summarize-docs", "search-docs"]
 ```
 
 Each name matches `[A-Za-z0-9][A-Za-z0-9_.-]*`, and `skills/<name>/SKILL.md` MUST exist; a validator
-refuses a listed skill without it. When `skills` is present it is the complete list: a directory under
-`skills/` that is not listed is not a skill of the overlay, and `skills = []` gives it none. When it
-is absent, its [default](package.md#defaults) is every `skills/<name>/SKILL.md` whose `<name>`
-matches that pattern. A consumer that delivers skills delivers exactly these.
+refuses a listed skill without it. The listed skills are added to the `skills`
+[default](package.md#defaults): every `skills/<name>/SKILL.md` whose `<name>` matches that
+pattern. To offer only some skills, turn the default off with `[defaults] skills = false` and list
+them. A consumer that delivers skills delivers exactly these.
 
 A skill's `SKILL.md` MAY begin with front matter that names it and describes it (`name:`,
 `description:`). AOS does not require front matter; a runtime may.

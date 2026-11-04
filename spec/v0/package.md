@@ -11,7 +11,7 @@ means something only when a field names it.
 | Path | Meaning |
 |---|---|
 | `overlay.cfg` | Optional manifest: metadata and declarations |
-| `bin/`, `lib/` | Programs and modules, on `PATH` and `PYTHONPATH` by default |
+| `bin/`, `lib/python/` | Programs and Python modules, on `PATH` and `PYTHONPATH` by default |
 | `rules/<name>.md`, `CONTEXT.md` | Always-on rules and initial context, by default |
 | `skills/<name>/SKILL.md` | A skill |
 | `env`, `env.<ext>`, `setup.<ext>` | The env file, the env script and setup, by default |
@@ -30,61 +30,92 @@ and they do not count in the [tree digest](integrity.md#tree-digest).
 
 ## Defaults
 
-**The basics need no manifest.** Seven fields take a default from the overlay's files. When the
-manifest does not write the field, the field has its default. When it writes the field, what it
-writes is the whole value: the default is not merged in, so a declared entry never repeats a default
-one, and an empty list turns the default off.
+**The basics need no manifest.** Files in conventional places take effect by default. Each default
+stays on unless the manifest's [`defaults`](#turning-a-default-off) table turns it off, and what the
+manifest declares adds to the defaults.
 
-| Field | Default, from the files present | Class |
-| --- | --- | --- |
-| [`paths`](environment.md#path-additions) | `bin/` prepended to `PATH`, then `lib/` prepended to `PYTHONPATH`, each when present | Optional Extension |
-| [`rules`](composition.md#merging) | every `rules/<name>.md` directly in `rules/`, ordered by path bytes | Core, **Proposed** |
-| [`context`](harness.md#context) | `CONTEXT.md` at the root | Optional Extension |
-| [`skills`](skills.md#declaring-skills) | every `skills/<name>/SKILL.md` whose `<name>` is a skill name | Optional Extension |
-| [`env_files`](environment.md#env-files) | the file `env` at the root, read as [`dotenv`](environment.md#env-files) | Optional Extension, **Proposed** |
-| [`env_scripts`](environment.md#env-scripts) | one `env.<ext>` at the root, [chosen by runtime](runtime.md#default-scripts) | Optional Extension |
-| [`setup`](runtime.md#setup) | one `setup.<ext>` at the root, chosen the same way, taken to need the network | Optional Extension |
+| `defaults` key | Default, from the files present | Adds to | Class |
+| --- | --- | --- | --- |
+| `bin` | `bin/` prepended to `PATH` | [`paths`](environment.md#path-additions) | Optional Extension |
+| `lib` | `lib/python/` prepended to `PYTHONPATH` | [`paths`](environment.md#path-additions) | Optional Extension |
+| `env` | the file `env` at the root, read as [`dotenv`](environment.md#env-files) | [`env_files`](environment.md#env-files) | Optional Extension, **Proposed** |
+| `env_scripts` | one `env.<ext>` at the root, [chosen by runtime](runtime.md#default-scripts) | [`env_scripts`](environment.md#env-scripts) | Optional Extension |
+| `setup` | one `setup.<ext>` at the root, chosen the same way, taken to need the network | [`setup`](runtime.md#setup) | Optional Extension |
+| `context` | `CONTEXT.md` at the root | [`context`](harness.md#context) | Optional Extension |
+| `skills` | every `skills/<name>/SKILL.md` whose `<name>` is a skill name | [`skills`](skills.md#declaring-skills) | Optional Extension |
+| `rules` | every `rules/<name>.md` directly in `rules/`, ordered by path bytes | [`rules`](composition.md#merging) | Core, **Proposed** |
 
 A path is **present** when the overlay holds a file there that is a member of its
 [tree digest](integrity.md#tree-digest): `bin/` is present when a file is under it at any depth,
 `env` when it is a file. An empty directory, an excluded name and a `.pyc` file make nothing present.
 Names match exactly, in case too: `Bin/`, `context.md` and `rules/A.MD` are not conventions.
 
-A consumer computes a default when it applies the field, from the overlay's list of files. Reading
-the manifest still reads no other file ([static reading](manifest.md#static-reading)), and a
-validator that knows the files checks a default as it checks a written field.
+Python modules go in `lib/python/`; a bare `lib/` means nothing. `lib/<runtime>/` is kept for the
+libraries of other runtimes, which a later edition may define; the `lib` key turns off every one of
+them.
+
+A consumer computes the defaults when it applies the fields, from the overlay's list of files.
+Reading the manifest still reads no other file ([static reading](manifest.md#static-reading)), and
+a validator that knows the files checks a default entry as it checks a declared one.
+
+### Turning a default off
+
+`defaults` is a table of the keys above. Each value is a boolean, `true` when absent; `false` turns
+that one default off, and nothing else does: an empty list declares nothing and turns nothing off.
+Any other key is an error, so a misspelt key fails instead of leaving a default on.
 
 ```toml
-# Turn defaults off: nothing on PATH or PYTHONPATH, no skills, env.py not run.
-paths = []
-skills = []
-env_scripts = []
+[defaults]
+lib = false      # lib/python/ stays off PYTHONPATH
+setup = false    # setup.sh does not run
 ```
 
-```toml
-# Keep bin/ on PATH but append lib/ to PYTHONPATH: write paths in full.
-[[paths]]
-variable = "PATH"
-path = "bin"
+### Declarations add to the defaults
 
+A field's default entries come first, then the entries the manifest declares. A declared entry that
+names the same file or directory as a default entry **replaces** it, so nothing applies twice: the
+declared entry applies at its own place and with its own settings, and where its `os` does not
+match, that file or directory does not apply at all.
+
+- `paths`: an entry whose `path` is `bin` or `lib/python` replaces that default addition, whatever
+  its variable. Other entries are added after the defaults, so declaring another directory keeps
+  `bin/` on `PATH`.
+- `rules`, `context`, `env_files`: an entry naming the same file replaces that default entry.
+- `skills`: the listed skills are added to the ones found. With `skills = false` in `defaults`, the
+  list is exactly the skills the overlay offers.
+- `env_scripts`, `setup`: an entry naming a root `env.<ext>` or `setup.<ext>` configures that file in
+  the [default choice](runtime.md#default-scripts). The file keeps its place in the order, takes the
+  entry's interpreter, arguments, timeout, `os` and (for setup) `network`, and runs only if it is
+  chosen. Other declared env scripts run after the default one; other declared setup variants are
+  tried before the default setup, which is the last variant.
+
+```toml
+# bin/ stays first on PATH; lib/python/ is appended instead of prepended; man/ is added.
 [[paths]]
 variable = "PYTHONPATH"
-path = "lib"
+path = "lib/python"
+position = "append"
+
+[[paths]]
+variable = "MANPATH"
+path = "man"
 position = "append"
 ```
 
-One rule covers every default, and it adds no key: a written field is exactly what it says, so a
-reader never has to merge a declaration with a default or decide which of two entries wins, and an
-empty list, which every field already accepts, is the one way to turn a default off.
+A default is on until it is switched off, by its own key. Declaring adds, so an author who adds a
+directory keeps `bin/`, and an entry naming a default's file changes that default's settings without
+turning it off and without applying it twice. Each key is named for what it turns off: the directory
+or file of a default that is one entry of a shared field (`bin`, `lib`, `env`), and the field itself
+where the default is all of it (`env_scripts`, `setup`, `context`, `skills`, `rules`).
 
-**Defaults that run code.** `env_scripts` and `setup` default to scripts that run. Running by
-default is never running silently: a consumer runs them only for an overlay it has activated, which
-is the [trust decision](security.md#execution-and-dependencies), and reports each run as a
+**Defaults that run code.** The `env_scripts` and `setup` defaults run scripts. Running by default is
+never running silently: a consumer runs them only for an overlay it has activated, which is the
+[trust decision](security.md#execution-and-dependencies), and reports each run as a
 [weakening](security.md#weakenings): `env-script` for an env script, `setup-network` for a default
 setup, and `script-not-run` for a default script present that cannot run.
 
-No other name has a default. `requirements.txt`, `pre.env`, `cmds/` and any other file or directory
-mean nothing by their name, and a program in `bin/` is on `PATH`, not a
+No other name has a default. `requirements.txt`, `pre.env`, `cmds/`, a bare `lib/` and any other file
+or directory mean nothing by their name, and a program in `bin/` is on `PATH`, not a
 [command](commands.md) a consumer exposes.
 
 **`local.env` is not an overlay file.** A file named `local.env` in an overlay has no meaning in

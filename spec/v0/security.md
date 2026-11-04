@@ -11,9 +11,9 @@ Reading a manifest executes nothing, reads no other file, and consults no enviro
 ([static reading](manifest.md#static-reading)). A consumer can therefore show a user everything an
 overlay would do (its environment, path additions, setup, runtime, servers and weakenings) before
 any of it happens, from the manifest and the overlay's list of files, which decides the
-[defaults](package.md#defaults). YAML tags, anchors, aliases and merge keys are refused because general YAML
-loaders construct objects or expand documents from them; JSON duplicate keys are refused because two
-readers would disagree on which value wins.
+[defaults](package.md#defaults). YAML tags, anchors, aliases and merge keys are refused because
+general YAML loaders construct objects or expand documents from them; JSON duplicate keys are
+refused because two readers would disagree on which value wins.
 
 A reader bounds the size and nesting of what it reads, by settings with defaults.
 

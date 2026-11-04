@@ -1,5 +1,5 @@
 {
-  "description": "Reading documents: format selection, the data model, static reading, limits, and the dotenv grammar. Input is 'text' (UTF-8) or 'base64'; 'format' is 'aos' (overlay.cfg rules) or 'dotenv'. 'expect' is the data, or an error class (a list when either class is right); with both 'data' and 'error', either outcome is right.",
+  "description": "Reading documents: format selection, the data model, static reading, limits, and the dotenv grammar. Input is 'text' (UTF-8) or 'base64'; 'format' is 'aos' (overlay.cfg rules), 'dotenv', or 'env-script' (an env script's output, whose data maps a variable to a string, or to null to unset it). 'expect' is the data, or an error class (a list when either class is right); with both 'data' and 'error', either outcome is right.",
   "spec": "spec/v0/manifest.md#reading-overlaycfg",
   "cases": [
     {
@@ -873,6 +873,94 @@
       "text": "A=\"one\ntwo\"\n",
       "expect": {
         "error": "dotenv-syntax"
+      }
+    },
+    {
+      "id": "env-script-lines",
+      "description": "One JSON object per line, applied in order: blank lines skipped, CRLF accepted, null unsets.",
+      "format": "env-script",
+      "text": "{\"A\": \"1\"}\n\n{\"B\": \"2\", \"A\": \"3\"}\r\n{\"C\": null}\n",
+      "expect": {
+        "data": {
+          "A": "3",
+          "B": "2",
+          "C": null
+        }
+      }
+    },
+    {
+      "id": "env-script-pretty",
+      "description": "The whole output as one object over several lines, as json.dumps(x, indent=2) prints it.",
+      "format": "env-script",
+      "text": "{\n  \"A\": \"1\",\n  \"B\": null\n}\n",
+      "expect": {
+        "data": {
+          "A": "1",
+          "B": null
+        }
+      }
+    },
+    {
+      "id": "env-script-empty",
+      "description": "No output, or only blank lines, sets nothing.",
+      "format": "env-script",
+      "text": "\n \n",
+      "expect": {
+        "data": {}
+      }
+    },
+    {
+      "id": "env-script-pretty-two",
+      "description": "Two pretty-printed objects are neither one object nor one object per line.",
+      "format": "env-script",
+      "text": "{\n  \"A\": \"1\"\n}\n{\n  \"B\": \"2\"\n}\n",
+      "expect": {
+        "error": "parse-error"
+      }
+    },
+    {
+      "id": "env-script-not-object",
+      "description": "Each object is a JSON object.",
+      "format": "env-script",
+      "text": "[\"A\"]\n",
+      "expect": {
+        "error": "env-script-output"
+      }
+    },
+    {
+      "id": "env-script-number",
+      "description": "A value is a string or null.",
+      "format": "env-script",
+      "text": "{\"A\": 1}\n",
+      "expect": {
+        "error": "env-script-output"
+      }
+    },
+    {
+      "id": "env-script-reserved",
+      "description": "A reserved variable is refused.",
+      "format": "env-script",
+      "text": "{\"X_OVERLAY_ROOT\": \"/tmp\"}\n",
+      "expect": {
+        "error": "env-script-output"
+      }
+    },
+    {
+      "id": "env-script-duplicate",
+      "description": "A key given twice in one object is refused, pretty-printed too.",
+      "format": "env-script",
+      "text": "{\n  \"A\": \"1\",\n  \"A\": \"2\"\n}\n",
+      "expect": {
+        "error": "duplicate-key"
+      }
+    },
+    {
+      "id": "env-script-text",
+      "description": "Any other output fails.",
+      "format": "env-script",
+      "text": "A=1\n",
+      "expect": {
+        "error": "parse-error"
       }
     }
   ]

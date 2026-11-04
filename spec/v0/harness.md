@@ -12,9 +12,9 @@ orchestrator).
 context = ["CONTEXT.md", "kb/glossary.md"]
 ```
 
-When the manifest does not write `context`, its [default](package.md#defaults) is `CONTEXT.md` at
-the overlay root, when present. Written, it is the whole list, so the example above names
-`CONTEXT.md` to keep it, and `context = []` adds nothing.
+The `context` [default](package.md#defaults), `CONTEXT.md` at the overlay root when present, comes
+first; the listed files follow, and listing `CONTEXT.md`, as the example above does, puts it at its
+listed place instead. `[defaults] context = false` turns the default off.
 
 Each entry is a [relative path](manifest.md#fields) to a UTF-8 text file that MUST exist. A consumer
 adds the files overlay by overlay in [composition order](composition.md#deterministic-ordering),
