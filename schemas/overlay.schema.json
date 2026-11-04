@@ -35,6 +35,7 @@
         "env": { "type": "boolean" },
         "env_scripts": { "type": "boolean" },
         "setup": { "type": "boolean" },
+        "deps": { "type": "boolean" },
         "context": { "type": "boolean" },
         "skills": { "type": "boolean" },
         "rules": { "type": "boolean" }
@@ -181,6 +182,11 @@
       "additionalProperties": false
     },
     "version": { "type": "string", "pattern": "^[0-9]{1,9}(?:\\.[0-9]{1,9}){0,2}$" },
+    "environmentName": {
+      "description": "shared (the default): the consumer's environment for the runtime in this scope; isolated: this overlay's own; any other name: shared by the overlays that choose it.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9_.-]*[A-Za-z0-9])?$"
+    },
     "pythonVariant": {
       "type": "object",
       "properties": {
@@ -188,6 +194,7 @@
         "requirements": { "$ref": "#/$defs/relPath" },
         "lock": { "$ref": "#/$defs/relPath" },
         "lock_digest": { "$ref": "#/$defs/digest" },
+        "environment": { "$ref": "#/$defs/environmentName" },
         "os": { "$ref": "#/$defs/osList" }
       },
       "not": { "required": ["requirements", "lock"] },
@@ -198,6 +205,11 @@
       "type": "object",
       "properties": {
         "version": { "$ref": "#/$defs/version" },
+        "package": {
+          "description": "A package.json; a package-lock.json beside it pins what is installed.",
+          "allOf": [{ "$ref": "#/$defs/relPath" }, { "pattern": "(?:^|/)package\\.json$" }]
+        },
+        "environment": { "$ref": "#/$defs/environmentName" },
         "os": { "$ref": "#/$defs/osList" }
       },
       "additionalProperties": false

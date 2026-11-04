@@ -337,8 +337,11 @@ TOOL_PROMPT='${USER}$ '
 
 `paths` adds directories inside the overlay to list variables such as `PATH` and `PYTHONPATH`. The
 [defaults](package.md#defaults) come first: `bin/` prepended to `PATH` (key `bin`), then
-`lib/python/` prepended to `PYTHONPATH` (key `lib`), each when present. A declared entry whose
-`path` is `bin` or `lib/python` replaces that default addition; other entries follow the defaults.
+`lib/python/` prepended to `PYTHONPATH` and `lib/node/` to `NODE_PATH` (key `lib`), each when
+present. Then the packages of the overlay's [dependency environments](runtime.md#environments)
+are prepended, Python's to `PYTHONPATH` and Node.js's to `NODE_PATH`, so they come after the
+overlay's own library directories. A declared entry whose `path` is `bin`, `lib/python` or
+`lib/node` replaces that default addition; other entries follow.
 A program in `bin/` runs only when something calls it. Each entry is a mapping:
 
 | Key | Type | Default | Meaning |
@@ -373,8 +376,8 @@ An overlay MUST NOT name a variable both in `paths` and in `env` or an env file;
 it in `env`, and a consumer refuses the env file. `paths` here includes its defaults: an overlay
 with a `bin/` cannot set `PATH` in `env` unless `[defaults] bin = false`, and a validator that knows
 the files refuses it. Adding to a
-[sensitive variable](security.md#sensitive-variables) other than `PATH` and `PYTHONPATH` is the
-weakening `env-sensitive`.
+[sensitive variable](security.md#sensitive-variables) other than `PATH`, `PYTHONPATH` and
+`NODE_PATH` is the weakening `env-sensitive`.
 
 A path addition reaches the processes the overlay serves. It never decides which program the
 consumer itself runs: a consumer finds interpreters, probed commands and its own tools on the base

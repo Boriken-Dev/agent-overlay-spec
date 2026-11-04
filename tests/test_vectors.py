@@ -130,7 +130,12 @@ COMPOSE = cases("compose.json")
 def test_compose(case):
     result = aos.compose(case["overlays"], case["requested"], case.get("files"), case.get("facts"))
     if "facts" in case:
-        result = {"active": result["active"], "env": result.get("env", result.get("env_error"))}
+        reduced = {"active": result["active"], "env": result.get("env", result.get("env_error"))}
+        # Dependency environments are checked where a case states them.
+        for key in ("environments", "conflicts", "blocked", "left"):
+            if key in case["expect"]:
+                reduced[key] = result[key]
+        result = reduced
     assert json.loads(json.dumps(result)) == case["expect"]
 
 

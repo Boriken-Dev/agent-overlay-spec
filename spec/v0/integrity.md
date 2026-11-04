@@ -105,8 +105,9 @@ A consumer that enforces pins:
   reporting the overlay, the expected and the computed digest; it uses no file of that copy, and does
   not offer to continue;
 - keeps every copy it verified unchanged: setup and tools write into the
-  [state directory](runtime.md#what-a-step-receives), and a consumer that cannot keep the copy
-  read-only verifies it before each use;
+  [state directory](runtime.md#what-a-step-receives) and packages go into
+  [environments](runtime.md#environments), both outside the root and never part of its digest,
+  and a consumer that cannot keep the copy read-only verifies it before each use;
 - opens the files it uses so that they cannot leave the copy (see
   [relative paths](manifest.md#fields)), since a file can change between being hashed and being
   read only where something can write the copy.
@@ -124,4 +125,5 @@ also record the commit.
 `lock_digest` in a [Python runtime variant](runtime.md#runtime) is the [digest](#digest-form) of the
 lock file's bytes. A consumer checks it before it installs anything from the lock, and refuses the
 install on a mismatch. It lets a consumer key and check the dependency set alone; the tree digest
-already covers the lock file when the overlay is pinned.
+already covers the lock file when the overlay is pinned. A pin covers one overlay's dependency
+file, its lock and the hashes in them, never what other overlays put in a shared environment.

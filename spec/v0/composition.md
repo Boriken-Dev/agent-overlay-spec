@@ -46,7 +46,9 @@ Context files, environment, skills and commands compose in the same order; their
 
 ## Scope precedence and duplicate names
 
-AOS does not define system, user or project scopes. Two overlays whose identities normalize to the
+AOS does not define system, user or project scopes; a [scope](terminology.md) is only a set of
+overlays a consumer installs together, which [dependency environments](runtime.md#environments)
+are shared within. Two overlays whose identities normalize to the
 same name are one overlay; a consumer MUST NOT apply both, and SHOULD say which copy it uses.
 
 > **Status:** dotagents reads system, user and project stores in that order; an overlay in a later

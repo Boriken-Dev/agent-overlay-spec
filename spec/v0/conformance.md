@@ -42,8 +42,8 @@ with an `id`, its input and an `expect`.
 | `names.json` | An overlay `name` | `valid`, `normalized`, `variable` |
 | `source.json` | A `source` string | `kind`, `location`, `ref`, `path`, or `error` |
 | `digest.json` | A `tree` of files, directories, links and special files | `digest` and its `lines`, or `error` |
-| `compose.json` | `overlays` by identity, `requested`, optional `files` (each overlay's files, for defaults) and `facts` | The visiting order, the composition order, missing requirements, contributions, the environment; or the cycle |
-| `effective.json` | One `manifest` and the consumer's `facts`, the overlay's `files` and the `interpreters` it has among them; for setup phases, the `change`, the `digest` and the `recorded_digest` | The environment, the selected setup and runtime variants, what a probe needs, the weakenings, and the setup phase and its arguments; or the refusal |
+| `compose.json` | `overlays` by identity, `requested`, optional `files` (each overlay's files, for defaults) and `facts`, which may give each overlay's installed `packages` and the overlays `removed` | The visiting order, the composition order, missing requirements, contributions, the environment; the dependency environments, their conflicts, the overlays blocked by them and what a removed overlay leaves; or the cycle |
+| `effective.json` | One `manifest` and the consumer's `facts`, the overlay's `files`, the `interpreters` it has among them and its installed `packages`; for setup phases, the `change` (`add`, `sync`, `activate`, `remove`), the `digest`, the `record` and the step that `fails` | The environment, the selected setup and runtime variants, the dependencies, what a probe needs, the weakenings, and the setup phase, its arguments, the steps in order, the record afterwards and whether the digest activates; or the refusal |
 
 This repository runs every vector through a small Python reader (`tests/aos_reference.py`,
 `python -m pytest`), and the digest vectors were also checked with an independent shell

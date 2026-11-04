@@ -48,8 +48,9 @@ not required for AOS.
 ## Setup and dependencies
 
 Setup is declared by [`setup`](runtime.md#setup), or is a root `setup.<ext>` by
-[default](runtime.md#default-scripts); dependencies are declared by [`runtime`](runtime.md#runtime).
-A file named `requirements.txt` means nothing by its name alone.
+[default](runtime.md#default-scripts); dependencies are `lib/python/requirements.txt` and
+`lib/node/package.json` by [default](runtime.md#dependencies), or declared by
+[`runtime`](runtime.md#runtime). A `requirements.txt` anywhere else means nothing by its name.
 
 Portable assets are the file bytes and their relative paths. Command launchers, dependency
 installation and setup are what a consumer does with the declarations; a consumer that does none of

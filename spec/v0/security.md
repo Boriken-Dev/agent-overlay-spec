@@ -42,8 +42,9 @@ then reports the refusal the same way.
 | `script-not-run` | A [default script](runtime.md#default-scripts) is present and none can run on this OS with the consumer's interpreters. The subject is each file. |
 | `env-passthrough` | A granted value is read from the consumer's own environment: an env value with `provider = "env"`, an MCP `env_passthrough` or `headers_env` entry. The subject is the variable read. |
 | `secret-read` | A granted [secret reference](environment.md#secret-references) is resolved for the overlay. The subject is the reference (`secret:<name>`, `file:<key>`, `<provider>:<key>`). |
-| `env-sensitive` | An overlay sets a [sensitive variable](#sensitive-variables) through `env`, an env file or an env script, or adds to one other than `PATH` and `PYTHONPATH` through `paths`. The subject is the variable. |
-| `unlocked-dependencies` | The selected Python variant has `requirements` and no `lock`. |
+| `env-sensitive` | An overlay sets a [sensitive variable](#sensitive-variables) through `env`, an env file or an env script, or adds to one other than `PATH`, `PYTHONPATH` and `NODE_PATH` through `paths`. The subject is the variable. |
+| `unlocked-dependencies` | A [dependency file](runtime.md#dependencies) is not pinned: a Python file without a hash on every requirement (a declared `requirements` is never one), or a `package.json` without a `package-lock.json`. The subject is the file; for a shared or named environment that is not pinned, the environment (`python:shared`, `node:<name>`), reported to every member. |
+| `deps-network` | A dependency file is installed, which needs the network. The subject is the file. |
 | `insecure-transport` | An MCP server is reached over plain `http` on a host other than loopback. The subject is the server. |
 
 A consumer's own settings can weaken too (a disabled sandbox, a raised limit); a consumer reports
@@ -71,10 +72,11 @@ A consumer MAY treat more names as sensitive; it MUST treat at least these.
 
 Setup, env scripts, commands and dependency installation run only under an explicit policy of the
 user or administrator: installing an overlay is a trust decision, fetching one is not. A consumer
-runs setup outside the agent's sandbox, in its [phases](runtime.md#setup-phases) (`install` once,
-`sync` once per new digest, `remove` on removal), bounded by a timeout, with the network denied
-unless declared, and with the overlay root read-only where it can. Dependencies are installed
-from a lock file in hash-checking mode where one is declared.
+runs setup outside the agent's sandbox, in its [phases](runtime.md#setup-phases) (`install` on
+the first add, `sync` on every sync, `remove` on removal), bounded by a timeout, with the network
+denied unless declared, and with the overlay root read-only where it can. Dependencies are
+installed before setup, from a lock in hash-checking mode where the file is pinned, into
+[environments](runtime.md#environments) outside every root that are read-only in the sandbox.
 
 Starting an MCP server, running a command and running an env script are the same decision as
 setup: code from the overlay runs. Overlays an overlay `requires` are shown and accepted like the
@@ -84,8 +86,9 @@ ones asked for, never installed silently.
 That moves no decision: a default script runs only in an overlay the consumer has activated, never
 in one it fetched or only read, with the same timeout, process group and state directory as a
 declared one, and every run is reported. A default setup is taken to need the network and reported
-as such, since nothing in it says otherwise. Nothing else runs by default: dependencies install only
-from a declared [`runtime`](runtime.md#runtime), and a command is exposed only by a `scripts` entry.
+as such, since nothing in it says otherwise. Dependencies install by default only from
+`lib/python/requirements.txt` and `lib/node/package.json`, each install reported as
+`deps-network`; nothing else runs by default, and a command is exposed only by a `scripts` entry.
 
 An overlay's files under an [excluded name](package.md#layout) (`__pycache__`, `node_modules`,
 `.venv`, `.git`, ...) are not part of the overlay and are not covered by its digest, yet Python,

@@ -758,6 +758,10 @@ def named_files(doc: "dict[str, Any]") -> "list[tuple[str, str]]":
                 for field in ("requirements", "lock"):
                     if isinstance(variant.get(field), str):
                         out.append(("/runtime/python/%d/%s" % (index, field), variant[field]))
+    if isinstance(runtime, dict) and isinstance(runtime.get("node"), list):
+        for index, variant in enumerate(runtime["node"]):
+            if isinstance(variant, dict) and isinstance(variant.get("package"), str):
+                out.append(("/runtime/node/%d/package" % index, variant["package"]))
     scripts = doc.get("scripts")
     if isinstance(scripts, dict):
         for name, target in scripts.items():
@@ -1049,9 +1053,21 @@ def composition_order(
 # --------------------------------------------------------------------------------------------
 
 #: The keys of ``defaults``; each is true unless the manifest writes it false.
-DEFAULT_KEYS = ("bin", "lib", "env", "env_scripts", "setup", "context", "skills", "rules")
+DEFAULT_KEYS = ("bin", "lib", "env", "env_scripts", "setup", "deps", "context", "skills", "rules")
 #: Default path additions as ``(key, variable, directory)``, in the order they apply.
-DEFAULT_PATHS = (("bin", "PATH", "bin"), ("lib", "PYTHONPATH", "lib/python"))
+DEFAULT_PATHS = (
+    ("bin", "PATH", "bin"),
+    ("lib", "PYTHONPATH", "lib/python"),
+    ("lib", "NODE_PATH", "lib/node"),
+)
+#: The default dependency file of each runtime, and the lock looked for beside it (``None``: the
+#: file itself is a lock when every requirement in it carries a hash).
+DEFAULT_DEPENDENCIES = (
+    ("python", "lib/python/requirements.txt", None),
+    ("node", "lib/node/package.json", "lib/node/package-lock.json"),
+)
+#: The list variable each runtime's installed packages are added to.
+PACKAGE_VARIABLES = {"python": "PYTHONPATH", "node": "NODE_PATH"}
 #: Default script extensions in the order a consumer tries them, with the OSes each applies on
 #: (``None``: every OS).
 DEFAULT_SCRIPTS = (
@@ -1114,6 +1130,66 @@ def default_paths(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[d
 def paths_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[dict[str, Any]]":
     """The defaults ``bin`` and ``lib``, then ``paths``."""
     return default_paths(manifest, files) + _declared(manifest, "paths")
+
+
+def requirements_locked(text: str, path: str) -> bool:
+    """Whether a requirements file is a lock: every requirement in it carries ``--hash``.
+
+    A file where only some do is refused: pip would check hashes for all of them.
+    """
+    hashed = []
+    for line in re.sub(r"\\\r?\n", " ", text).splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            hashed.append(re.search(r"(?:^|\s)--hash[=\s]", line) is not None)
+    if hashed and all(hashed):
+        return True
+    if any(hashed):
+        raise Refused("partial-lock", path)
+    return False
+
+
+def environment_name(variant: "dict[str, Any]") -> str:
+    """The environment a runtime variant installs into: ``shared``, ``isolated`` or a name."""
+    return normalize_name(variant.get("environment", "shared"))
+
+
+def dependencies_of(
+    manifest: "dict[str, Any]", files: "Iterable[str]", os_name: str
+) -> "list[dict[str, Any]]":
+    """The dependency files a consumer installs, one per runtime, with the lock and environment.
+
+    A selected variant that names a file replaces the default one; a variant that names none
+    still chooses the environment of the default file.
+    """
+    runtime = manifest.get("runtime")
+    runtime = runtime if isinstance(runtime, dict) else {}
+    members = _members(files)
+    texts = files if isinstance(files, dict) else {}
+    found = []
+    for name, default, beside in DEFAULT_DEPENDENCIES:
+        variant = first_variant(runtime.get(name, []), os_name) or {}
+        lock: "Optional[str]"
+        if name == "python" and ("lock" in variant or "requirements" in variant):
+            path = variant.get("lock", variant.get("requirements"))
+            lock = variant.get("lock")
+        elif name == "node" and "package" in variant:
+            path = variant["package"]
+            candidate = path[: -len("package.json")] + "package-lock.json"
+            lock = candidate if candidate in members else None
+        elif default_on(manifest, "deps") and default in members:
+            path = default
+            if beside is None:
+                text = texts.get(path)
+                lock = path if text is not None and requirements_locked(text, path) else None
+            else:
+                lock = beside if beside in members else None
+        else:
+            continue
+        found.append(
+            {"runtime": name, "file": path, "lock": lock, "environment": environment_name(variant)}
+        )
+    return found
 
 
 def rules_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[str]":
@@ -1216,7 +1292,7 @@ SENSITIVE_PREFIXES = (
 )
 SENSITIVE_SUFFIXES = ("_PROXY", "_BASE_URL")
 #: Path additions exist for these, so adding to them is not a weakening.
-PATH_VARIABLES = frozenset(("PATH", "PYTHONPATH"))
+PATH_VARIABLES = frozenset(("PATH", "PYTHONPATH", "NODE_PATH"))
 UNIX_NAMES = frozenset(("macos", "linux", "freebsd", "openbsd", "netbsd"))
 SCRIPT_EXTENSIONS = {
     ".py": "python",
@@ -1450,7 +1526,10 @@ def _apply_paths(
         append: "list[str]" = []
         seen: "set[str]" = set()
         for entry in entries:
-            resolved = resolve_path(root, entry["path"], windows)
+            if "packages" in entry:
+                resolved = entry["packages"]
+            else:
+                resolved = resolve_path(root, entry["path"], windows)
             if resolved in seen:
                 continue
             seen.add(resolved)
@@ -1494,7 +1573,16 @@ def _apply_overlay(
     tree: "Iterable[str]",
 ) -> "list[dict[str, Any]]":
     os_name = facts["os"]
-    paths = paths_of(manifest, tree)
+    # The installed packages of each runtime follow the default additions, so lib/python/ and
+    # lib/node/ come first and declared entries after.
+    defaults = default_paths(manifest, tree)
+    installed = facts.get("packages", {})
+    packages = [
+        {"variable": PACKAGE_VARIABLES[dep["runtime"]], "packages": installed[dep["runtime"]]}
+        for dep in dependencies_of(manifest, tree, os_name)
+        if dep["runtime"] in installed
+    ]
+    paths = defaults + packages + _declared(manifest, "paths")
     listed = {entry["variable"].upper() for entry in paths}
     for name in manifest.get("env", {}):
         if name.upper() in listed:
@@ -1606,8 +1694,15 @@ def effective(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
     python = first_variant(runtime.get("python", []), os_name)
     if python is not None:
         python = {key: value for key, value in python.items() if key != "os"}
-        if "requirements" in python:
-            weakenings.append(["unlocked-dependencies", python["requirements"]])
+    try:
+        dependencies = dependencies_of(manifest, facts.get("files", {}), os_name)
+    except Refused as refused:
+        return {"error": refused.code, "subject": refused.subject}
+    for dependency in dependencies:
+        # Installing fetches packages: it needs the network, locked or not.
+        weakenings.append(["deps-network", dependency["file"]])
+        if dependency["lock"] is None:
+            weakenings.append(["unlocked-dependencies", dependency["file"]])
     node = first_variant(runtime.get("node", []), os_name)
     if node is not None:
         node = {key: value for key, value in node.items() if key != "os"}
@@ -1629,6 +1724,10 @@ def effective(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
             commands.append(command)
         elif os_matches(command, os_name):
             commands.append(command["name"])
+    for dependency in dependencies:
+        interpreters.add(dependency["runtime"])
+        if dependency["runtime"] == "node":
+            commands.append("npm")
     ungranted: "set[str]" = set()
     host_grants = facts.get("grants", {}).get("env", [])
     for server in manifest.get("mcp", {}).get("servers", []):
@@ -1656,11 +1755,6 @@ def effective(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
         if isinstance(entry, dict) and ("provider" in entry or "secret" in entry):
             if entry.get("optional") and not granted(entry, facts):
                 ungranted.add(reference_name(entry))
-    phase = None
-    if "change" in facts:
-        phase = setup_phase(facts["change"], facts.get("recorded_digest"), facts.get("digest"))
-        if setup is None:
-            phase = None
     result = {
         "ungranted": sorted(ungranted),
         "supported": supported,
@@ -1669,32 +1763,208 @@ def effective(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
         "setup": setup,
         "python": python,
         "node": node,
+        "dependencies": dependencies,
         "needs": {"interpreters": sorted(interpreters), "commands": sorted(set(commands))},
         "weakenings": sorted({tuple(w) for w in weakenings}),
     }
     if "change" in facts:
-        result["setup_phase"] = phase
-        result["setup_arguments"] = None if phase is None else [phase] + setup["args"]
+        result.update(
+            preparation(
+                facts["change"],
+                facts.get("record"),
+                facts.get("digest"),
+                setup,
+                dependencies,
+                facts.get("fails"),
+            )
+        )
     return result
 
 
-#: What a consumer is doing to an overlay when it decides whether setup runs.
-CHANGES = ("add", "update", "rerun", "remove")
+#: What a consumer is doing to an overlay when it decides whether setup runs: adding it, a sync
+#: (a fetch of its source, a change of ref or pin, or setup run again on request), preparing a
+#: digest for activation outside a sync, and removing it.
+CHANGES = ("add", "sync", "activate", "remove")
 
 
 def setup_phase(change: str, recorded: "Optional[str]", digest: "Optional[str]") -> "Optional[str]":
-    """The phase setup runs in, or None when it does not run.
+    """The phase of the preparation, or None when nothing runs.
 
-    ``recorded`` is the digest of the last setup of this overlay that succeeded on this OS, which
-    the consumer keeps and forgets when the overlay is removed.
+    ``recorded`` is the digest of the last preparation of this overlay that succeeded on this OS,
+    which the consumer keeps per identity and forgets when the overlay is removed.
     """
+    if change not in CHANGES:
+        raise ValueError(change)
     if change == "remove":
         return "remove" if recorded is not None else None
     if recorded is None:
         return "install"
-    if change == "rerun" or recorded != digest:
+    if change != "activate" or recorded != digest:
         return "sync"
     return None
+
+
+def preparation(
+    change: str,
+    record: "Optional[dict[str, str]]",
+    digest: "Optional[str]",
+    setup: "Optional[dict[str, Any]]",
+    dependencies: "list[dict[str, Any]]",
+    fails: "Optional[str]" = None,
+) -> "dict[str, Any]":
+    """The phase, the steps in order, the record after them, and whether the digest activates.
+
+    ``fails`` names the step that fails (``deps`` or ``setup``); the steps stop there, except
+    that a removal still deletes everything.
+    """
+    recorded = record["digest"] if record else None
+    phase = None
+    if setup is not None or dependencies:
+        phase = setup_phase(change, recorded, digest)
+    steps: "list[str]" = []
+    if phase == "install":
+        steps.append("empty-state")
+    if phase in ("install", "sync"):
+        steps += ["deps:" + dependency["runtime"] for dependency in dependencies]
+    if phase is not None and setup is not None:
+        steps.append("setup")
+    failed = False
+    if fails is not None:
+        for index, step in enumerate(steps):
+            if step.split(":")[0] == fails:
+                steps, failed = steps[: index + 1], True
+                break
+    if change == "remove":
+        steps.append("delete")
+        after, activates = None, False
+    elif phase is None:
+        after, activates = record, True
+    elif failed:
+        # The record still names the last digest that was prepared; only that one stays usable.
+        after, activates = record, recorded == digest
+    else:
+        steps.append("record")
+        after, activates = {"digest": digest, "phase": phase}, True
+    arguments = None
+    if phase is not None and setup is not None:
+        arguments = [phase] + setup["args"]
+    return {
+        "setup_phase": phase,
+        "setup_arguments": arguments,
+        "steps": steps,
+        "record": after,
+        "activates": activates,
+    }
+
+
+_PINNED_REQUIREMENT = re.compile(
+    r"^([A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?)\s*(?:\[[^\]]*\])?\s*===?\s*([^\s;\\]+)"
+)
+
+
+def _pins(dependency: "dict[str, Any]", text: "Optional[str]") -> "dict[str, str]":
+    """Package name to the exact version or range a dependency file asks for."""
+    if text is None:
+        return {}
+    if dependency["runtime"] == "node":
+        try:
+            declared = json.loads(text).get("dependencies", {})
+        except (ValueError, AttributeError):
+            return {}
+        return {name: str(spec) for name, spec in declared.items()}
+    pins = {}
+    for line in re.sub(r"\\\r?\n", " ", text).splitlines():
+        match = _PINNED_REQUIREMENT.match(line.strip())
+        if match:
+            pins[re.sub(r"[-_.]+", "-", match.group(1)).lower()] = match.group(2)
+    return pins
+
+
+def environments(
+    overlays: "dict[str, dict[str, Any]]",
+    active: "list[str]",
+    files: "dict[str, Any]",
+    os_name: str,
+    removed: "Iterable[str]" = (),
+) -> "dict[str, Any]":
+    """The environments the active overlays install into, the conflicts that block overlays, and
+    what each removed overlay leaves.
+
+    A shared or named environment holds every overlay that chose it, in composition order, and
+    is installed from all their files at once. Two members asking for one package at different
+    versions conflict, and both stay inactive.
+    """
+
+    def key(dependency: "dict[str, Any]", identity: str) -> "tuple[str, str, str]":
+        isolated = dependency["environment"] == "isolated"
+        return (dependency["runtime"], dependency["environment"], identity if isolated else "")
+
+    groups: "dict[tuple[str, str, str], list[tuple[str, dict[str, Any]]]]" = {}
+    for identity in active:
+        for dependency in dependencies_of(overlays[identity], files.get(identity, []), os_name):
+            groups.setdefault(key(dependency, identity), []).append((identity, dependency))
+    conflicts = []
+    blocked: "set[str]" = set()
+    for (runtime, name, _owner), members in groups.items():
+        asked: "dict[str, dict[str, list[str]]]" = {}
+        for identity, dependency in members:
+            tree = files.get(identity, [])
+            text = tree.get(dependency["file"]) if isinstance(tree, dict) else None
+            for package, version in _pins(dependency, text).items():
+                asked.setdefault(package, {}).setdefault(version, []).append(identity)
+        for package in sorted(asked, key=lambda p: p.encode("utf-8")):
+            if len(asked[package]) > 1:
+                involved = [i for i, _d in members if any(i in v for v in asked[package].values())]
+                conflicts.append(
+                    {
+                        "runtime": runtime,
+                        "environment": name,
+                        "package": package,
+                        "overlays": involved,
+                    }
+                )
+                blocked.update(involved)
+    built = []
+    remaining = set()
+    for group, members in groups.items():
+        runtime, name, _owner = group
+        kept = [(i, d) for i, d in members if i not in blocked]
+        if not kept:
+            continue
+        remaining.add(group)
+        locks = [d["lock"] for _i, d in kept]
+        if runtime == "node":
+            # npm installs one lock file; several overlays' locks cannot be combined.
+            locked = len(kept) == 1 and locks[0] is not None
+        else:
+            locked = all(lock is not None for lock in locks)
+        built.append(
+            {
+                "runtime": runtime,
+                "environment": name,
+                "overlays": [i for i, _d in kept],
+                "files": [[i, d["file"]] for i, d in kept],
+                "locked": locked,
+            }
+        )
+    left = []
+    for identity in removed:
+        for dependency in dependencies_of(overlays[identity], files.get(identity, []), os_name):
+            then = "rebuilt" if key(dependency, identity) in remaining else "deleted"
+            left.append(
+                {
+                    "overlay": identity,
+                    "runtime": dependency["runtime"],
+                    "environment": dependency["environment"],
+                    "then": then,
+                }
+            )
+    return {
+        "environments": built,
+        "conflicts": conflicts,
+        "blocked": [i for i in active if i in blocked],
+        "left": left,
+    }
 
 
 def compose(
@@ -1731,11 +2001,21 @@ def compose(
     result["skills"] = {name: identity for name, identity in winners.values()}
     result["skill_collisions"] = sorted(collisions)
     if facts is not None:
+        try:
+            installed = environments(overlays, active, files, facts["os"], facts.get("removed", []))
+        except Refused as refused:
+            result["env_error"] = {"error": refused.code, "subject": refused.subject}
+            return result
+        result.update(installed)
+        # An overlay in a conflict is not activated, so it contributes nothing.
+        active = [identity for identity in active if identity not in installed["blocked"]]
+        result["active"] = active
         env = Environment(facts.get("base_env", {}), facts["os"] == "windows")
         roots = facts["roots"]
         for identity in active:
             env.set(root_variable(identity), roots[identity])
         weakenings: "list[list[str]]" = []
+        packages = facts.get("packages", {})
         try:
             for identity in active:
                 tree = files.get(identity, [])
@@ -1744,7 +2024,7 @@ def compose(
                 apply_overlay(
                     env,
                     overlays[identity],
-                    dict(facts, files=texts),
+                    dict(facts, files=texts, packages=packages.get(identity, {})),
                     roots[identity],
                     weakenings,
                     files.get(identity, []),

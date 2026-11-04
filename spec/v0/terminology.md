@@ -33,6 +33,20 @@ environment being built when the variable is set; see [Substitution](environment
 **Setup phase**: what setup is told it is doing, `install`, `sync` or `remove`; see
 [Setup phases](runtime.md#setup-phases).
 
+**Sync**: an operation of a consumer that brings an installed overlay up to date: fetching its
+source again, changing its source, ref or pin, or running its setup again on request. Every sync
+runs the `sync` phase.
+
+**State directory**: a directory outside the overlay root, per identity and OS, where setup
+writes; kept across syncs and digests, deleted after removal.
+
+**Scope**: a set of overlays a consumer installs and activates together, such as a user's or a
+project's. A consumer documents its scopes; AOS defines none.
+
+**Environment** (of dependencies): a directory outside every overlay root where a runtime's
+packages are installed: shared in a scope, named, or isolated to one overlay; see
+[Dependencies](runtime.md#environments).
+
 **Secret reference**: a provider and its fields, or a secret's name, that say where a value comes
 from; never the value.
 

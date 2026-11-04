@@ -103,9 +103,25 @@ def test_every_default_in_the_conventions_example():
     files = aos.tree_files(root)
     facts = {"os": "linux", "root": "/ov/c", "identity": "conventions", "pinned": True}
     texts = {path: (root / path).read_text(encoding="utf-8") for path in files}
-    result = aos.effective({}, dict(facts, files=texts))
+    packages = {"python": "/envs/python/site-packages", "node": "/envs/node/node_modules"}
+    result = aos.effective({}, dict(facts, files=texts, packages=packages))
     assert result["env"]["PATH"] == "/ov/c/bin"
-    assert result["env"]["PYTHONPATH"] == "/ov/c/lib/python"
+    assert result["env"]["PYTHONPATH"] == "/ov/c/lib/python:/envs/python/site-packages"
+    assert result["env"]["NODE_PATH"] == "/ov/c/lib/node:/envs/node/node_modules"
+    assert result["dependencies"] == [
+        {
+            "runtime": "python",
+            "file": "lib/python/requirements.txt",
+            "lock": "lib/python/requirements.txt",
+            "environment": "shared",
+        },
+        {
+            "runtime": "node",
+            "file": "lib/node/package.json",
+            "lock": "lib/node/package-lock.json",
+            "environment": "shared",
+        },
+    ]
     assert result["env"]["TOOL_BANNER"] == "Conventions: read only"
     assert result["env"]["TOOL_HOME"] == "/ov/c/tool"
     assert result["env"]["TOOL_CACHE"] == "/ov/c/tool/cache"
@@ -113,6 +129,7 @@ def test_every_default_in_the_conventions_example():
     assert result["setup"]["path"] == "setup.sh" and result["setup"]["network"] is True
     added = aos.effective({}, dict(facts, files=texts, change="add", digest="sha256:" + "1" * 64))
     assert added["setup_arguments"] == ["install"]
+    assert added["steps"] == ["empty-state", "deps:python", "deps:node", "setup", "record"]
     assert aos.rules_of({}, files) == ["rules/always.md"]
     assert aos.context_of({}, files) == ["CONTEXT.md"]
     assert aos.skills_of({}, files) == ["check-conventions"]

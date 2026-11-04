@@ -1,5 +1,6 @@
 #!/bin/sh
-# Told its phase: install once, sync for each new digest, remove before the state directory goes.
+# Told its phase: install on the first add, sync on every sync, remove before the state directory
+# goes. The state directory is kept from one sync to the next, so sync updates it in place.
 # It writes only into the state directory, never into the overlay.
 set -eu
 case "${1:-}" in
