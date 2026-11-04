@@ -33,6 +33,8 @@ table below is the list an implementation works from.
 | MCP stdio | Working directory inherited from the gateway; `env` strings | Working directory the overlay root; `env` values may be references |
 | Harness hints | None | `[harness.<id>]`: `context`, `skills`, `model`, `effort` |
 | Source form | `<location>[@<ref>][#<path>]`, registries, URI schemes | The same form, specified, with vectors |
+| Registries and catalogs | A registry: by extension (`.json`, `.toml`, `.yaml`, `.yml`), its `overlays` mapping or the whole document, every entry a non-empty source string, or the registry is refused | A [catalog](spec/v0/catalog.md#catalogs): the registry with `overlays` is its minimal form, which dotagents reads; the full form adds table entries (`source`, `ref`, `pin`, `description`, `about`) and catalog-level `name`, `description`, `homepage`, which dotagents does not read: one table entry makes it refuse the whole file. Several catalogs by label, a shared name qualified, never picked silently |
+| Store metadata | None; an `[about]` table would be an unknown key, ignored | `[about]`: `summary`, `icon` (PNG or WebP), `homepage`, `repository`, `license`, `authors`, `tags`; informational, never applied |
 | Integrity | A SHA-256 per installed file in its install record; no tree digest, no pin | The tree digest, pins checked at install and at each activation, a mismatch refuses |
 | Installed copy | Keeps `.dotagents-install.json` and setup output inside the overlay directory | The copy stays as verified; state goes to `AOS_OVERLAY_STATE`, one directory per identity and OS kept across syncs |
 | Weakenings | Not reported | Twelve identifiers reported each time, never silently |
@@ -61,6 +63,13 @@ table below is the list an implementation works from.
 - **`cmds/`.** dotagents' own command modules, Implementation-Specific.
 - **Arguments.** dotagents passes `--level <level>` to `env.py`; a default env script gets none, and
   a default setup only its phase.
+- **A registry without `overlays`.** dotagents also reads a document that is itself the mapping of
+  names to sources. A catalog always has an `overlays` table, so a reader tells a catalog from any
+  other document, and a top-level key such as `name` is never taken for an overlay.
+- **First repository wins.** dotagents takes a name from the first repository or registry that
+  offers it, in its own order. AOS lets a consumer follow an order of catalogs only when the user
+  configured it for this, and report which catalog it took; otherwise a name two catalogs offer is
+  ambiguous.
 
 ## Substitution with tplx
 

@@ -9,7 +9,7 @@ examples, and conformance vectors. Nothing here is packaged or installed.
 | --- | --- |
 | `SPEC.md` | Normative entry point; lists the sections |
 | `spec/v0/` | The normative sections of the current edition |
-| `schemas/overlay.schema.json` | The manifest's data model; `docs/schemas/` holds an identical copy for the site |
+| `schemas/overlay.schema.json` | The manifest's data model, and a catalog's at `$defs/catalog`; `docs/schemas/` holds an identical copy for the site |
 | `examples/` | One overlay per feature, each valid against the schema |
 | `tests/fixtures/` | Valid and invalid manifests for the schema tests, with `invalid/expect.json` |
 | `tests/aos_reference.py` | The small Python reader and validator the tests use; the specification wins over it |

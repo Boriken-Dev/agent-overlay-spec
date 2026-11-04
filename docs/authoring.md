@@ -150,9 +150,58 @@ Put a skill in `skills/<skill-name>/SKILL.md`. To offer only some of them, set
 A `[scripts]` entry names a command and its script; give the interpreter when the extension does not
 say it.
 
+## Listing in a store
+
+A store shows your overlay's `name` and `description`, and what you put in `[about]`. Every field
+is optional and only shown: nothing in `[about]` changes what the overlay does, and a mistake in it
+never stops the overlay from working.
+
+```toml
+[about]
+summary = "Release notes and changelogs, written the same way in every repository."
+icon = "icon.webp"
+homepage = "https://example.org/overlays/release-notes"
+repository = "https://github.com/example/overlays"
+license = "MIT OR Apache-2.0"
+authors = ["Example Docs Team <docs@example.org>"]
+tags = ["documentation", "release", "changelog"]
+```
+
+- Keep `summary` to one short line; `description` holds the longer text.
+- Ship the icon as a square PNG or WebP of 256 by 256 pixels or more, under 512 KiB and at most
+  1024 pixels a side, the limits stores use by default. SVG is not accepted. Name it in `icon`: no
+  file is an icon by its name.
+- Links are `https`. `license` is an SPDX expression (`MIT`, `MIT OR Apache-2.0`).
+- Tags are lowercase words joined by `-`; a store filters and searches by them.
+
+To offer several overlays, publish a **catalog**: a TOML, JSON or YAML file, named by its format,
+listing each overlay's source. A registry is already one; add tables where you want a store to show
+more, and a `pin` where you reviewed a revision:
+
+```toml
+name = "Example overlays"
+
+[overlays]
+engineering = "../engineering"
+
+[overlays.release-notes]
+source = "https://github.com/example/overlays.git#release-notes"
+ref = "v1.4.0"
+pin = "sha256:8280aaf5de7c4f61342f648586d534e481ae095cef223dded70f5b1db5bd84a1"
+
+[overlays.release-notes.about]
+summary = "Release notes and changelogs, written the same way in every repository."
+icon = "icons/release-notes.png"
+```
+
+Relative sources and icons resolve beside the catalog file. A store shows what a catalog says
+until it fetches the overlay, then shows the overlay's own manifest, so keep the two in step. See
+[`examples/registry/catalog.toml`](https://github.com/Boriken-Dev/agent-overlay-spec/blob/main/examples/registry/catalog.toml).
+
 ## Checks
 
 Validate the parsed manifest against the [schema](schemas/overlay.schema.json) and check that every
 file a field names exists. Review setup, scripts and dependency declarations as code, and the
 `env.<ext>` and `setup.<ext>` files that run by default. In this
 repository, `python -m pytest` runs every example and fixture.
+Validate a catalog against the schema's `$defs/catalog`, and its icons as a store would.

@@ -35,6 +35,7 @@ and documented.
 | Integrity | Compute the tree digest; refuse a pin mismatch. |
 | Resolver | Parse sources, normalize identities, resolve `requires`, order overlays. |
 | Manager | Install, compose, remove; document scopes, collisions and execution policy. |
+| Store | Read catalogs, list and search their entries by label, show `about` and icons; show what an overlay would do from its own manifest before installing it. |
 
 Each class has [vectors](spec/v0/conformance.md#vectors) to test against. See
 [Conformance](spec/v0/conformance.md) for the obligations of each claim.

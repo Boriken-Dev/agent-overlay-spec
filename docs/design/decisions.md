@@ -287,3 +287,65 @@ environment variables; one `deps` key for every runtime, like `lib`, keeps an ov
 dependencies off that way when an edition adds a runtime.
 
 **Status:** adopted; Proposed until an implementation reads it.
+
+## 17 — Store metadata is one informational table
+
+**Decision:** what an overlay says about itself for a store is the `[about]` table of
+`overlay.cfg`: `summary`, `icon`, `homepage`, `repository`, `license` (an SPDX expression),
+`authors` and `tags`, beside the Core `name` and `description`, which keep their place. It is
+informational: only a store and a validator read it, nothing in it changes composition, activation
+or the environment, and a problem in it is reported without stopping the manifest from applying.
+There is no `keywords` field and no `version` field.
+
+**Reason:** one table lets a consumer skip all of it by one key, and draws the line a validator
+needs between a problem that blocks an overlay and one that only spoils its listing: everything
+under `/about`. Top-level fields would have spread that line over seven names, and taken names such
+as `license` and `tags` from the unknown top-level keys other tools already write. The same table
+serves a catalog entry, so the fields are defined once. `keywords` beside `tags` would be two lists
+of search words with no rule telling them apart; a store searches `name`, `summary`, `description`
+and `tags`. A version would compete with what already says which overlay this is: the source's
+ref and the tree digest.
+
+**Status:** adopted; Proposed until an implementation reads it.
+
+## 18 — Icons are PNG or WebP, never SVG, within limits the consumer sets
+
+**Decision:** `about.icon` is a relative path to a `.png` or `.webp` file, whose content must be the
+format its extension names. A store bounds its size and dimensions by settings with defaults
+(512 KiB, 1024 by 1024 pixels), reads the dimensions from the header and refuses before decoding,
+shows a still image and nothing it carries besides its pixels, and shows its own placeholder when
+an icon is missing or refused. SVG is not an icon format.
+
+**Reason:** a store shows icons from overlays nobody has reviewed, so the format must be one a
+store can bound before it spends memory on it. PNG and WebP carry their dimensions in a fixed
+header and are decoded by maintained libraries in every language. SVG is a document format with
+scripts, links, external references, fonts and entities; a safe subset would need an allow-list
+every store implements alike, and no vector could show that two stores render it alike, for an
+image a raster serves at icon sizes. Limits are settings, not constants, so a consumer on a small device can
+lower them and none needs a waiver to raise them.
+
+**Status:** adopted; Proposed until an implementation reads it.
+
+## 19 — Catalogs extend the registry; the fetched overlay is authoritative
+
+**Decision:** a catalog is the registry dotagents reads, with an `overlays` mapping whose entries
+are a source string (minimal) or a table of `source`, `ref`, `pin`, `description` and `about`
+(full), told apart by the entry's type; catalog-level `name`, `description` and `homepage` are
+optional. A catalog's file extension selects its format; other names follow the manifest's rule.
+Relative sources resolve beside the catalog; a catalog from a repository or a URL cannot name a
+local source. A consumer labels each catalog it is given, shows a name two catalogs share qualified
+as `<label>/<name>`, never merges entries, and never picks one for an unqualified name by itself.
+Catalog metadata is advertising: after fetching, the overlay's manifest and tree are what a store
+shows, a catalog pin is checked like any pin, and what an overlay would do is shown from its own
+manifest before it is installed.
+
+**Reason:** existing registries must keep working unchanged, and one file format is easier to
+publish and read than a registry and a catalog side by side; telling the forms apart by type keeps
+that decision static and lets one catalog mix them. Registries are named by format today, so the
+extension decides, as it already does in dotagents. An unknown key refuses an entry, not the
+catalog, because a misspelt `pin` must not install an overlay unpinned, and one bad entry should not
+hide the rest. A catalog is written by someone other than the overlay's author and changes
+independently of it, so nothing in it can stand in for reading the overlay itself; pins are the one
+claim a consumer can check, and it does.
+
+**Status:** adopted; the minimal form is what dotagents reads, the full form is Proposed.

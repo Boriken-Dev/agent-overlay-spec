@@ -110,6 +110,22 @@ The first edition, `0.1.0-draft`, a development draft open for review.
   overlay uses them. Vectors for each default, overrides, pins, sharing, conflicts and removal.
   A consumer may isolate every overlay, per digest too, but never shares an overlay that chose a
   name or `isolated`.
+- Store metadata (Proposed): an informational `[about]` table with `summary`, `icon`, `homepage`,
+  `repository`, `license` (an SPDX expression), `authors` and `tags`. Only a store and a validator
+  read it; nothing in it changes what an overlay does, and a problem in it never stops the manifest
+  from applying. Icons are PNG or WebP, never SVG, checked against size and dimension limits (512
+  KiB and 1024 pixels a side by default) before decoding, with a store's own placeholder when one
+  is missing or refused.
+- Catalogs: the registry, extended. A string entry is the minimal form dotagents reads; a table
+  entry (`source`, `ref`, `pin`, `description`, `about`) and catalog-level `name`, `description`
+  and `homepage` make the full form (Proposed). The file extension selects the format; relative
+  sources resolve beside the catalog; a catalog from a repository or a URL cannot name a local
+  source; a bad entry is refused alone. Several catalogs are labelled by the consumer, a name they
+  share is shown qualified and never picked silently. Catalog metadata is advertising: the fetched
+  overlay is authoritative, a catalog pin is checked, and what an overlay would do is shown from
+  its own manifest before it is installed. A Store conformance class, `catalog.json` vectors
+  (catalogs, collisions, icons), `catalog` reading cases and `about` validation cases; examples
+  `about` and `registry/catalog.toml`.
 
 - Conformance vectors as JSON data in `tests/vectors/`: reading (format line, data model, static
   reading, limits, `dotenv`), validation of every field, names and root variables, source strings,

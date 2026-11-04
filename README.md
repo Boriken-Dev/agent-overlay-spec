@@ -71,6 +71,7 @@ The same manifest in JSON:
 | [Environment](https://boriken-dev.github.io/agent-overlay-spec/spec/v0/environment/) | Values, secret references, env files, path additions, root variables, env scripts |
 | [Runtime and setup](https://boriken-dev.github.io/agent-overlay-spec/spec/v0/runtime/) | Interpreters, per-OS setup, timeouts, network, runtimes and lockfiles |
 | [Integrity](https://boriken-dev.github.io/agent-overlay-spec/spec/v0/integrity/) | The tree digest, pins and verification |
+| [Store and catalogs](https://boriken-dev.github.io/agent-overlay-spec/spec/v0/catalog/) | Informational fields and icons for a store, catalogs of many overlays, and what a store may believe |
 | [Security](https://boriken-dev.github.io/agent-overlay-spec/spec/v0/security/) | Trust, weakenings and what must be reported |
 | [Conformance](https://boriken-dev.github.io/agent-overlay-spec/spec/v0/conformance/) | Classes of implementation and the vectors |
 
