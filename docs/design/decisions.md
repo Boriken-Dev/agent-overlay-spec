@@ -125,3 +125,23 @@ digest, and two names one filesystem holds as one file would make the installed 
 the reviewed ones.
 
 **Status:** adopted.
+
+## 12 — Conventional files take effect by default; a written field replaces its default
+
+**Decision:** seven fields take a default from the overlay's files when the manifest does not write
+them: `paths` (`bin/` to `PATH`, `lib/` to `PYTHONPATH`, both prepended), `rules` (`rules/*.md`),
+`context` (`CONTEXT.md`), `skills` (`skills/*/SKILL.md`), `env_files` (`env`, read as `dotenv`),
+`env_scripts` (one `env.<ext>`) and `setup` (one `setup.<ext>`), the last two chosen by a fixed
+extension order, the OS and the interpreters at hand. A written field is the whole value, and `[]`
+turns a default off. A default script that runs is reported, a default setup is taken to need the
+network, and one that cannot run is reported as `script-not-run`. `local.env` is not an overlay file.
+
+**Reason:** the owner ruled that the basics need no manifest, and that `env.*` and `setup.*` run by
+default, picked by runtime. One rule for every default adds no key and needs no merge: a reader
+never decides which of a declared and a default entry wins, and an empty list, which every field
+already accepts, is the single way to turn a default off. `lib/` is prepended, as in dotagents, so
+the overlay with the higher `priority` is found first on every search path. Running by default moves
+no trust decision: it happens only in an activated overlay, and every run is reported.
+
+**Status:** adopted. The `rules` and `env_files` defaults are Proposed; dotagents applies the others,
+with the differences [Compatibility](../compatibility.md) lists.

@@ -33,16 +33,20 @@ names where a secret comes from, never its value.
 
 ## Give it tools
 
-Put helpers in `bin/` and declare that it goes on `PATH`:
+Put helpers in `bin/`. That is all: a consumer puts `bin/` first on `PATH`, with or without a
+manifest.
 
-```toml
-[[paths]]
-variable = "PATH"
-path = "bin"
+```text
+review-basics/
+├── instructions.md
+└── bin/review-check
 ```
 
-A setup step, a runtime and environment values are declared the same way; see
-[Environment](spec/v0/environment.md) and [Runtime and setup](spec/v0/runtime.md).
+Files in other conventional places work the same way: `lib/` for Python modules, `skills/` for
+skills, `env` for environment values, `setup.sh` or `setup.py` for a setup step. To turn one off,
+write its field empty (`paths = []`). A runtime and secret references are declared; see
+[Authoring](authoring.md), [Environment](spec/v0/environment.md) and
+[Runtime and setup](spec/v0/runtime.md).
 
 ## Use it
 

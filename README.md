@@ -16,7 +16,8 @@ consumer pins the whole tree by one digest. See the
 
 ## Features
 
-- **A directory is an overlay.** The manifest is optional; files keep their relative paths.
+- **A directory is an overlay.** The manifest is optional; files keep their relative paths, and
+  conventional ones (`bin/` on `PATH`, `skills/`, `env`, `setup.sh`) take effect by default.
 - **One data model, several syntaxes.** `overlay.cfg` is TOML unless its first line names another
   format (`#!json`, `#!yaml`). Every reader reads TOML; nothing is guessed from content.
 - **Static by rule.** Reading a manifest never executes, includes or interpolates anything, so a
@@ -39,17 +40,13 @@ your implementation.
 
 ## Quick start
 
-The smallest overlay is a directory with one file. Add `overlay.cfg` when you want metadata or
-declarations:
+The smallest overlay is a directory with one file, and a `bin/` in it goes on `PATH` with no
+manifest. Add `overlay.cfg` when you want metadata or declarations:
 
 ```toml
 name = "review-basics"
 description = "Shared code review guidance."
 routing = ["- Reviewing code → `$REVIEW_BASICS_OVERLAY_ROOT/kb/review.md`"]
-
-[[paths]]
-variable = "PATH"
-path = "bin"
 ```
 
 The same manifest in JSON:
@@ -59,8 +56,7 @@ The same manifest in JSON:
 {
   "name": "review-basics",
   "description": "Shared code review guidance.",
-  "routing": ["- Reviewing code → `$REVIEW_BASICS_OVERLAY_ROOT/kb/review.md`"],
-  "paths": [{ "variable": "PATH", "path": "bin" }]
+  "routing": ["- Reviewing code → `$REVIEW_BASICS_OVERLAY_ROOT/kb/review.md`"]
 }
 ```
 

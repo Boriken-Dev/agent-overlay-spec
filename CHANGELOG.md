@@ -63,6 +63,15 @@ The first edition, `0.1.0-draft`, a development draft open for review.
 - Lock and requirements files hold requirement lines only, and a lock installs binaries with hashes
   from an index the consumer names. Setup runs in its own process group, and the state directory is
   read-only inside the agent's sandbox.
+- Defaults: a field the manifest does not write takes its value from the overlay's files, so the
+  basics need no manifest. `bin/` is prepended to `PATH` and `lib/` to `PYTHONPATH`; `rules/*.md`
+  are rules (Proposed), `CONTEXT.md` is context, `skills/*/SKILL.md` are skills; the root `env` is
+  an env file read as `dotenv` (Proposed); one `env.<ext>` and one `setup.<ext>` run, the first in
+  the order `.py`, `.js`, `.mjs`, `.cjs`, `.ps1` (Windows), `.bash`, `.sh` (other systems) that the
+  consumer can run. A written field replaces its default, and `[]` turns it off. A default setup is
+  taken to need the network; the weakening `script-not-run` reports a default script that cannot
+  run. `local.env` is not an overlay file. Examples `bin-only` and `conventions`, and vectors for
+  each default on, off, written and not runnable.
 
 - Conformance vectors as JSON data in `tests/vectors/`: reading (format line, data model, static
   reading, limits, `dotenv`), validation of every field, names and root variables, source strings,
@@ -72,7 +81,11 @@ The first edition, `0.1.0-draft`, a development draft open for review.
 ### Changed
 
 - `overlay.toml` is now `overlay.cfg`, with no second name.
-- `setup_timeout` and the `setup.py` file convention are replaced by `setup` variants.
+- `setup_timeout` is replaced by `setup` variants; `setup.py` is one case of the default setup.
+- Env scripts run by default in an activated overlay, each run reported, unless the consumer's
+  policy turns them off; they are no longer a separate opt-in.
+- A plain `env` file is read as `dotenv` (literal values) instead of being sourced by a shell, and
+  `pre.env` files mean nothing by name.
 - Composition order is `(priority, name, identity)` with code-point string comparison, for every
   contribution, not only rules and routing.
 - Test, release and docs workflows; the docs site is published at

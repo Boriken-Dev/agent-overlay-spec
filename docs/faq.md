@@ -11,7 +11,8 @@ Any language or manager can implement it.
 
 ## Is `overlay.cfg` required?
 
-No. A directory with no manifest is a valid overlay.
+No. A directory with no manifest is a valid overlay, and its conventional files (`bin/`, `lib/`,
+`skills/`, `rules/`, `CONTEXT.md`, `env`, `env.<ext>`, `setup.<ext>`) take effect by default.
 
 ## Why `overlay.cfg` and not `overlay.toml`?
 
@@ -46,6 +47,13 @@ consumer reports.
 
 ## Will my existing dotagents overlay need migration?
 
-Rename `overlay.toml` to `overlay.cfg`, and declare what dotagents infers from file names today:
-`bin/` on `PATH`, `lib/` on `PYTHONPATH`, `setup.py`, `requirements.txt`, `CONTEXT.md`. See
+Rename `overlay.toml` to `overlay.cfg`. `bin/`, `lib/`, `skills/`, `CONTEXT.md`, `env.py` and
+`setup.py` keep working by default. Three things change: a plain `env` file is read as `dotenv`
+rather than sourced by bash, `pre.env` files and `requirements.txt` mean nothing by name (declare
+dependencies in `runtime`), and a `bin/*.py` becomes a command only through `[scripts]`. See
 [Compatibility](compatibility.md).
+
+## Does an overlay run code without a manifest?
+
+Yes, when it ships `env.<ext>` or `setup.<ext>` and the consumer has activated it: those run by
+default, and every run is reported. Write `env_scripts = []` or `setup = []` to turn them off.

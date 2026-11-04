@@ -4,8 +4,9 @@
 environment that any agent manager can read without running anything.** Teams keep their engineering
 guidance, skills and helpers in focused overlays, and each project or agent takes the ones it needs.
 
-An overlay is a directory. `overlay.cfg` is its optional manifest: TOML unless its first line names
-another format, and always static data. It declares what the overlay needs (environment variables,
+An overlay is a directory, and files in conventional places (`bin/`, `skills/`, `env`) work without
+a manifest. `overlay.cfg` is its optional manifest: TOML unless its first line names another format,
+and always static data. It declares what the overlay needs (environment variables,
 path additions, a runtime, a setup step) so a consumer can decide where it can run before running
 anything, and it can be pinned by one digest of the whole tree.
 
@@ -31,19 +32,14 @@ name = "team-review"
 description = "Review conventions for shared services."
 requires = ["engineering"]
 routing = ["- Service reviews → `$TEAM_REVIEW_OVERLAY_ROOT/kb/review.md`"]
-skills = ["review"]
 
 [env]
 REVIEW_TOKEN = { provider = "env", key = "REVIEW_TOKEN", optional = true }
-
-[[paths]]
-variable = "PATH"
-path = "bin"
 ```
 
-A consumer reads this without executing anything, sets `TEAM_REVIEW_OVERLAY_ROOT`, puts `bin/` first
-on `PATH`, takes the token from its own environment (and reports that it did), and offers the
-`review` skill.
+A consumer reads this without executing anything, sets `TEAM_REVIEW_OVERLAY_ROOT`, takes the token
+from its own environment (and reports that it did), and, because they are where it looks, puts
+`bin/` first on `PATH` and offers the `review` skill.
 
 ## Learn more
 
