@@ -108,6 +108,8 @@ The first edition, `0.1.0-draft`, a development draft open for review.
   environment: shared ones install every member's file in one run, in composition order, block
   overlays whose pins conflict, are rebuilt on every install, sync and removal, and live while an
   overlay uses them. Vectors for each default, overrides, pins, sharing, conflicts and removal.
+  A consumer may isolate every overlay, per digest too, but never shares an overlay that chose a
+  name or `isolated`.
 
 - Conformance vectors as JSON data in `tests/vectors/`: reading (format line, data model, static
   reading, limits, `dotenv`), validation of every field, names and root variables, source strings,

@@ -234,6 +234,12 @@ environment = "isolated"
 
 The key is `environment`, not `env`, since `env` is the field of environment variables.
 
+**A consumer's stricter policy.** A consumer MAY install every overlay in its own environment
+whatever the overlay chooses, and MAY key that environment by digest as well as identity, so a pin
+covers exactly the packages a session gets. It MUST NOT go the other way: an overlay that chooses
+`isolated` or a name is never put into a shared environment. A consumer that applies such a policy
+says so in its documentation; it is not a weakening, since it shares less.
+
 - **Python.** The environment is a virtual environment the consumer makes with the selected
   interpreter (`python -m venv`) and installs into with its own pip. Its packages directory is
   added to `PYTHONPATH`, after `lib/python/`, for every process an overlay in it serves, which
