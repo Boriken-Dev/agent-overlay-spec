@@ -25,7 +25,10 @@ the manifest's `defaults` turns it off; see [Package](package.md#defaults).
 
 **Composition order**: the deterministic order in which active overlays contribute.
 
-**Env value**: what `env` gives a variable: a literal, a path under the root, or a secret reference.
+**Env value**: what `env` gives a variable: text, a path under the root, or a secret reference.
+
+**Placeholder**: `${NAME}` or one of its forms in an env value's text, substituted from the
+environment being built when the variable is set; see [Substitution](environment.md#substitution).
 
 **Secret reference**: a provider and its fields, or a secret's name, that say where a value comes
 from; never the value.

@@ -1,3 +1,7 @@
-# Read as dotenv: every value is literal, so $HOME and $(...) stay as written.
+# Read as dotenv: ${NAME} placeholders are substituted line by line, so a line can use the lines
+# before it; $(...) stays as written and nothing runs. Single quotes keep a value as written.
 TOOL_MODE=read-only
 export TOOL_BANNER="Conventions: read only"
+TOOL_HOME=${AOS_OVERLAY_ROOT}/tool
+TOOL_CACHE=${TOOL_CACHE_DIR:-${TOOL_HOME}/cache}
+TOOL_PROMPT='${USER}$ '

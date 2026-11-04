@@ -82,7 +82,7 @@ def test_example_env_files_read(root):
         entry = {"path": entry} if isinstance(entry, str) else entry
         data = (root / entry["path"]).read_bytes()
         if entry.get("format", "aos") == "dotenv":
-            assert aos.read_dotenv(data)
+            assert aos.parse_dotenv(data)
         else:
             env = aos.read_document(data)
             assert not aos.validate({"env": env}), entry["path"]
@@ -107,6 +107,8 @@ def test_every_default_in_the_conventions_example():
     assert result["env"]["PATH"] == "/ov/c/bin"
     assert result["env"]["PYTHONPATH"] == "/ov/c/lib/python"
     assert result["env"]["TOOL_BANNER"] == "Conventions: read only"
+    assert result["env"]["TOOL_HOME"] == "/ov/c/tool"
+    assert result["env"]["TOOL_CACHE"] == "/ov/c/tool/cache"
     assert [s["path"] for s in result["env_scripts"]] == ["env.py"]
     assert result["setup"]["path"] == "setup.sh" and result["setup"]["network"] is True
     assert aos.rules_of({}, files) == ["rules/always.md"]

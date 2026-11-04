@@ -9,7 +9,7 @@ An overlay with no `overlay.cfg`, in which every file takes effect by its name:
 | `rules/always.md` | An always-on rules file |
 | `CONTEXT.md` | Initial context |
 | `skills/check-conventions/SKILL.md` | A skill |
-| `env` | An env file, read as `dotenv`: literal values, nothing expanded |
+| `env` | An env file, read as `dotenv`: `${NAME}` placeholders substituted line by line, nothing run |
 | `env.py`, `env.sh` | The env script: `env.py` where Python can run, `env.sh` on another Unix-like host |
 | `setup.sh` | Setup, on Unix-like hosts, once per digest |
 

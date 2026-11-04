@@ -108,6 +108,9 @@ An overlay never holds a secret value: it holds [secret references](environment.
 and reads only what the consumer's configuration grants it. A consumer never logs, displays or
 stores a resolved value, gives each overlay's processes only that overlay's environment, and SHOULD
 start them from an environment it chose rather than everything it inherited.
+[Substitution](environment.md#secrets-and-substitution) never reads a variable that holds a
+resolved secret, so no part of one is copied into another variable, and a consumer shows a
+substituted value as written, never its result. Substitution runs nothing and reads no file.
 MCP servers can reach data and networks; a consumer shows each server, its transport and the
 variables it reads before starting it.
 

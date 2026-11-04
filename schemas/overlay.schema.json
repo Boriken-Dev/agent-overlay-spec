@@ -72,6 +72,7 @@
       ]
     },
     "envValue": {
+      "description": "Text (a string, or value) has its ${NAME} placeholders substituted when the variable is set, against the environment built so far; $$ is a $. A path and a secret reference are never substituted.",
       "oneOf": [
         { "$ref": "#/$defs/text" },
         {

@@ -58,7 +58,12 @@ def test_reading(case):
     expect = case["expect"]
     read = {
         "aos": aos.read_document,
-        "dotenv": aos.read_dotenv,
+        "dotenv": lambda data: aos.read_dotenv(
+            data,
+            case.get("env", {}),
+            case.get("os") == "windows",
+            case.get("secret_variables", ()),
+        ),
         "env-script": aos.read_env_script_output,
     }[case["format"]]
     if "error" in expect and "data" in expect:

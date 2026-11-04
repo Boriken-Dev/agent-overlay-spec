@@ -45,7 +45,9 @@ overlay, and so are skill names; each matches `[A-Za-z0-9][A-Za-z0-9_.-]*`.
   overlay, and `skills/<name>/SKILL.md` MUST exist.
 
 **Proposed:** an `env` value may be any [env value](environment.md#env), including a path under the
-root and a secret reference; dotagents takes strings only. A stdio server starts with the overlay
+root and a secret reference; dotagents takes strings only. Its text is
+[substituted](environment.md#substitution) against that overlay's environment as the server would
+receive it, the entries of one server's `env` not seeing each other. A stdio server starts with the overlay
 root as its working directory, so `args = ["server.js"]` names the overlay's file; dotagents starts
 it in the gateway's own working directory. A `command` without a separator is found on the base
 environment's `PATH` plus that overlay's own [path additions](environment.md#path-additions); a

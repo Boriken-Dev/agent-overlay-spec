@@ -57,7 +57,8 @@ Whatever library a reader is built on, it reads the manifest this way:
   `$ref`, `extends`, `!include`). Such keys are ordinary data.
 - **No interpolation or templating.** `$NAME`, `${NAME}`, `%(name)s`, `{{ name }}` and `<NAME>` in a
   string are those characters. A field that gives a string meaning (a path relative to the root,
-  a routing line) says so itself, and acts only when the declaration is applied.
+  a routing line, an env value's [substitution](environment.md#substitution)) says so itself, and
+  acts only when the declaration is applied.
 - **YAML:** only the core schema. A reader MUST refuse an explicit tag (`!include`, `!!python/...`,
   `!!binary`, any `!...`), an anchor, an alias, a mapping key `<<`, a directive (`%YAML`, `%TAG`),
   and the characters U+0085, U+2028 and U+2029 anywhere in the document, which YAML 1.1 and 1.2

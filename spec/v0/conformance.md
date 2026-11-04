@@ -12,7 +12,7 @@ turns them off.
 | **Read-only consumer** | Lists and reads overlay files; treats an absent manifest as valid; says when it ignored an unreadable one. | |
 | **Manifest reader** | Reads `overlay.cfg` as [Manifest](manifest.md) says: the format line, TOML, the data model, static reading, limits. States which optional formats it reads. Preserves unknown top-level keys. | `reading.json` |
 | **Validator** | Validates the data model against the schema and the semantic rules, including that named files exist and, given the files, that `env` sets no variable the default `paths` adds to. | `validation.json` |
-| **Environment** | Builds the environment from root variables, `env`, `env_files` and `paths` in the [order of application](environment.md#order-of-application); resolves secret references or refuses; reads env-script output; reports weakenings. | `effective.json`, `compose.json`, the `dotenv` and `env-script` cases of `reading.json` |
+| **Environment** | Builds the environment from root variables, `env`, `env_files` and `paths` in the [order of application](environment.md#order-of-application), [substituting](environment.md#substitution) each text value as it is set; resolves secret references or refuses; reads env-script output; reports weakenings. | `effective.json`, `compose.json`, the `dotenv` (substitution included) and `env-script` cases of `reading.json` |
 | **Runtime and setup** | Selects variants per OS and [default scripts](runtime.md#default-scripts), probes what an overlay needs, runs setup as [Runtime and setup](runtime.md#setup) says, reports weakenings. | `effective.json` |
 | **Integrity** | Computes the [tree digest](integrity.md#tree-digest) and enforces pins. | `digest.json` |
 | **Resolver** | Parses [sources](distribution.md#source-form), validates and normalizes [identities](package.md#names-and-paths), resolves `requires`, orders the active overlays. | `source.json`, `names.json`, `compose.json` |
@@ -37,7 +37,7 @@ with an `id`, its input and an `expect`.
 
 | File | Input | Expect |
 | --- | --- | --- |
-| `reading.json` | Document bytes (`text` or `base64`), `format` (`aos`, `dotenv`, or `env-script` for an env script's output), optional `limits` | `data`, or `error` |
+| `reading.json` | Document bytes (`text` or `base64`), `format` (`aos`, `dotenv`, or `env-script` for an env script's output), optional `limits`; for `dotenv`, optional `env`, `os` and `secret_variables` to substitute against | `data`, or `error` |
 | `validation.json` | A data model `document`, optional `files` | `valid`, and for an invalid one the pointer `at` of the offending value |
 | `names.json` | An overlay `name` | `valid`, `normalized`, `variable` |
 | `source.json` | A `source` string | `kind`, `location`, `ref`, `path`, or `error` |
