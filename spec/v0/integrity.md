@@ -88,7 +88,9 @@ and the blobs hold the same bytes on every platform.
 ## Pins
 
 A **pin** is a tree digest a consumer requires an overlay to have. It lives in the consumer's own
-configuration, beside the overlay's [source](distribution.md#source-form), never in the overlay:
+configuration, beside the overlay's [source](distribution.md#source-form), never in the overlay. A
+[catalog](catalog.md#trust) entry may carry one, which a consumer checks and then records in its
+own configuration:
 
 ```toml
 [overlays.engineering]

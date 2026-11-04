@@ -22,7 +22,8 @@
     "setup": { "description": "Variants tried before the setup default (one root setup.<ext>); an entry naming a root setup.<ext> configures that file in the default choice.", "type": "array", "items": { "$ref": "#/$defs/setupVariant" } },
     "scripts": { "$ref": "#/$defs/scripts" },
     "mcp": { "$ref": "#/$defs/mcp" },
-    "harness": { "$ref": "#/$defs/harness" }
+    "harness": { "$ref": "#/$defs/harness" },
+    "about": { "$ref": "#/$defs/about" }
   },
   "additionalProperties": { "$ref": "#/$defs/value" },
   "$defs": {
@@ -332,6 +333,69 @@
         "skills": { "type": "array", "items": { "$ref": "#/$defs/skillLink" } }
       },
       "additionalProperties": false
-    }
+    },
+    "line": {
+      "description": "One line of display text: not empty, no control character, line or paragraph separator, or bidirectional embedding, override or isolate.",
+      "type": "string",
+      "pattern": "^[^\\x00-\\x1f\\x7f-\\x9f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]+$"
+    },
+    "webUrl": {
+      "description": "An https URL with a host and no user information.",
+      "type": "string",
+      "pattern": "^https://[^\\x00-\\x20\\x7f-\\x9f/?#@\\\\]+(?:[/?#][^\\x00-\\x20\\x7f-\\x9f]*)?$"
+    },
+    "about": {
+      "description": "Store metadata, informational only: a consumer that shows no store never reads it, nothing in it changes composition, activation or the environment, and a problem in it never stops an overlay from applying.",
+      "type": "object",
+      "properties": {
+        "summary": { "$ref": "#/$defs/line" },
+        "icon": {
+          "description": "A PNG or WebP image: in a manifest a file of the overlay, in a catalog a file beside the catalog. SVG is not an icon format.",
+          "allOf": [{ "$ref": "#/$defs/relPath" }, { "pattern": "\\.(?:[Pp][Nn][Gg]|[Ww][Ee][Bb][Pp])$" }]
+        },
+        "homepage": { "$ref": "#/$defs/webUrl" },
+        "repository": { "$ref": "#/$defs/webUrl" },
+        "license": { "description": "An SPDX license expression; its grammar is checked semantically.", "type": "string", "pattern": "^[A-Za-z0-9.+:() -]+$" },
+        "authors": { "type": "array", "items": { "$ref": "#/$defs/line" } },
+        "tags": { "type": "array", "uniqueItems": true, "items": { "type": "string", "maxLength": 32, "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" } }
+      },
+      "additionalProperties": false
+    },
+    "catalog": {
+      "description": "A catalog: the overlays a store lists, by name. Not a manifest: validate a catalog against this definition. Its fields are advertising; the fetched overlay's own manifest and tree are authoritative.",
+      "type": "object",
+      "required": ["overlays"],
+      "properties": {
+        "name": { "$ref": "#/$defs/line" },
+        "description": { "type": "string" },
+        "homepage": { "$ref": "#/$defs/webUrl" },
+        "overlays": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/overlayName" },
+          "additionalProperties": { "$ref": "#/$defs/catalogEntry" }
+        }
+      },
+      "additionalProperties": { "$ref": "#/$defs/value" }
+    },
+    "catalogEntry": {
+      "description": "A source string (the minimal form) or a table (the full form).",
+      "oneOf": [
+        { "$ref": "#/$defs/sourceString" },
+        {
+          "type": "object",
+          "required": ["source"],
+          "properties": {
+            "source": { "$ref": "#/$defs/sourceString" },
+            "ref": { "$ref": "#/$defs/gitRef" },
+            "pin": { "$ref": "#/$defs/digest" },
+            "description": { "type": "string" },
+            "about": { "$ref": "#/$defs/about" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "sourceString": { "type": "string", "pattern": "[^ \\t\\r\\n]" },
+    "gitRef": { "type": "string", "pattern": "^[^-/:\\\\@#\\x00-\\x20\\x7f][^/:\\\\@#\\x00-\\x20\\x7f]*$" }
   }
 }

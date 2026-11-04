@@ -205,3 +205,63 @@ def test_site_copy_of_the_schema_matches():
         (ROOT / "docs" / "schemas" / "overlay.schema.json").read_text(encoding="utf-8")
     )
     assert site == aos.SCHEMA
+
+
+REGISTRY = EXAMPLES / "registry"
+
+
+def test_a_problem_in_about_never_stops_a_manifest_from_applying():
+    for name, at in INVALID.items():
+        if at == "/about" or at.startswith("/about/"):
+            issues = aos.validate(aos.read_document((FIXTURES / "invalid" / name).read_bytes()))
+            assert issues and aos.applies(issues), name
+
+
+def test_about_changes_nothing_a_consumer_applies():
+    root = EXAMPLES / "about"
+    manifest = manifest_of(root)
+    bare = {key: value for key, value in manifest.items() if key != "about"}
+    assert manifest["about"] and bare != manifest
+    files = {path: "" for path in aos.tree_files(root)}
+    facts = {"os": "linux", "root": "/ov/a", "identity": "release-notes", "pinned": True}
+    assert aos.effective(manifest, dict(facts, files=files)) == aos.effective(
+        bare, dict(facts, files=files)
+    )
+    tree = {"release-notes": sorted(files)}
+    assert aos.compose({"release-notes": manifest}, ["release-notes"], tree) == aos.compose(
+        {"release-notes": bare}, ["release-notes"], tree
+    )
+
+
+@pytest.mark.parametrize("root", example_roots(), ids=lambda p: p.relative_to(EXAMPLES).as_posix())
+def test_example_icon_is_one_a_store_shows(root):
+    icon = manifest_of(root).get("about", {}).get("icon")
+    if icon is not None:
+        assert aos.read_icon((root / icon).read_bytes(), icon)
+
+
+@pytest.mark.parametrize("name", ["registry.json", "registry.toml", "registry.yaml"])
+def test_a_registry_is_a_catalog_in_the_minimal_form(name):
+    data = (REGISTRY / name).read_bytes()
+    assert not list(aos.CATALOG_VALIDATOR.iter_errors(aos.read_catalog_document(data, name)))
+    catalog = aos.read_catalog(data, name, (REGISTRY / name).as_posix())
+    assert catalog["form"] == "minimal"
+    assert catalog["refused"] == [] and catalog["ignored"] == []
+    assert sorted(catalog["entries"]) == ["engineering", "python-review"]
+
+
+def test_the_example_catalog():
+    path = REGISTRY / "catalog.toml"
+    data = path.read_bytes()
+    assert not list(aos.CATALOG_VALIDATOR.iter_errors(aos.read_catalog_document(data, path.name)))
+    catalog = aos.read_catalog(data, path.name, path.as_posix())
+    assert catalog["form"] == "full"
+    assert catalog["refused"] == [] and catalog["ignored"] == []
+    assert len(catalog["entries"]) == 3
+    for name, entry in catalog["entries"].items():
+        icon = entry["about"]["icon"]
+        assert aos.read_icon((REGISTRY / icon).read_bytes(), icon)
+        root = Path(entry["source"]["location"])
+        assert aos.normalize_name(manifest_of(root).get("name", root.name)) == name
+        if "pin" in entry:
+            assert aos.same_digest(entry["pin"], aos.tree_digest(root)), name

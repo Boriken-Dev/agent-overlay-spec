@@ -5,7 +5,7 @@ active overlays.
 
 ## Name identity
 
-Identities normalize as [Package](package.md#names-and-paths) says. A registry may give an overlay
+Identities normalize as [Package](package.md#names-and-paths) says. A [catalog](catalog.md#catalogs) may give an overlay
 an alias; the alias does not rename the overlay. A resolver SHOULD detect two source entries that
 resolve to the same identity.
 
@@ -19,7 +19,8 @@ that a later file replaces an earlier one unless their own policy says so.
 A reader reports malformed documents and invalid fields. A read-only consumer MAY still expose an
 overlay's files when its manifest is invalid, provided it says that it ignored the manifest. A
 consumer MUST NOT apply any declaration of a manifest it could not read and validate: no setup, no
-environment, no MCP server, no command.
+environment, no MCP server, no command. Problems under `about` alone do not count: it is
+[informational only](catalog.md#informational-only).
 
 > **Status:** dotagents ignores an unreadable `overlay.toml` as a whole for contributions, replaces
 > malformed ordinary values with defaults and warns, and refuses invalid MCP declarations when the

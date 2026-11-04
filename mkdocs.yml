@@ -47,6 +47,7 @@ nav:
       - Context and harnesses: spec/v0/harness.md
       - MCP: spec/v0/mcp.md
       - Distribution: spec/v0/distribution.md
+      - Store and catalogs: spec/v0/catalog.md
       - Integrity: spec/v0/integrity.md
       - Security: spec/v0/security.md
       - Conformance: spec/v0/conformance.md

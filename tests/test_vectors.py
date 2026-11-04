@@ -38,6 +38,7 @@ def test_every_vector_file_is_run():
         "source.json",
         "compose.json",
         "effective.json",
+        "catalog.json",
     }
     assert {path.name for path in VECTORS.glob("*.json")} == run
 
@@ -65,6 +66,7 @@ def test_reading(case):
             case.get("secret_variables", ()),
         ),
         "env-script": aos.read_env_script_output,
+        "catalog": lambda data, **limits: aos.read_catalog_document(data, case["name"], **limits),
     }[case["format"]]
     if "error" in expect and "data" in expect:
         try:
@@ -89,6 +91,8 @@ VALIDATION = cases("validation.json")
 def test_validation(case):
     files = set(case["files"]) if "files" in case else None
     issues = aos.validate(case["document"], files)
+    if "applies" in case["expect"]:
+        assert aos.applies(issues) is case["expect"]["applies"], issues
     if case["expect"]["valid"]:
         assert not issues, issues
     else:
@@ -146,3 +150,37 @@ EFFECTIVE = cases("effective.json")
 def test_effective(case):
     result = aos.effective(case["manifest"], case["facts"])
     assert strict(json.loads(json.dumps(result))) == strict(case["expect"])
+
+
+CATALOG = cases("catalog.json")
+
+
+def read_catalog(item: dict) -> dict:
+    return aos.read_catalog(item["text"].encode("utf-8"), item["name"], item.get("base"))
+
+
+@pytest.mark.parametrize("case", CATALOG, ids=ids(CATALOG))
+def test_catalog(case):
+    if "icon" in case:
+        icon = case["icon"]
+        try:
+            got = aos.read_icon(
+                base64.b64decode(icon["base64"]), icon["name"], **icon.get("limits", {})
+            )
+        except aos.IconError as error:
+            got = {"error": error.code}
+    elif "catalogs" in case:
+        try:
+            listing = aos.list_catalogs(
+                [(item["label"], read_catalog(item)) for item in case["catalogs"]]
+            )
+        except aos.ReadError as error:
+            got = {"error": error.code}
+        else:
+            got = dict(listing, chosen={name: aos.choose(listing, name) for name in case["choose"]})
+    else:
+        try:
+            got = read_catalog(case["catalog"])
+        except aos.ReadError as error:
+            got = {"error": error.code}
+    assert strict(json.loads(json.dumps(got))) == strict(case["expect"])

@@ -1,4 +1,7 @@
 {
+  "about-icon-svg.cfg": "/about/icon",
+  "about-license-expression.cfg": "/about/license",
+  "about-unknown-key.cfg": "/about",
   "context-absolute.cfg": "/context/0",
   "context-backslash.cfg": "/context/0",
   "defaults-string.cfg": "/defaults/bin",

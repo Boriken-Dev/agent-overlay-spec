@@ -80,6 +80,11 @@ def read_document(
     if name not in FORMATS:
         shown = name if _SAFE_FORMAT_NAME.match(name) else "(not shown)"
         raise ReadError("unsupported-format", shown)
+    return _parse(FORMATS[name], payload, max_depth)
+
+
+def _parse(kind: str, payload: bytes, max_depth: int) -> "dict[str, Any]":
+    """The text after any format line, parsed as ``kind`` and checked against the data model."""
     try:
         text = payload.decode("utf-8")
     except UnicodeDecodeError:
@@ -88,7 +93,6 @@ def read_document(
         raise ReadError("parse-error", "a byte-order mark where the document starts")
     if not text.strip(" \t\r\n"):
         return {}
-    kind = FORMATS[name]
     if kind == "toml":
         try:
             value = tomllib.loads(text)
@@ -683,6 +687,10 @@ def _semantic(doc: "dict[str, Any]") -> "list[tuple[str, str]]":
                             ("reserved-variable", "/mcp/servers/%d/env/%s" % (index, name))
                         )
     found += _mcp(doc.get("mcp"))
+    about = doc.get("about")
+    if isinstance(about, dict) and isinstance(about.get("license"), str):
+        if not valid_license(about["license"]):
+            found.append(("license-expression", "/about/license"))
     return found
 
 
@@ -776,6 +784,9 @@ def named_files(doc: "dict[str, Any]") -> "list[tuple[str, str]]":
                 for index, path in enumerate(hints["context"]):
                     if isinstance(path, str):
                         out.append(("/harness/%s/context/%d" % (harness_id, index), path))
+    about = doc.get("about")
+    if isinstance(about, dict) and isinstance(about.get("icon"), str):
+        out.append(("/about/icon", about["icon"]))
     return out
 
 
@@ -2035,3 +2046,425 @@ def compose(
         else:
             result["env"] = env.values
     return result
+
+
+# --------------------------------------------------------------------------------------------
+# Store metadata and catalogs: informational, never applied.
+# --------------------------------------------------------------------------------------------
+
+#: The informational fields of ``about``, in the manifest and in a catalog entry.
+ABOUT_FIELDS = ("summary", "icon", "homepage", "repository", "license", "authors", "tags")
+
+
+def _subschema(pointer_to: str) -> Draft202012Validator:
+    return Draft202012Validator(
+        {"$defs": SCHEMA["$defs"], "$ref": pointer_to}, format_checker=FormatChecker()
+    )
+
+
+_ABOUT_FIELD = {field: _subschema("#/$defs/about/properties/" + field) for field in ABOUT_FIELDS}
+_CATALOG_FIELD = {
+    field: _subschema("#/$defs/catalog/properties/" + field)
+    for field in ("name", "description", "homepage")
+}
+CATALOG_VALIDATOR = _subschema("#/$defs/catalog")
+
+
+def applies(issues: "list[tuple[str, str]]") -> bool:
+    """Whether a manifest with these issues is applied: a problem under ``/about`` never blocks."""
+    return not [at for _code, at in issues if not (at == "/about" or at.startswith("/about/"))]
+
+
+_LICENSE_ID = re.compile(r"^[A-Za-z0-9.-]+\+?$")
+_LICENSE_REF = re.compile(r"^(?:DocumentRef-[A-Za-z0-9.-]+:)?LicenseRef-[A-Za-z0-9.-]+$")
+_EXCEPTION_ID = re.compile(
+    r"^(?:[A-Za-z0-9.-]+|(?:DocumentRef-[A-Za-z0-9.-]+:)?AdditionRef-[A-Za-z0-9.-]+)$"
+)
+_OPERATORS = ("AND", "OR", "WITH")
+
+
+def valid_license(expression: str) -> bool:
+    """An SPDX license expression: ids, ``LicenseRef-``, ``+``, ``WITH``, ``AND``, ``OR`` and
+    parentheses, operators in upper case, ``AND`` binding tighter than ``OR``."""
+    if not re.match(r"^[A-Za-z0-9.+:() -]+$", expression):
+        return False
+    tokens = re.findall(r"\(|\)|[^ ()]+", expression)
+    position = 0
+
+    def peek() -> "Optional[str]":
+        return tokens[position] if position < len(tokens) else None
+
+    def take() -> "Optional[str]":
+        nonlocal position
+        token = peek()
+        position += 1
+        return token
+
+    def license_or_group() -> bool:
+        token = take()
+        if token == "(":
+            return compound() and take() == ")"
+        if token is None or token in _OPERATORS or token == ")":
+            return False
+        if not (_LICENSE_REF.match(token) or _LICENSE_ID.match(token)):
+            return False
+        if peek() == "WITH":
+            take()
+            exception = take()
+            return exception is not None and bool(_EXCEPTION_ID.match(exception))
+        return True
+
+    def term() -> bool:
+        if not license_or_group():
+            return False
+        while peek() == "AND":
+            take()
+            if not license_or_group():
+                return False
+        return True
+
+    def compound() -> bool:
+        if not term():
+            return False
+        while peek() == "OR":
+            take()
+            if not term():
+                return False
+        return True
+
+    return compound() and position == len(tokens)
+
+
+def about_field_valid(field: str, value: Any) -> bool:
+    """Whether one informational field is valid; an unknown field is not."""
+    if field not in _ABOUT_FIELD or not _ABOUT_FIELD[field].is_valid(value):
+        return False
+    return field != "license" or valid_license(value)
+
+
+def store_about(about: Any, at: str, ignored: "list[str]") -> "Optional[dict[str, Any]]":
+    """What a store shows of an ``about`` table: each invalid or unknown field left out, by pointer."""
+    if not isinstance(about, dict):
+        ignored.append(at)
+        return None
+    shown: "dict[str, Any]" = {}
+    for field, value in about.items():
+        if about_field_valid(field, value):
+            shown[field] = value
+        else:
+            ignored.append(at + "/" + _escape(field))
+    return shown or None
+
+
+def _escape(token: str) -> str:
+    """One JSON Pointer reference token."""
+    return token.replace("~", "~0").replace("/", "~1")
+
+
+# ---------------------------------------------------------------------------------- catalogs
+
+#: Catalog file extensions that name a format; any other name is read as an AOS document.
+CATALOG_EXTENSIONS = {".toml": "toml", ".json": "json", ".yaml": "yaml", ".yml": "yaml"}
+DEFAULT_CATALOG_MAX_BYTES = 4 * 1024 * 1024
+CATALOG_ENTRY_KEYS = frozenset(("source", "ref", "pin", "description", "about"))
+_REF = re.compile(r"^[^-/:\\@#\x00-\x20\x7f][^/:\\@#\x00-\x20\x7f]*$")
+_DRIVE = re.compile(r"^[A-Za-z]:")
+
+
+def catalog_format(name: str) -> "Optional[str]":
+    """The format a catalog's file name selects, or None for the AOS document rule."""
+    last = name.replace("\\", "/").rsplit("/", 1)[-1]
+    if "." not in last:
+        return None
+    extension = "." + "".join(c.lower() if "A" <= c <= "Z" else c for c in last.rsplit(".", 1)[1])
+    return CATALOG_EXTENSIONS.get(extension)
+
+
+def read_catalog_document(
+    data: bytes,
+    name: str,
+    *,
+    max_bytes: int = DEFAULT_CATALOG_MAX_BYTES,
+    max_depth: int = DEFAULT_MAX_DEPTH,
+) -> "dict[str, Any]":
+    """A catalog's data model value: its extension names the format, else the AOS rule."""
+    kind = catalog_format(name)
+    if kind is None:
+        return read_document(data, max_bytes=max_bytes, max_depth=max_depth)
+    if len(data) > max_bytes:
+        raise ReadError("too-large")
+    if data.startswith(b"\xef\xbb\xbf"):
+        data = data[3:]
+    return _parse(kind, data, max_depth)
+
+
+class CatalogRefusal(Exception):
+    """An entry a store does not list. ``code`` is the vectors' class."""
+
+    def __init__(self, code: str):
+        super().__init__(code)
+        self.code = code
+
+
+def _absolute_directory(location: str) -> bool:
+    return location.startswith(("/", "\\")) or bool(_DRIVE.match(location))
+
+
+def _local_git(location: str) -> bool:
+    """A Git location on this machine: a path or ``file:``, not a URL or ``host:path``."""
+    if "://" in location:
+        return location.split("://", 1)[0].lower() == "file"
+    return bool(_DRIVE.match(location)) or not re.match(r"^[^/\\:]+:", location)
+
+
+def _join(*parts: str) -> str:
+    import posixpath
+
+    return posixpath.normpath(posixpath.join(*[part for part in parts if part] or ["."]))
+
+
+def resolve_entry_source(
+    entry: "dict[str, Optional[str]]", origin: "Optional[dict[str, Optional[str]]]"
+) -> "dict[str, Optional[str]]":
+    """A parsed entry source made absolute against the parsed source of the catalog file."""
+    import posixpath
+
+    location = entry["location"] or ""
+    relative = entry["kind"] == "directory" and not _absolute_directory(location)
+    local = (entry["kind"] == "directory" and not relative) or (
+        entry["kind"] == "git" and _local_git(location)
+    )
+    if origin is None or origin["kind"] == "directory":
+        if relative and origin is not None:
+            folder = posixpath.dirname((origin["location"] or "").replace("\\", "/"))
+            return dict(entry, location=_join(folder, location))
+        return dict(entry)
+    if local:
+        raise CatalogRefusal("local-source")
+    if not relative:
+        return dict(entry)
+    if origin["kind"] == "git":
+        folder = posixpath.dirname(origin["path"] or "")
+        path = _join(folder, location, entry["path"] or "")
+        if path == ".." or path.startswith("../"):
+            raise CatalogRefusal("leaves-repository")
+        if path != "." and not valid_relpath(path):
+            raise CatalogRefusal("invalid-source")
+        return {
+            "kind": "git",
+            "location": origin["location"],
+            "ref": origin["ref"],
+            "path": None if path == "." else path,
+        }
+    from urllib.parse import urljoin
+
+    return {
+        "kind": "url",
+        "location": urljoin(origin["location"] or "", location),
+        "ref": None,
+        "path": entry["path"],
+    }
+
+
+def _catalog_entry(
+    value: Any, at: str, origin: "Optional[dict[str, Optional[str]]]", ignored: "list[str]"
+) -> "dict[str, Any]":
+    if isinstance(value, str):
+        fields: "dict[str, Any]" = {"source": value}
+    elif isinstance(value, dict):
+        if set(value) - CATALOG_ENTRY_KEYS:
+            raise CatalogRefusal("invalid-entry")
+        fields = value
+    else:
+        raise CatalogRefusal("invalid-entry")
+    if not isinstance(fields.get("source"), str):
+        raise CatalogRefusal("invalid-entry")
+    try:
+        parsed = parse_source(fields["source"])
+    except ValueError:
+        raise CatalogRefusal("invalid-source")
+    source = resolve_entry_source(parsed, origin)
+    if "ref" in fields:
+        ref = fields["ref"]
+        if not isinstance(ref, str) or not _REF.match(ref):
+            raise CatalogRefusal("invalid-entry")
+        if parsed["kind"] != "git" or parsed["ref"] is not None:
+            raise CatalogRefusal("ref-not-allowed")
+        source["ref"] = ref
+    entry: "dict[str, Any]" = {"source": source}
+    if "pin" in fields:
+        if not isinstance(fields["pin"], str) or not DIGEST_FORM.match(fields["pin"]):
+            raise CatalogRefusal("invalid-pin")
+        entry["pin"] = fields["pin"]
+    if "description" in fields:
+        if isinstance(fields["description"], str):
+            entry["description"] = fields["description"]
+        else:
+            ignored.append(at + "/description")
+    if "about" in fields:
+        about = store_about(fields["about"], at + "/about", ignored)
+        if about is not None:
+            entry["about"] = about
+    return entry
+
+
+def read_catalog(
+    data: bytes, name: str, base: "Optional[str]" = None, **limits: int
+) -> "dict[str, Any]":
+    """What a store reads from one catalog: its form, its informational fields, the entries it
+    lists with their sources made absolute, the entries it refuses and the fields it ignores.
+
+    ``name`` is the catalog's file name, ``base`` the source the catalog file itself came from.
+    """
+    document = read_catalog_document(data, name, **limits)
+    overlays = document.get("overlays")
+    if not isinstance(overlays, dict):
+        raise ReadError("not-a-catalog")
+    origin = parse_source(base) if base else None
+    result: "dict[str, Any]" = {
+        "form": "minimal" if all(isinstance(v, str) for v in overlays.values()) else "full"
+    }
+    ignored: "list[str]" = []
+    for field, check in _CATALOG_FIELD.items():
+        if field in document:
+            if check.is_valid(document[field]):
+                result[field] = document[field]
+            else:
+                ignored.append("/" + field)
+    holders: "dict[str, int]" = {}
+    for key in overlays:
+        if valid_overlay_name(key):
+            holders[normalize_name(key)] = holders.get(normalize_name(key), 0) + 1
+    entries: "dict[str, Any]" = {}
+    refused: "list[list[str]]" = []
+    for key in sorted(overlays):
+        at = "/overlays/" + _escape(key)
+        if not valid_overlay_name(key):
+            refused.append([key, "invalid-name"])
+        elif holders[normalize_name(key)] > 1:
+            refused.append([key, "duplicate-name"])
+        else:
+            try:
+                entries[key] = _catalog_entry(overlays[key], at, origin, ignored)
+            except CatalogRefusal as refusal:
+                refused.append([key, refusal.code])
+    result.update(entries=entries, refused=refused, ignored=sorted(ignored))
+    return result
+
+
+def list_catalogs(catalogs: "list[tuple[str, dict[str, Any]]]") -> "dict[str, Any]":
+    """A store's listing of several catalogs, each ``(label, read_catalog result)``.
+
+    An identity two catalogs offer is shown once per catalog, qualified ``<label>/<name>``;
+    entries are never merged.
+    """
+    labels = [label for label, _catalog in catalogs]
+    normalized = [normalize_name(label) for label in labels]
+    if len(set(normalized)) != len(labels) or not all(map(valid_overlay_name, labels)):
+        raise ReadError("invalid-label")
+    offered: "dict[str, list[tuple[str, str]]]" = {}
+    for label, catalog in catalogs:
+        for name in catalog["entries"]:
+            offered.setdefault(normalize_name(name), []).append((label, name))
+    entries: "list[dict[str, str]]" = []
+    collisions: "dict[str, list[str]]" = {}
+    for identity in sorted(offered):
+        holders = sorted(offered[identity])
+        qualified = len(holders) > 1
+        if qualified:
+            collisions[identity] = [label for label, _name in holders]
+        for label, name in holders:
+            shown = "%s/%s" % (label, name) if qualified else name
+            entries.append({"catalog": label, "name": name, "identity": identity, "shown": shown})
+    return {"entries": entries, "collisions": collisions}
+
+
+def choose(listing: "dict[str, Any]", requested: str) -> "dict[str, str]":
+    """The entry a requested name picks: ``<label>/<name>``, or a name one catalog alone offers."""
+    label, slash, name = requested.rpartition("/")
+    if not valid_overlay_name(name) or (slash and not valid_overlay_name(label)):
+        return {"error": "not-found"}
+    found = [
+        entry
+        for entry in listing["entries"]
+        if entry["identity"] == normalize_name(name)
+        and (not slash or normalize_name(entry["catalog"]) == normalize_name(label))
+    ]
+    if not found:
+        return {"error": "not-found"}
+    if len(found) > 1:
+        return {"error": "ambiguous"}
+    return {"catalog": found[0]["catalog"], "name": found[0]["name"]}
+
+
+# ------------------------------------------------------------------------------------- icons
+
+ICON_FORMATS = ("png", "webp")
+DEFAULT_ICON_MAX_BYTES = 512 * 1024
+DEFAULT_ICON_MAX_SIDE = 1024
+_PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
+class IconError(Exception):
+    """An icon a store refuses. ``code`` is the vectors' class."""
+
+    def __init__(self, code: str):
+        super().__init__(code)
+        self.code = code
+
+
+def _png_size(data: bytes) -> "tuple[int, int]":
+    if len(data) < 24 or data[8:16] != b"\x00\x00\x00\x0dIHDR":
+        raise IconError("icon-unreadable")
+    return int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+
+
+def _webp_size(data: bytes) -> "tuple[int, int]":
+    if len(data) < 20 or int.from_bytes(data[4:8], "little") + 8 > len(data):
+        raise IconError("icon-unreadable")
+    chunk = data[12:16]
+    if chunk == b"VP8 " and len(data) >= 30 and data[23:26] == b"\x9d\x01\x2a":
+        width = int.from_bytes(data[26:28], "little") & 0x3FFF
+        height = int.from_bytes(data[28:30], "little") & 0x3FFF
+        return width, height
+    if chunk == b"VP8L" and len(data) >= 25 and data[20] == 0x2F:
+        bits = int.from_bytes(data[21:25], "little")
+        return (bits & 0x3FFF) + 1, ((bits >> 14) & 0x3FFF) + 1
+    if chunk == b"VP8X" and len(data) >= 30:
+        return int.from_bytes(data[24:27], "little") + 1, int.from_bytes(data[27:30], "little") + 1
+    raise IconError("icon-unreadable")
+
+
+def read_icon(
+    data: bytes,
+    name: str,
+    *,
+    max_bytes: int = DEFAULT_ICON_MAX_BYTES,
+    max_width: int = DEFAULT_ICON_MAX_SIDE,
+    max_height: int = DEFAULT_ICON_MAX_SIDE,
+) -> "dict[str, Any]":
+    """An icon's format and dimensions from its header, or the reason a store refuses it.
+
+    The checks run in order: the name's extension, the size in bytes, the signature against the
+    extension, the header, the dimensions. Nothing past the header is decoded.
+    """
+    last = name.rsplit("/", 1)[-1]
+    extension = last.rsplit(".", 1)[1].lower() if "." in last else ""
+    if extension not in ICON_FORMATS:
+        raise IconError("icon-format")
+    if len(data) > max_bytes:
+        raise IconError("icon-too-large")
+    if data.startswith(_PNG_SIGNATURE):
+        found = "png"
+    elif data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        found = "webp"
+    else:
+        raise IconError("icon-format")
+    if found != extension:
+        raise IconError("icon-mismatch")
+    width, height = _png_size(data) if found == "png" else _webp_size(data)
+    if not width or not height:
+        raise IconError("icon-unreadable")
+    if width > max_width or height > max_height:
+        raise IconError("icon-dimensions")
+    return {"format": found, "width": width, "height": height}

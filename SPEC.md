@@ -23,6 +23,7 @@ configuration, a runtime, a programming language, or a transport for obtaining o
 - [Commands](spec/v0/commands.md), [skills](spec/v0/skills.md),
   [context and harnesses](spec/v0/harness.md), [MCP](spec/v0/mcp.md)
 - [Sources and distribution](spec/v0/distribution.md) and [integrity](spec/v0/integrity.md)
+- [Store metadata and catalogs](spec/v0/catalog.md)
 - [Security](spec/v0/security.md)
 - [Conformance](spec/v0/conformance.md)
 

@@ -6,13 +6,14 @@ rules and the classes they serve are in
 
 | File | What it checks |
 | --- | --- |
-| `reading.json` | Format line, TOML default, JSON and YAML data model, static reading, limits, `dotenv` and its substitution, env-script output |
-| `validation.json` | Every field, valid and invalid, and files a field names |
+| `reading.json` | Format line, TOML default, JSON and YAML data model, static reading, limits, `dotenv` and its substitution, env-script output, and catalogs read by file name |
+| `validation.json` | Every field, valid and invalid, and files a field names; whether a manifest with problems under `about` still applies |
 | `names.json` | Overlay identities, normalization, root variables |
 | `source.json` | `[git+]<location>[@<ref>][#<path>]` |
 | `digest.json` | The tree digest |
 | `compose.json` | `requires`, cycles, composition order, contributions, environment across overlays (values chained from one overlay to the next), and the defaults of `rules`, `context`, `skills` and `paths` |
 | `effective.json` | One overlay's environment, setup, setup phases, runtime, needs and weakenings on a given OS, with the defaults of `paths`, `env_files`, `env_scripts` and `setup` |
+| `catalog.json` | Catalogs in both forms, sources resolved beside the catalog, refused entries and ignored fields, names several catalogs share, and icons |
 
 Error classes:
 
@@ -25,7 +26,12 @@ Error classes:
 - digest: `symlink`, `special-file`, `non-utf8-name`, `invalid-name`, `case-collision`;
 - applying: `unresolved-reference`, `invalid-reference`, `missing-file`, `invalid-env-file`,
   `env-path-conflict`, `reserved-variable`;
-- resolving: `cycle`, `invalid-source`.
+- resolving: `cycle`, `invalid-source`;
+- catalogs: `not-a-catalog` and the reading classes for a whole catalog; for an entry
+  `invalid-name`, `duplicate-name`, `invalid-entry`, `invalid-source`, `invalid-pin`,
+  `ref-not-allowed`, `leaves-repository`, `local-source`; for several catalogs `invalid-label`,
+  and for a requested name `ambiguous`, `not-found`;
+- icons: `icon-format`, `icon-too-large`, `icon-mismatch`, `icon-unreadable`, `icon-dimensions`.
 
 `python -m pytest tests/test_vectors.py tests/test_digest.py` runs them through this repository's
 reference reader.

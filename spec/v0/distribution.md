@@ -1,7 +1,8 @@
 # Sources and distribution
 
 Distribution is outside the directory format. An overlay MAY be copied, archived, served over HTTP,
-listed in a registry, kept inside a larger repository, or stored in version control.
+listed in a [catalog](catalog.md#catalogs), kept inside a larger repository, or stored in version
+control.
 
 ## Source form
 
@@ -47,7 +48,8 @@ A consumer that logs or stores a source removes any user information and query s
 
 > **Status:** dotagents parses exactly this form (`<location>[@<ref>][#<path>]`) for repositories and
 > overlays. It also reads registries (a JSON, TOML or YAML mapping from name or alias to source,
-> relative entries resolved beside the registry) and, with optional dependencies, URI schemes such as
+> relative entries resolved beside the registry: the minimal form of a
+> [catalog](catalog.md#catalogs)) and, with optional dependencies, URI schemes such as
 > `zip:`, `sftp:` and `s3:`. It consults `--repo`, then `AGENTS_OVERLAYS_REPO_<KEY>`, then
 > `AGENTS_OVERLAYS_REPO`, then the project's and the user's `dotagents.{json,toml,yaml,yml}`; the
 > first that offers a name wins. That order is dotagents policy.

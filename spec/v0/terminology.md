@@ -58,6 +58,17 @@ defines.
 **Weakening**: a choice, declared by an overlay or made by a consumer, that is looser than the
 default and that a consumer reports.
 
+**Informational field**: a field a store shows and nothing else reads: the `about` table and a
+catalog's own fields; see [Store metadata and catalogs](catalog.md).
+
+**Store**: a consumer, or the part of one, that lists overlays for a person to find and install.
+
+**Catalog**: a document listing overlays by name with their sources, for a store; a registry is a
+catalog in the minimal form.
+
+**Label**: the name a consumer gives a catalog in its own configuration, which qualifies the names
+two catalogs share.
+
 **Reference implementation**: dotagents, the implementation behaviour is compared against. AOS does
 not require it.
 
@@ -72,5 +83,6 @@ An implementation states which of these it claims; see [Conformance](conformance
 5. **Integrity**: computes tree digests and enforces pins.
 6. **Resolver**: resolves sources and dependencies in a deterministic order.
 7. **Manager**: installs, updates, removes and composes overlays.
+8. **Store**: lists overlays from catalogs, with their informational fields and icons.
 
 A class includes another's obligations only when the implementation claims both.

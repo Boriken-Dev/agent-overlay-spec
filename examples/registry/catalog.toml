@@ -1,0 +1,38 @@
+# A catalog in the full form: the registry format, with informational fields a store lists and
+# searches before it fetches anything. registry.json, registry.toml and registry.yaml are catalogs
+# in the minimal form. Relative sources and icons resolve beside this file.
+name = "Example overlays"
+description = "The overlays of the AOS examples, listed for a store."
+homepage = "https://example.org/overlays"
+
+# A string entry is the minimal form, a table the full form; one catalog may mix them.
+[overlays.engineering]
+source = "../engineering"
+description = "Shared engineering practices and review guidance."
+
+[overlays.engineering.about]
+summary = "Repository-wide engineering practices."
+icon = "icons/engineering.png"
+tags = ["engineering", "review"]
+
+[overlays.python-review]
+source = "../dependent"
+
+[overlays.python-review.about]
+summary = "Python review guidance, on top of engineering."
+icon = "icons/python-review.png"
+license = "MIT"
+tags = ["python", "review"]
+
+[overlays.release-notes]
+source = "../about"
+pin = "sha256:8280aaf5de7c4f61342f648586d534e481ae095cef223dded70f5b1db5bd84a1"
+
+[overlays.release-notes.about]
+summary = "Release notes and changelogs, written the same way in every repository."
+icon = "icons/release-notes.png"
+homepage = "https://example.org/overlays/release-notes"
+repository = "https://github.com/example/overlays"
+license = "MIT OR Apache-2.0"
+authors = ["Example Docs Team <docs@example.org>"]
+tags = ["documentation", "release", "changelog"]

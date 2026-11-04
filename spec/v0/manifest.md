@@ -116,6 +116,9 @@ dotagents would refuse the overlay.
 the document. A consumer MUST NOT act on an unknown key. Inside a table this specification defines,
 unknown keys are errors unless the table says otherwise.
 
+A problem under `about` is reported like any other, and never makes a manifest invalid for applying:
+`about` is [informational only](catalog.md#informational-only).
+
 There is no manifest version field. The edition is a property of the specification, not of a
 manifest.
 
@@ -141,6 +144,7 @@ manifest.
 | `scripts` | mapping of command name to script | Optional Extension | `{}` | [Commands](commands.md) |
 | `mcp` | mapping | Optional Extension | absent | [MCP](mcp.md) |
 | `harness` | mapping of harness id to hints | Optional Extension, **Proposed** | `{}` | [Context and harnesses](harness.md#harness-hints) |
+| `about` | mapping of informational fields | Optional Extension, **Proposed**, informational | absent | [Store metadata](catalog.md#informational-fields) |
 
 Seven fields have [defaults](package.md#defaults) that come from the overlay's files. They apply
 first, the field's declared entries follow, and a declared entry naming the same file or directory

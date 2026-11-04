@@ -36,4 +36,5 @@ the reference implementation, does today.
   [dependencies](dependencies.md), [resolution](resolution.md)
 - [Environment](environment.md), [runtime and setup](runtime.md), [commands](commands.md),
   [skills](skills.md), [context and harnesses](harness.md), [MCP](mcp.md)
-- [Sources and distribution](distribution.md), [integrity](integrity.md), [security](security.md)
+- [Sources and distribution](distribution.md), [store metadata and catalogs](catalog.md),
+  [integrity](integrity.md), [security](security.md)

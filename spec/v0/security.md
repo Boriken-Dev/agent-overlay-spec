@@ -118,6 +118,31 @@ substituted value as written, never its result. Substitution runs nothing and re
 MCP servers can reach data and networks; a consumer shows each server, its transport and the
 variables it reads before starting it.
 
+## Stores, catalogs and icons
+
+[Store metadata and catalogs](catalog.md) are informational, and untrusted:
+
+- **Text.** A store shows informational fields, `name` and `description` as plain text: never
+  rendered as Markdown or HTML, never put into an agent's context as instructions. It shows
+  `homepage` and `repository` as links the user may open, and fetches neither by itself, since a
+  fetch tells a third party who is looking. A line refuses bidirectional overrides so that what is
+  shown reads as its characters do.
+- **Icons are untrusted images.** Image decoders have a long record of memory-safety flaws, and a
+  small file can declare dimensions that take far more memory to decode. A store accepts PNG and
+  WebP only, never SVG; checks the size and the header's dimensions against its limits before
+  decoding; decodes with a maintained decoder and, where it can, in a memory-safe language or a
+  process with no access to the user's data; shows pixels only, nothing an image carries besides
+  them; and never fetches an image a field names, since an icon is a file beside the manifest or
+  the catalog.
+- **Catalogs are advertising.** An entry can take another overlay's name, summary or icon, so a
+  store shows each entry's source and its catalog's label, and after fetching shows the overlay's
+  own manifest, not the catalog's claims. What an overlay would do is computed from that manifest
+  and the overlay's files [before installing](catalog.md#before-installing), and a catalog's `pin`
+  is checked like any pin. A catalog from a repository or a URL cannot name a source on the
+  consumer's machine.
+- **Names across catalogs** are never resolved silently: a name two catalogs offer is shown
+  qualified by catalog, and installing it unqualified asks the user.
+
 ## Collisions and updates
 
 Overlay names, root variables, commands, skills, servers and tools can collide. A consumer detects
