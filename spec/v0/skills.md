@@ -14,8 +14,9 @@ skills = ["summarize-docs", "search-docs"]
 
 Each name matches `[A-Za-z0-9][A-Za-z0-9_.-]*`, and `skills/<name>/SKILL.md` MUST exist; a validator
 refuses a listed skill without it. When `skills` is present it is the complete list: a directory under
-`skills/` that is not listed is not a skill of the overlay. When it is absent, every
-`skills/<name>/SKILL.md` is a skill. A consumer that delivers skills delivers exactly these.
+`skills/` that is not listed is not a skill of the overlay, and `skills = []` gives it none. When it
+is absent, its [default](package.md#defaults) is every `skills/<name>/SKILL.md` whose `<name>`
+matches that pattern. A consumer that delivers skills delivers exactly these.
 
 A skill's `SKILL.md` MAY begin with front matter that names it and describes it (`name:`,
 `description:`). AOS does not require front matter; a runtime may.
@@ -34,8 +35,8 @@ winner instead.
 
 > **Status:** dotagents publishes every `skills/<name>/` directory that holds a `SKILL.md` into a
 > shared skills directory (a symlink where it can, a copy otherwise), tracks which overlay published
-> it, and lists skills with their front matter in the context it assembles. It does not read
-> `skills`.
+> it, and lists skills with their front matter in the context it assembles: the `skills` default.
+> It does not read `skills`.
 
 ## Contents
 

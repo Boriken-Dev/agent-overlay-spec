@@ -1,8 +1,9 @@
 # Commands and executable assets
 
-**Optional Extension.** `cmds/`, `bin/`, `scripts/` and `lib/` are common conventions. Their presence
-does not make a package executable, and does not put anything on a search path: an overlay declares
-that with [path additions](environment.md#path-additions).
+**Optional Extension.** `bin/` and `lib/` go on `PATH` and `PYTHONPATH` by
+[default](package.md#defaults), which makes their programs findable and runs nothing. A consumer
+exposes a command only for a `scripts` entry: no directory makes one, and `cmds/` and `scripts/`
+mean nothing by their name.
 
 ## `scripts`
 
@@ -46,8 +47,9 @@ not required for AOS.
 
 ## Setup and dependencies
 
-Setup is declared by [`setup`](runtime.md#setup) and dependencies by [`runtime`](runtime.md#runtime).
-A file named `setup.py`, `setup.sh` or `requirements.txt` means nothing by its name alone.
+Setup is declared by [`setup`](runtime.md#setup), or is a root `setup.<ext>` by
+[default](runtime.md#default-scripts); dependencies are declared by [`runtime`](runtime.md#runtime).
+A file named `requirements.txt` means nothing by its name alone.
 
 Portable assets are the file bytes and their relative paths. Command launchers, dependency
 installation and setup are what a consumer does with the declarations; a consumer that does none of

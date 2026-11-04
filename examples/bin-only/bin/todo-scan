@@ -1,0 +1,4 @@
+#!/bin/sh
+# Lists TODO and FIXME lines under the given directories, the current one by default.
+[ "$#" -gt 0 ] || set -- .
+exec grep -rnE 'TODO|FIXME' -- "$@"

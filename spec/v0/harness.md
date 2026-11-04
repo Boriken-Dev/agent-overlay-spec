@@ -12,6 +12,10 @@ orchestrator).
 context = ["CONTEXT.md", "kb/glossary.md"]
 ```
 
+When the manifest does not write `context`, its [default](package.md#defaults) is `CONTEXT.md` at
+the overlay root, when present. Written, it is the whole list, so the example above names
+`CONTEXT.md` to keep it, and `context = []` adds nothing.
+
 Each entry is a [relative path](manifest.md#fields) to a UTF-8 text file that MUST exist. A consumer
 adds the files overlay by overlay in [composition order](composition.md#deterministic-ordering),
 after the base context it starts from. A leading front matter block is not context and is dropped:
@@ -22,9 +26,9 @@ name when the bound is passed, rather than cutting text silently.
 An operator chose to give the overlay to the agent, so the text is instruction, not fenced data; a
 consumer still marks where each file came from.
 
-> **Status:** dotagents adds the overlay root's `CONTEXT.md`, by file name, to the context it
-> assembles, without its front matter, and expands `<NAME>_OVERLAY_ROOT` placeholders in output that
-> is not written to a file. It does not read `context`.
+> **Status:** dotagents adds the overlay root's `CONTEXT.md`, the `context` default, to the context
+> it assembles, without its front matter, and expands `<NAME>_OVERLAY_ROOT` placeholders in output
+> that is not written to a file. It does not read `context`.
 
 ## Harness hints
 

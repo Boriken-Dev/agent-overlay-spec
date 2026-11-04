@@ -384,6 +384,70 @@
       }
     },
     {
+      "id": "defaults-off",
+      "description": "An empty list turns a field's default off.",
+      "document": {
+        "paths": [],
+        "rules": [],
+        "context": [],
+        "skills": [],
+        "env_files": [],
+        "env_scripts": [],
+        "setup": []
+      },
+      "files": [
+        "bin/tool",
+        "lib/m.py",
+        "rules/a.md",
+        "CONTEXT.md",
+        "skills/k/SKILL.md",
+        "env",
+        "env.py",
+        "setup.sh"
+      ],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "env-path-paths-written",
+      "description": "env may set PATH when paths is written without it, bin/ or not.",
+      "document": {
+        "env": {
+          "PATH": "/opt/bin"
+        },
+        "paths": [
+          {
+            "variable": "PYTHONPATH",
+            "path": "lib"
+          }
+        ]
+      },
+      "files": [
+        "bin/tool",
+        "lib/m.py"
+      ],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "env-path-no-bin",
+      "description": "env may set PATH when the default paths has no bin/ to add.",
+      "document": {
+        "env": {
+          "PATH": "/opt/bin"
+        }
+      },
+      "files": [
+        "lib/m.py",
+        "bin.txt"
+      ],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
       "id": "fixture-context-absolute",
       "description": "tests/fixtures/invalid/context-absolute.cfg",
       "document": {
@@ -1828,6 +1892,38 @@
       "expect": {
         "valid": false,
         "at": "/mcp/servers/0/url"
+      }
+    },
+    {
+      "id": "env-path-default-bin",
+      "description": "With paths not written, a bin/ puts PATH in the default paths, so env cannot set it, in any case.",
+      "document": {
+        "env": {
+          "Path": "/opt/bin"
+        }
+      },
+      "files": [
+        "bin/tool"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/env/Path"
+      }
+    },
+    {
+      "id": "env-pythonpath-default-lib",
+      "description": "Likewise a lib/ and PYTHONPATH.",
+      "document": {
+        "env": {
+          "PYTHONPATH": "/opt/lib"
+        }
+      },
+      "files": [
+        "lib/m.py"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/env/PYTHONPATH"
       }
     }
   ]

@@ -1,0 +1,3 @@
+# Read as dotenv: every value is literal, so $HOME and $(...) stay as written.
+TOOL_MODE=read-only
+export TOOL_BANNER="Conventions: read only"

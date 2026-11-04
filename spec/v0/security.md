@@ -10,7 +10,8 @@ decides to trust it, and then pins what was trusted.
 Reading a manifest executes nothing, reads no other file, and consults no environment
 ([static reading](manifest.md#static-reading)). A consumer can therefore show a user everything an
 overlay would do (its environment, path additions, setup, runtime, servers and weakenings) before
-any of it happens. YAML tags, anchors, aliases and merge keys are refused because general YAML
+any of it happens, from the manifest and the overlay's list of files, which decides the
+[defaults](package.md#defaults). YAML tags, anchors, aliases and merge keys are refused because general YAML
 loaders construct objects or expand documents from them; JSON duplicate keys are refused because two
 readers would disagree on which value wins.
 
@@ -34,10 +35,11 @@ then reports the refusal the same way.
 | Id | When |
 | --- | --- |
 | `unpinned` | An overlay is activated without a [pin](integrity.md#pins). |
-| `setup-network` | The selected [setup](runtime.md#setup) variant declares `network = true`. |
+| `setup-network` | The selected [setup](runtime.md#setup) variant declares `network = true`, or a [default setup](runtime.md#default-scripts) is selected. |
 | `network-not-enforced` | The selected setup variant declares no network, and the consumer cannot deny it one. |
 | `no-timeout` | The selected setup variant or an [env script](environment.md#env-scripts) that runs has `timeout = 0`. |
-| `env-script` | An env script runs. |
+| `env-script` | An env script runs, declared or by default. |
+| `script-not-run` | A [default script](runtime.md#default-scripts) is present and none can run on this OS with the consumer's interpreters. The subject is each file. |
 | `env-passthrough` | A granted value is read from the consumer's own environment: an env value with `provider = "env"`, an MCP `env_passthrough` or `headers_env` entry. The subject is the variable read. |
 | `secret-read` | A granted [secret reference](environment.md#secret-references) is resolved for the overlay. The subject is the reference (`secret:<name>`, `file:<key>`, `<provider>:<key>`). |
 | `env-sensitive` | An overlay sets a [sensitive variable](#sensitive-variables) through `env`, an env file or an env script, or adds to one other than `PATH` and `PYTHONPATH` through `paths`. The subject is the variable. |
@@ -76,6 +78,13 @@ from a lock file in hash-checking mode where one is declared.
 Starting an MCP server, running a command and running an env script are the same decision as
 setup: code from the overlay runs. Overlays an overlay `requires` are shown and accepted like the
 ones asked for, never installed silently.
+
+`env.<ext>` and `setup.<ext>` [run by default](runtime.md#default-scripts), without a manifest.
+That moves no decision: a default script runs only in an overlay the consumer has activated, never
+in one it fetched or only read, with the same timeout, process group and state directory as a
+declared one, and every run is reported. A default setup is taken to need the network and reported
+as such, since nothing in it says otherwise. Nothing else runs by default: dependencies install only
+from a declared [`runtime`](runtime.md#runtime), and a command is exposed only by a `scripts` entry.
 
 An overlay's files under an [excluded name](package.md#layout) (`__pycache__`, `node_modules`,
 `.venv`, `.git`, ...) are not part of the overlay and are not covered by its digest, yet Python,

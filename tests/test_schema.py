@@ -15,10 +15,14 @@ EXAMPLES = ROOT / "examples"
 FIXTURES = ROOT / "tests" / "fixtures"
 
 
+#: Example overlays with no manifest.
+MANIFEST_FREE = ("minimal", "bin-only", "conventions")
+
+
 def example_roots() -> "list[Path]":
-    """Every example overlay: a directory holding overlay.cfg, plus the manifest-free one."""
+    """Every example overlay: a directory holding overlay.cfg, plus the manifest-free ones."""
     roots = {path.parent for path in EXAMPLES.rglob("overlay.cfg")}
-    roots.add(EXAMPLES / "minimal")
+    roots.update(EXAMPLES / name for name in MANIFEST_FREE)
     return sorted(roots)
 
 
@@ -74,7 +78,7 @@ def test_example_lock_digests_match_their_files(root):
 
 @pytest.mark.parametrize("root", example_roots(), ids=lambda p: p.relative_to(EXAMPLES).as_posix())
 def test_example_env_files_read(root):
-    for entry in manifest_of(root).get("env_files", []):
+    for entry in aos.env_files_of(manifest_of(root), aos.tree_files(root)):
         entry = {"path": entry} if isinstance(entry, str) else entry
         data = (root / entry["path"]).read_bytes()
         if entry.get("format", "aos") == "dotenv":
@@ -82,6 +86,31 @@ def test_example_env_files_read(root):
         else:
             env = aos.read_document(data)
             assert not aos.validate({"env": env}), entry["path"]
+
+
+def test_a_bin_alone_is_a_working_overlay():
+    root = EXAMPLES / "bin-only"
+    assert not (root / "overlay.cfg").exists()
+    files = {path: "" for path in aos.tree_files(root)}
+    facts = {"os": "linux", "root": "/ov/bin-only", "identity": "bin-only", "pinned": True}
+    result = aos.effective({}, dict(facts, files=files, base_env={"PATH": "/usr/bin"}))
+    assert result["env"]["PATH"] == "/ov/bin-only/bin:/usr/bin"
+    assert result["env_scripts"] == [] and result["setup"] is None
+
+
+def test_every_default_in_the_conventions_example():
+    root = EXAMPLES / "conventions"
+    files = aos.tree_files(root)
+    facts = {"os": "linux", "root": "/ov/c", "identity": "conventions", "pinned": True}
+    texts = {path: (root / path).read_text(encoding="utf-8") for path in files}
+    result = aos.effective({}, dict(facts, files=texts))
+    assert result["env"]["PATH"] == "/ov/c/bin" and result["env"]["PYTHONPATH"] == "/ov/c/lib"
+    assert result["env"]["TOOL_BANNER"] == "Conventions: read only"
+    assert [s["path"] for s in result["env_scripts"]] == ["env.py"]
+    assert result["setup"]["path"] == "setup.sh" and result["setup"]["network"] is True
+    assert aos.rules_of({}, files) == ["rules/always.md"]
+    assert aos.context_of({}, files) == ["CONTEXT.md"]
+    assert aos.skills_of({}, files) == ["check-conventions"]
 
 
 @pytest.mark.parametrize("path", sorted((FIXTURES / "valid").glob("*.cfg")), ids=lambda p: p.name)

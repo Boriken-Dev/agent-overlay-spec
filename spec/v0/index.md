@@ -4,7 +4,8 @@
 and adds what overlays need to be read, placed and pinned by any implementation. It is not AOS 1.0
 and has not been reviewed across independent implementations.
 
-The core package is a directory tree, and a manifest is optional. Every declaration is static data:
+The core package is a directory tree, and a manifest is optional: conventional files such as `bin/`,
+`skills/<name>/SKILL.md` and `env` take effect by default. Every declaration is static data:
 a consumer reads an overlay without installing it or running anything. A consumer that adds
 installation and runtime behaviour MUST say which declarations it does not support instead of
 presenting them as applied.

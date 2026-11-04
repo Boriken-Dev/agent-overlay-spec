@@ -11,8 +11,8 @@ rules and the classes they serve are in
 | `names.json` | Overlay identities, normalization, root variables |
 | `source.json` | `[git+]<location>[@<ref>][#<path>]` |
 | `digest.json` | The tree digest |
-| `compose.json` | `requires`, cycles, composition order, contributions, environment across overlays |
-| `effective.json` | One overlay's environment, setup, runtime, needs and weakenings on a given OS |
+| `compose.json` | `requires`, cycles, composition order, contributions, environment across overlays, and the defaults of `rules`, `context`, `skills` and `paths` |
+| `effective.json` | One overlay's environment, setup, runtime, needs and weakenings on a given OS, with the defaults of `paths`, `env_files`, `env_scripts` and `setup` |
 
 Error classes:
 

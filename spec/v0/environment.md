@@ -4,13 +4,15 @@
 serves need: an agent session, a setup step, an MCP server, a command. Every declaration is static
 data; a consumer applies it when it builds an environment, never when it reads the manifest.
 
-A consumer that claims this extension applies `env`, `env_files` and `paths`, sets the
+A consumer that claims this extension applies `env`, `env_files` and `paths`, each field the
+manifest does not write with its [default](package.md#defaults), sets the
 [root variable](#the-root-variable), and reports what it refuses. [Env scripts](#env-scripts)
-execute, so they are a separate opt-in.
+execute code, and are reported each time they run.
 
-> **Status:** dotagents sets `<NAME>_OVERLAY_ROOT`, puts every overlay's `bin/` on `PATH` and an
-> existing `lib/` on `PYTHONPATH`, and runs `pre.env.py`, `pre.env`, `env.py` and `env` at the
-> overlay root, by file name. It reads none of the fields below yet.
+> **Status:** dotagents sets `<NAME>_OVERLAY_ROOT` and applies the `paths` default: it prepends
+> every overlay's `bin/` to `PATH`, even one that does not exist, and an existing `lib/` to
+> `PYTHONPATH`. It runs `env.py` and `pre.env.py`, and sources `env` and `pre.env` with bash, by
+> file name. It reads none of the fields below yet.
 
 ## The root variable
 
@@ -112,8 +114,11 @@ value, and removes resolved values from any output it captures before showing it
 
 ## Env files
 
-`env_files` lists files of env values, applied in order before `env`. Each entry is a relative path,
-or a mapping:
+`env_files` lists files of env values, applied in order before `env`. When the manifest does not
+write it, its default is the file `env` at the overlay root, read as `dotenv`, when present;
+`env_files = []` reads none. The default reads as an entry `{ path = "env", format = "dotenv" }`
+would, so it holds literal values only; secret references go in an `aos` env file, which the
+manifest names. Each entry is a relative path, or a mapping:
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
@@ -136,7 +141,8 @@ DOCS_TOKEN = { provider = "env", key = "DOCS_TOKEN", optional = true }
 ```
 
 **`dotenv`** files are a line format for values that already exist in that form. Every value is a
-literal; there are no references, quotes escapes or expansion:
+literal; there are no references, quotes escapes, expansion or command substitution (`$NAME`,
+`${NAME}`, `$(command)` and backticks are characters), and a file is never run:
 
 - UTF-8; one leading byte-order mark is dropped; lines end at `LF`, and one `CR` before it is dropped.
 - A line that is empty or only spaces and tabs, or whose first character other than a space or a
@@ -157,8 +163,10 @@ export TOOL_BANNER="Docs: read only"
 
 ## Path additions
 
-`paths` adds directories inside the overlay to list variables such as `PATH` and `PYTHONPATH`. Each
-entry is a mapping:
+`paths` adds directories inside the overlay to list variables such as `PATH` and `PYTHONPATH`. When
+the manifest does not write it, its default is `bin/` prepended to `PATH`, then `lib/` prepended to
+`PYTHONPATH`, each when present; written, it is exactly its entries, and `paths = []` adds nothing.
+A program in `bin/` runs only when something calls it. Each entry is a mapping:
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
@@ -189,7 +197,9 @@ The separator is `;` on Windows and `:` on every other OS. For each variable a c
 4. joins with the separator. An unset variable starts empty.
 
 An overlay MUST NOT name a variable both in `paths` and in `env` or an env file; a validator refuses
-it in `env`, and a consumer refuses the env file. Adding to a
+it in `env`, and a consumer refuses the env file. `paths` here includes its default: an overlay with
+a `bin/` that does not write `paths` cannot set `PATH` in `env`, and a validator that knows the files
+refuses it. Adding to a
 [sensitive variable](security.md#sensitive-variables) other than `PATH` and `PYTHONPATH` is the
 weakening `env-sensitive`.
 
@@ -205,11 +215,12 @@ MUST give the same result for the same inputs:
 
 1. Set the root variable of every overlay in play, and its state variable when it has a state
    directory.
-2. For each overlay in [composition order](composition.md#deterministic-ordering):
+2. For each overlay in [composition order](composition.md#deterministic-ordering), with each field as
+   written or as its [default](package.md#defaults):
     1. its `env_files` that apply to this OS, in order;
     2. its `env`;
     3. its `paths`;
-    4. its env scripts, when they are enabled.
+    4. its env scripts, unless the consumer's policy turns them off.
 
 Within one mapping the entries are independent, since each names a different variable; `if_unset`
 looks at the environment as it was before that mapping. A later overlay's value replaces an earlier
@@ -227,9 +238,12 @@ by variable name. Setting a [sensitive variable](security.md#sensitive-variables
 
 ## Env scripts
 
-**Optional Extension, Proposed.** `env_scripts` runs programs that compute environment values. They
-execute code each time an environment is built, so a consumer runs them only when its user or
-administrator has enabled them, and reports `env-script` every time it does.
+**Optional Extension, Proposed.** `env_scripts` runs programs that compute environment values. When
+the manifest does not write it, its default is one `env.<ext>` at the overlay root, chosen as
+[Default scripts](runtime.md#default-scripts) says; `env_scripts = []` runs none. They execute code
+each time an environment is built: a consumer runs them for an overlay it has activated, reports
+`env-script` every time it does, and MAY turn them off by its own policy, in which case none runs,
+declared or default.
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
@@ -257,4 +271,6 @@ or a timeout fails the script; the consumer reports the failure without quoting 
 applies nothing from it.
 
 > **Status:** dotagents runs `env.py` and `pre.env.py` with the same JSON protocol, and sources
-> plain `env` and `pre.env` files with bash; it has no timeout for either.
+> plain `env` and `pre.env` files with bash; it has no timeout for either. Its `env.py` is the
+> `.py` case of the default env script. AOS reads a plain `env` as `dotenv` instead, so a line that
+> relies on bash (`$(...)`, `$NAME`, a function) keeps its characters, and `pre.env.*` means nothing.

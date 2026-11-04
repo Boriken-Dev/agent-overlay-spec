@@ -126,19 +126,24 @@ manifest.
 | `description` | string | Core | `""` | |
 | `requires` | array of overlay names | Core | `[]` | [Dependencies](dependencies.md) |
 | `routing` | array of strings | Core | `[]` | [Composition](composition.md#merging) |
-| `rules` | array of relative paths | Core | `[]` | [Composition](composition.md#merging) |
+| `rules` | array of relative paths | Core | [from the files](package.md#defaults) | [Composition](composition.md#merging) |
 | `priority` | integer | Core | `500` | [Composition](composition.md#deterministic-ordering) |
-| `context` | array of relative paths | Optional Extension, **Proposed** | `[]` | [Context and harnesses](harness.md) |
-| `skills` | array of skill names | Optional Extension, **Proposed** | every `skills/*/SKILL.md` | [Skills](skills.md) |
+| `context` | array of relative paths | Optional Extension, **Proposed** | [from the files](package.md#defaults) | [Context and harnesses](harness.md) |
+| `skills` | array of skill names | Optional Extension, **Proposed** | [from the files](package.md#defaults) | [Skills](skills.md) |
 | `env` | mapping of variable to env value | Optional Extension, **Proposed** | `{}` | [Environment](environment.md#env) |
-| `env_files` | array of env files | Optional Extension, **Proposed** | `[]` | [Environment](environment.md#env-files) |
-| `paths` | array of path additions | Optional Extension, **Proposed** | `[]` | [Environment](environment.md#path-additions) |
-| `env_scripts` | array of scripts | Optional Extension, **Proposed** | `[]` | [Environment](environment.md#env-scripts) |
+| `env_files` | array of env files | Optional Extension, **Proposed** | [from the files](package.md#defaults) | [Environment](environment.md#env-files) |
+| `paths` | array of path additions | Optional Extension, **Proposed** | [from the files](package.md#defaults) | [Environment](environment.md#path-additions) |
+| `env_scripts` | array of scripts | Optional Extension, **Proposed** | [from the files](package.md#defaults) | [Environment](environment.md#env-scripts) |
 | `runtime` | mapping | Optional Extension, **Proposed** | `{}` | [Runtime and setup](runtime.md#runtime) |
-| `setup` | array of setup variants | Optional Extension, **Proposed** | `[]` | [Runtime and setup](runtime.md#setup) |
+| `setup` | array of setup variants | Optional Extension, **Proposed** | [from the files](package.md#defaults) | [Runtime and setup](runtime.md#setup) |
 | `scripts` | mapping of command name to script | Optional Extension | `{}` | [Commands](commands.md) |
 | `mcp` | mapping | Optional Extension | absent | [MCP](mcp.md) |
 | `harness` | mapping of harness id to hints | Optional Extension, **Proposed** | `{}` | [Context and harnesses](harness.md#harness-hints) |
+
+A field marked "from the files" takes its [default](package.md#defaults) from the overlay's files
+when the manifest does not write it; written, it is exactly what it says, and `[]` turns the
+default off. The field's class is the class of its declaration; the class of each default is in
+that table.
 
 A **relative path** is `/`-separated and relative to the overlay root, and every component of it:
 
@@ -164,7 +169,7 @@ example `openat2` with `RESOLVE_BENEATH`, or a check of the opened handle's fina
 | `description` | `""` when absent or not a string. |
 | `requires` | Non-strings and invalid names dropped with a warning; normalized and deduplicated in order. Used by add and remove. |
 | `routing` | Non-strings and blanks dropped; surrounding newlines trimmed. Appended to the managed routing section. |
-| `rules` | Each path's leading run of `- **` bullets, up to the next `## ` heading, appended to the always-on rules. |
+| `rules` | Each path's leading run of `- **` bullets, up to the next `## ` heading, appended to the always-on rules. No default: an absent `rules` contributes nothing. |
 | `priority` | `500`; a boolean is not an integer. Sorted ascending by `(priority, name, directory)`. |
 
 ## Examples
@@ -176,12 +181,13 @@ name = "python-quality"
 description = "Python review conventions and reusable checks."
 requires = ["engineering"]
 routing = ["- Python changes → `$PYTHON_QUALITY_OVERLAY_ROOT/kb/PYTHON.md`"]
-rules = ["rules/always-on.md"]
+rules = ["kb/always-on.md"]
 priority = 420
 
 [[paths]]
 variable = "PYTHONPATH"
 path = "lib"
+position = "append"
 ```
 
 The same manifest in JSON. The format line is required, since TOML is the default:
@@ -193,9 +199,9 @@ The same manifest in JSON. The format line is required, since TOML is the defaul
   "description": "Python review conventions and reusable checks.",
   "requires": ["engineering"],
   "routing": ["- Python changes → `$PYTHON_QUALITY_OVERLAY_ROOT/kb/PYTHON.md`"],
-  "rules": ["rules/always-on.md"],
+  "rules": ["kb/always-on.md"],
   "priority": 420,
-  "paths": [{ "variable": "PYTHONPATH", "path": "lib" }]
+  "paths": [{ "variable": "PYTHONPATH", "path": "lib", "position": "append" }]
 }
 ```
 
@@ -207,9 +213,10 @@ name: python-quality
 description: Python review conventions and reusable checks.
 requires: [engineering]
 routing: ["- Python changes → `$PYTHON_QUALITY_OVERLAY_ROOT/kb/PYTHON.md`"]
-rules: [rules/always-on.md]
+rules: [kb/always-on.md]
 priority: 420
 paths:
   - variable: PYTHONPATH
     path: lib
+    position: append
 ```

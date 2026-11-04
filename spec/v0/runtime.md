@@ -6,8 +6,9 @@ decide where an overlay can go, and refuse with a reason, before it fetches or s
 
 > **Status:** dotagents runs `setup.py` at the overlay root under its own Python, on every add and
 > sync unless `--no-setup` is given, stopped after `setup_timeout` seconds (default 300, `0` for no
-> limit). It installs `requirements.txt` into a Python environment by file name. It reads none of
-> the fields below yet.
+> limit): the `.py` case of the [default setup](#default-scripts), run more often than once per
+> digest. It installs `requirements.txt` into a Python environment by file name, which AOS does not
+> do by default. It reads none of the fields below yet.
 
 ## Operating systems
 
@@ -50,6 +51,44 @@ on that OS with an error naming the interpreter, before running anything of it.
 
 An interpreter that a selected setup variant, env script or script names is a requirement, as if
 `runtime` had declared it.
+
+## Default scripts
+
+**Optional Extension.** When the manifest does not write `env_scripts`, or `setup`, a consumer runs
+at most one script for it by [default](package.md#defaults): `env.<ext>`, or `setup.<ext>`, at the
+overlay root. It tries the extensions in this order and takes the first whose file is present, that
+applies on the current OS, and whose interpreter it can run (one it supports and finds on the base
+environment's `PATH`):
+
+| Order | Extension | Interpreter | Applies on |
+| --- | --- | --- | --- |
+| 1 | `.py` | `python` | every OS |
+| 2 | `.js` | `node` | every OS |
+| 3 | `.mjs` | `node` | every OS |
+| 4 | `.cjs` | `node` | every OS |
+| 5 | `.ps1` | `powershell` | `windows` |
+| 6 | `.bash` | `bash` | `unix` |
+| 7 | `.sh` | `sh` | `unix` |
+
+These are the extensions of a [`scripts`](commands.md#scripts) path. The order is fixed so that two
+consumers with the same interpreters run the same script:
+
+- a script that runs the same on every OS comes before one written for some of them, so an overlay
+  that ships `env.py` with shell fallbacks runs its Python wherever Python is found;
+- a PowerShell script applies on Windows and a shell script on the other systems, so `env.ps1`
+  beside `env.sh` gives each OS its own without a manifest. To run `env.sh` on Windows, or `env.ps1`
+  elsewhere, declare it;
+- `bash` comes before `sh`, the more specific before the more general.
+
+The script runs as a declared one does, with its field's defaults: an env script with no arguments
+and a timeout of 60 seconds; setup with no arguments, a timeout of 300 seconds, and `network = true`.
+A default setup declares nothing, so it is taken to need the network, which is reported as
+`setup-network`; to deny it the network, declare it in `setup` (which replaces the default), where
+`network` defaults to `false`. The selected interpreter is a requirement like a declared one.
+
+When a file is present and none of them can run on this OS with the consumer's interpreters, no
+script runs, the rest of the overlay still applies, and the consumer reports `script-not-run` for
+each file present. A file with another extension (`env.cfg`, `setup.txt`) is never a default script.
 
 ## Runtime
 
@@ -107,6 +146,7 @@ needs:
 - each command in `runtime.commands` that applies to the OS;
 - each interpreter named by the selected setup variant, by an env script that will run, and by a
   `scripts` entry that applies to the OS (a string path's interpreter follows from its extension);
+  a default script needs only the interpreter of the one selected on that target;
 - `python` or `node`, at the selected variant's minimum version, when a variant applies.
 
 A target that lacks one is passed over, with the reason naming what is missing. Dependencies are
@@ -116,7 +156,9 @@ Inside the sandbox that environment is read-only.
 
 ## Setup
 
-`setup` is an array of variants, each one program to run:
+`setup` is an array of variants, each one program to run. When the manifest does not write it, its
+default is one `setup.<ext>` at the root, chosen as [Default scripts](#default-scripts) says;
+`setup = []` runs none.
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |

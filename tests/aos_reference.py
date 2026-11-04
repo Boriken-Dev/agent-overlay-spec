@@ -484,6 +484,12 @@ def named_files(doc: "dict[str, Any]") -> "list[tuple[str, str]]":
 
 def _files(doc: "dict[str, Any]", files: "set[str]") -> "list[tuple[str, str]]":
     found = [("missing-file", at) for at, path in named_files(doc) if path not in files]
+    env = doc.get("env")
+    if isinstance(env, dict) and "paths" not in doc:
+        added = {entry["variable"] for entry in paths_of(doc, files)}
+        for name in env:
+            if name.upper() in added:
+                found.append(("env-path-conflict", "/env/%s" % name))
     skills = doc.get("skills")
     if isinstance(skills, list):
         for index, name in enumerate(skills):
@@ -745,16 +751,98 @@ def composition_order(
     return sorted(active, key=key)
 
 
+# --------------------------------------------------------------------------------------------
+# Defaults: the value of a field the manifest does not write, from the overlay's files.
+# --------------------------------------------------------------------------------------------
+
+#: Default path additions as ``(variable, directory)``, in the order they apply.
+DEFAULT_PATHS = (("PATH", "bin"), ("PYTHONPATH", "lib"))
+#: Default script extensions in the order a consumer tries them, with the OSes each applies on
+#: (``None``: every OS).
+DEFAULT_SCRIPTS = (
+    (".py", "python", None),
+    (".js", "node", None),
+    (".mjs", "node", None),
+    (".cjs", "node", None),
+    (".ps1", "powershell", ["windows"]),
+    (".bash", "bash", ["unix"]),
+    (".sh", "sh", ["unix"]),
+)
+INTERPRETERS = ("python", "node", "powershell", "bash", "sh")
+_SKILL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+_RULES_FILE = re.compile(r"^rules/[^/]+\.md$")
+
+
+def _members(files: "Iterable[str]") -> "list[str]":
+    """The files that make a path present: digest members, so no excluded name or ``.pyc``."""
+    return [path for path in files if valid_relpath(path)]
+
+
+def _by_bytes(paths: "Iterable[str]") -> "list[str]":
+    return sorted(paths, key=lambda path: path.encode("utf-8"))
+
+
+def paths_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[dict[str, Any]]":
+    """``paths``, or by default ``bin/`` prepended to PATH and ``lib/`` to PYTHONPATH."""
+    if "paths" in manifest:
+        return list(manifest["paths"]) if isinstance(manifest["paths"], list) else []
+    members = _members(files)
+    return [
+        {"variable": variable, "path": directory}
+        for variable, directory in DEFAULT_PATHS
+        if any(path.startswith(directory + "/") for path in members)
+    ]
+
+
+def rules_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[str]":
+    """``rules``, or by default every ``rules/<name>.md`` by path bytes."""
+    if "rules" in manifest:
+        return list(manifest["rules"])
+    return [path for path in _by_bytes(_members(files)) if _RULES_FILE.match(path)]
+
+
+def context_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[str]":
+    """``context``, or by default the root ``CONTEXT.md``."""
+    if "context" in manifest:
+        return list(manifest["context"])
+    return ["CONTEXT.md"] if "CONTEXT.md" in _members(files) else []
+
+
 def skills_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[str]":
-    """The overlay's skills: its ``skills`` list, else every ``skills/<name>/SKILL.md``."""
+    """``skills``, or by default every ``skills/<name>/SKILL.md`` with a skill name."""
     if "skills" in manifest:
         return list(manifest["skills"])
     found = []
-    for path in files:
+    for path in _members(files):
         parts = path.split("/")
         if len(parts) == 3 and parts[0] == "skills" and parts[2] == "SKILL.md":
-            found.append(parts[1])
-    return sorted(found)
+            if _SKILL_NAME.match(parts[1]):
+                found.append(parts[1])
+    return _by_bytes(found)
+
+
+def env_files_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[Any]":
+    """``env_files``, or by default the root file ``env`` read as dotenv."""
+    if "env_files" in manifest:
+        return list(manifest["env_files"])
+    return [{"path": "env", "format": "dotenv"}] if "env" in _members(files) else []
+
+
+def default_script(
+    stem: str, files: "Iterable[str]", os_name: str, interpreters: "Iterable[str]"
+) -> "tuple[Optional[dict[str, str]], list[str]]":
+    """The ``<stem>.<ext>`` a consumer runs by default, and every such file present.
+
+    The first extension in :data:`DEFAULT_SCRIPTS` whose file is present, that applies on this
+    OS, and whose interpreter the consumer has.
+    """
+    members = set(_members(files))
+    present = [stem + ext for ext, _i, _o in DEFAULT_SCRIPTS if stem + ext in members]
+    for ext, interpreter, names in DEFAULT_SCRIPTS:
+        path = stem + ext
+        if path in members and os_matches({"os": names}, os_name) and interpreter in interpreters:
+            return {"interpreter": interpreter, "path": path}, present
+    return None, present
 
 
 # --------------------------------------------------------------------------------------------
@@ -979,10 +1067,19 @@ def apply_overlay(
     facts: "dict[str, Any]",
     root: str,
     weakenings: "list[list[str]]",
+    tree: "Iterable[str]" = (),
 ) -> "list[dict[str, Any]]":
-    """Steps 2.1 to 2.3 of the order of application; returns the env scripts that run."""
+    """Steps 2.1 to 2.3 of the order of application; returns the env scripts that run.
+
+    ``tree`` is the overlay's files, from which the defaults of unwritten fields follow.
+    """
     os_name = facts["os"]
-    for item in manifest.get("env_files", []):
+    paths = paths_of(manifest, tree)
+    listed = {entry["variable"].upper() for entry in paths}
+    for name in manifest.get("env", {}):
+        if name.upper() in listed:
+            raise Refused("env-path-conflict", name)
+    for item in env_files_of(manifest, tree):
         item = {"path": item} if isinstance(item, str) else item
         if not os_matches(item, os_name):
             continue
@@ -998,16 +1095,23 @@ def apply_overlay(
             raise Refused("invalid-env-file", item["path"])
         if validate({"env": mapping}):
             raise Refused("invalid-env-file", item["path"])
-        listed = {entry["variable"].upper() for entry in manifest.get("paths", [])}
         for name in mapping:
             if name.upper() in listed:
                 raise Refused("env-path-conflict", name)
         _apply_mapping(env, mapping, facts, root, weakenings)
     _apply_mapping(env, manifest.get("env", {}), facts, root, weakenings)
-    _apply_paths(env, manifest.get("paths", []), root, os_name, weakenings)
+    _apply_paths(env, paths, root, os_name, weakenings)
     scripts = []
-    if facts.get("env_scripts_enabled", False):
-        for script in manifest.get("env_scripts", []):
+    if facts.get("env_scripts_enabled", True):
+        declared = manifest.get("env_scripts")
+        if declared is None:
+            chosen, present = default_script(
+                "env", tree, os_name, facts.get("interpreters", INTERPRETERS)
+            )
+            declared = [chosen] if chosen else []
+            if chosen is None:
+                weakenings.extend(["script-not-run", path] for path in present)
+        for script in declared:
             if os_matches(script, os_name):
                 selected = {"interpreter": script["interpreter"], "path": script["path"]}
                 selected["args"] = script.get("args", [])
@@ -1034,17 +1138,27 @@ def effective(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
     if "state" in facts:
         env.set(root_variable(facts["identity"])[: -len("ROOT")] + "STATE", facts["state"])
     try:
-        scripts = apply_overlay(env, manifest, facts, root, weakenings)
+        scripts = apply_overlay(env, manifest, facts, root, weakenings, facts.get("files", {}))
     except Refused as refused:
         return {"error": refused.code, "subject": refused.subject}
-    setup = first_variant(manifest.get("setup", []), os_name)
+    if "setup" in manifest:
+        setup = first_variant(manifest["setup"], os_name)
+        network = False
+    else:
+        # A default setup declares nothing, so it is taken to need the network.
+        setup, present = default_script(
+            "setup", facts.get("files", {}), os_name, facts.get("interpreters", INTERPRETERS)
+        )
+        network = True
+        if setup is None:
+            weakenings.extend(["script-not-run", path] for path in present)
     if setup is not None:
         setup = {
             "interpreter": setup["interpreter"],
             "path": setup["path"],
             "args": setup.get("args", []),
             "timeout": setup.get("timeout", 300),
-            "network": setup.get("network", False),
+            "network": setup.get("network", network),
         }
         if setup["network"]:
             weakenings.append(["setup-network", setup["path"]])
@@ -1137,8 +1251,10 @@ def compose(
         "missing": missing,
         "root_variables": {identity: root_variable(identity) for identity in active},
         "routing": [line for i in active for line in overlays[i].get("routing", [])],
-        "rules": [[i, path] for i in active for path in overlays[i].get("rules", [])],
-        "context": [[i, path] for i in active for path in overlays[i].get("context", [])],
+        "rules": [[i, path] for i in active for path in rules_of(overlays[i], files.get(i, []))],
+        "context": [
+            [i, path] for i in active for path in context_of(overlays[i], files.get(i, []))
+        ],
     }
     winners: "dict[str, tuple[str, str]]" = {}
     collisions: "set[str]" = set()
@@ -1157,7 +1273,14 @@ def compose(
         weakenings: "list[list[str]]" = []
         try:
             for identity in active:
-                apply_overlay(env, overlays[identity], facts, roots[identity], weakenings)
+                apply_overlay(
+                    env,
+                    overlays[identity],
+                    facts,
+                    roots[identity],
+                    weakenings,
+                    files.get(identity, []),
+                )
         except Refused as refused:
             result["env_error"] = {"error": refused.code, "subject": refused.subject}
         else:

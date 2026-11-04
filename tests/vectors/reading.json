@@ -806,6 +806,74 @@
       "expect": {
         "error": "dotenv-syntax"
       }
+    },
+    {
+      "id": "dotenv-literal-values",
+      "description": "Nothing is substituted or expanded: '=', '#', $(...), backticks and ${...} in a value are characters; spaces and tabs around '=' and the value are removed.",
+      "format": "dotenv",
+      "text": "A = x=y\nB=a #b\nC=$(id -u)\nD=`id`\nE=${HOME}/x\nF=\t'padded'\t\nG=it's\n",
+      "expect": {
+        "data": {
+          "A": "x=y",
+          "B": "a #b",
+          "C": "$(id -u)",
+          "D": "`id`",
+          "E": "${HOME}/x",
+          "F": "padded",
+          "G": "it's"
+        }
+      }
+    },
+    {
+      "id": "dotenv-outer-quotes-only",
+      "description": "Only the outermost matching pair is removed; inner quotes stay.",
+      "format": "dotenv",
+      "text": "A=\"a\"b\"\nB='\"x\"'\nC=\"\\\"\"\n",
+      "expect": {
+        "data": {
+          "A": "a\"b",
+          "B": "\"x\"",
+          "C": "\\\""
+        }
+      }
+    },
+    {
+      "id": "dotenv-export-name",
+      "description": "'export=1' sets a variable named export.",
+      "format": "dotenv",
+      "text": "export=1\n",
+      "expect": {
+        "data": {
+          "export": "1"
+        }
+      }
+    },
+    {
+      "id": "dotenv-export-alone",
+      "description": "'export' alone is not NAME=VALUE.",
+      "format": "dotenv",
+      "text": "export A\n",
+      "expect": {
+        "error": "dotenv-syntax"
+      }
+    },
+    {
+      "id": "dotenv-no-name",
+      "description": "A line starting with '=' has no name.",
+      "format": "dotenv",
+      "text": "=x\n",
+      "expect": {
+        "error": "dotenv-syntax"
+      }
+    },
+    {
+      "id": "dotenv-quote-one-line",
+      "description": "A quote does not continue onto the next line.",
+      "format": "dotenv",
+      "text": "A=\"one\ntwo\"\n",
+      "expect": {
+        "error": "dotenv-syntax"
+      }
     }
   ]
 }

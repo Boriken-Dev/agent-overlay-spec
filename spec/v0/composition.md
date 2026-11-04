@@ -30,7 +30,9 @@ trusts; the order then uses that value.
 
 **Core.** `rules` names Markdown files of always-on instructions and `routing` holds lines that tell
 an agent which file to read for which task. A consumer adds both, overlay by overlay in composition
-order, after its base configuration's own, and MUST preserve every entry.
+order, after its base configuration's own, and MUST preserve every entry. When the manifest does not
+write `rules`, its [default](package.md#defaults) is every `rules/<name>.md` directly in `rules/`,
+ordered by path bytes (**Proposed**).
 
 > **Status:** dotagents merges them into a marker-delimited managed block of `AGENTS.md`: from each
 > rules file, the leading run of `- **` bullets up to the next `## ` heading goes into the always-on

@@ -12,6 +12,9 @@
 
 **Data model**: the value a manifest reads as, the same whatever its format.
 
+**Default**: the value a field takes from the overlay's files when the manifest does not write it;
+see [Package](package.md#defaults).
+
 **Consumer**: software that reads or exposes overlay assets. A consumer can be read-only.
 
 **Overlay manager**: a consumer that locates, installs, updates, removes or composes overlays.
