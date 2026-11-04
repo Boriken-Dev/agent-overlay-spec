@@ -63,15 +63,19 @@ The first edition, `0.1.0-draft`, a development draft open for review.
 - Lock and requirements files hold requirement lines only, and a lock installs binaries with hashes
   from an index the consumer names. Setup runs in its own process group, and the state directory is
   read-only inside the agent's sandbox.
-- Defaults: a field the manifest does not write takes its value from the overlay's files, so the
-  basics need no manifest. `bin/` is prepended to `PATH` and `lib/` to `PYTHONPATH`; `rules/*.md`
-  are rules (Proposed), `CONTEXT.md` is context, `skills/*/SKILL.md` are skills; the root `env` is
-  an env file read as `dotenv` (Proposed); one `env.<ext>` and one `setup.<ext>` run, the first in
-  the order `.py`, `.js`, `.mjs`, `.cjs`, `.ps1` (Windows), `.bash`, `.sh` (other systems) that the
-  consumer can run. A written field replaces its default, and `[]` turns it off. A default setup is
-  taken to need the network; the weakening `script-not-run` reports a default script that cannot
-  run. `local.env` is not an overlay file. Examples `bin-only` and `conventions`, and vectors for
-  each default on, off, written and not runnable.
+- Defaults: files in conventional places take effect without a manifest. `bin/` is prepended to
+  `PATH` and `lib/python/` to `PYTHONPATH`; `rules/*.md` are rules (Proposed), `CONTEXT.md` is
+  context, `skills/*/SKILL.md` are skills; the root `env` is an env file read as `dotenv`
+  (Proposed); one `env.<ext>` and one `setup.<ext>` run, the first in the order `.py`, `.js`,
+  `.mjs`, `.cjs`, `.ps1` (Windows), `.bash`, `.sh` (other systems) that the consumer can run. Each
+  stays on unless `[defaults]` turns it off (`bin`, `lib`, `env`, `env_scripts`, `setup`,
+  `context`, `skills`, `rules`). Declared entries add to the defaults, and one naming the same
+  file or directory as a default replaces it. A default setup is taken to need the network; the
+  weakening `script-not-run` reports a default script that cannot run. `local.env` is not an
+  overlay file. Examples `bin-only` and `conventions`, and vectors for each default on, off,
+  declared and not runnable.
+- An env script's output may also be one JSON object over several lines, as a pretty-printer
+  writes it; reading vectors for that output.
 
 - Conformance vectors as JSON data in `tests/vectors/`: reading (format line, data model, static
   reading, limits, `dotenv`), validation of every field, names and root variables, source strings,
@@ -86,6 +90,8 @@ The first edition, `0.1.0-draft`, a development draft open for review.
   policy turns them off; they are no longer a separate opt-in.
 - A plain `env` file is read as `dotenv` (literal values) instead of being sourced by a shell, and
   `pre.env` files mean nothing by name.
+- `skills` adds to the skills found under `skills/` instead of replacing them; to offer only
+  some, set `[defaults] skills = false` and list them.
 - Composition order is `(priority, name, identity)` with code-point string comparison, for every
   contribution, not only rules and routing.
 - Test, release and docs workflows; the docs site is published at

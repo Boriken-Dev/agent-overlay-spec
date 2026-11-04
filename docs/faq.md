@@ -11,8 +11,9 @@ Any language or manager can implement it.
 
 ## Is `overlay.cfg` required?
 
-No. A directory with no manifest is a valid overlay, and its conventional files (`bin/`, `lib/`,
-`skills/`, `rules/`, `CONTEXT.md`, `env`, `env.<ext>`, `setup.<ext>`) take effect by default.
+No. A directory with no manifest is a valid overlay, and its conventional files (`bin/`,
+`lib/python/`, `skills/`, `rules/`, `CONTEXT.md`, `env`, `env.<ext>`, `setup.<ext>`) take effect
+by default.
 
 ## Why `overlay.cfg` and not `overlay.toml`?
 
@@ -47,8 +48,9 @@ consumer reports.
 
 ## Will my existing dotagents overlay need migration?
 
-Rename `overlay.toml` to `overlay.cfg`. `bin/`, `lib/`, `skills/`, `CONTEXT.md`, `env.py` and
-`setup.py` keep working by default. Three things change: a plain `env` file is read as `dotenv`
+Rename `overlay.toml` to `overlay.cfg`. `bin/`, `skills/`, `CONTEXT.md`, `env.py` and `setup.py`
+keep working by default, and Python modules move from `lib/` to `lib/python/`. Three more things
+change: a plain `env` file is read as `dotenv`
 rather than sourced by bash, `pre.env` files and `requirements.txt` mean nothing by name (declare
 dependencies in `runtime`), and a `bin/*.py` becomes a command only through `[scripts]`. See
 [Compatibility](compatibility.md).
@@ -56,4 +58,5 @@ dependencies in `runtime`), and a `bin/*.py` becomes a command only through `[sc
 ## Does an overlay run code without a manifest?
 
 Yes, when it ships `env.<ext>` or `setup.<ext>` and the consumer has activated it: those run by
-default, and every run is reported. Write `env_scripts = []` or `setup = []` to turn them off.
+default, and every run is reported. Set `env_scripts = false` or `setup = false` in `[defaults]`
+to turn them off.

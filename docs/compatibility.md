@@ -12,9 +12,9 @@ table below is the list an implementation works from.
 | Ordinary fields | Tolerant: a wrong type becomes the default, with a warning | A validator refuses; a consumer applies nothing of an invalid manifest |
 | `name`, `description`, `requires`, `routing`, `rules`, `priority` | As specified | Unchanged (Core) |
 | Root variable | `<NAME>_OVERLAY_ROOT`, set only when unset | Always set to the root the consumer exposes |
-| Defaults | By file name, always on | A field the manifest does not write takes its default from the files; a written field replaces it, and `[]` turns it off |
+| Defaults | By file name, always on | On unless `[defaults]` turns one off (`bin`, `lib`, `env`, `env_scripts`, `setup`, `context`, `skills`, `rules`); declared entries add to them, and one naming a default's file or directory replaces it |
 | `PATH` | Every overlay's `bin/` prepended, whether it exists or not | `bin/` prepended by default, only when it holds a file; with the separator of the OS |
-| `PYTHONPATH` | An existing `lib/` prepended | The same, by default |
+| `PYTHONPATH` | An existing `lib/` prepended | **Changed:** `lib/python/` prepended by default; a bare `lib/` means nothing |
 | Rules | Only the files `rules` lists | `rules/<name>.md` by default, in path order |
 | Environment values | `env.py` / `pre.env.py` executed, `env` / `pre.env` sourced by bash, by file name | `env`, `env_files` (`aos` documents or `dotenv`), secret references. By default the root `env` is read as `dotenv` and one `env.<ext>` runs, chosen by runtime; `pre.env*` means nothing |
 | A plain `env` file | Sourced by bash: `$(...)`, `$NAME` and shell code run | **Changed:** read as `dotenv`, every value literal, nothing run or expanded |
@@ -24,8 +24,8 @@ table below is the list an implementation works from.
 | `setup_timeout` | Top-level integer | `timeout` in each `setup` variant |
 | Dependencies | `requirements.txt` by file name into a shared Python environment | `runtime.python`: minimum version, `requirements` (reported unlocked) or `lock` with `lock_digest`; one environment per digest |
 | Runtime probing | None | `runtime.os`, `runtime.commands`, interpreter and version probes before placement |
-| Context | Root `CONTEXT.md` by file name | The same by default; a `context` list replaces it, plus per-harness `context` |
-| Skills | Every `skills/*/SKILL.md` published | The same by default, for skill names; a `skills` list replaces it |
+| Context | Root `CONTEXT.md` by file name | The same by default, then the `context` list and per-harness `context` |
+| Skills | Every `skills/*/SKILL.md` published | The same by default, for skill names, plus the `skills` list |
 | Scripts | `bin/*.py` and `[scripts]` strings, run under Python | `[scripts]` only: strings by extension, or `{ path, interpreter, os }`; `bin/` is on `PATH`, and a file in it is no command by default |
 | MCP stdio | Working directory inherited from the gateway; `env` strings | Working directory the overlay root; `env` values may be references |
 | Harness hints | None | `[harness.<id>]`: `context`, `skills`, `model`, `effort` |

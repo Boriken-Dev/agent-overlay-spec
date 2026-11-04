@@ -126,22 +126,31 @@ the reviewed ones.
 
 **Status:** adopted.
 
-## 12 — Conventional files take effect by default; a written field replaces its default
+## 12 — Conventional files take effect by default, until `[defaults]` turns one off
 
-**Decision:** seven fields take a default from the overlay's files when the manifest does not write
-them: `paths` (`bin/` to `PATH`, `lib/` to `PYTHONPATH`, both prepended), `rules` (`rules/*.md`),
-`context` (`CONTEXT.md`), `skills` (`skills/*/SKILL.md`), `env_files` (`env`, read as `dotenv`),
-`env_scripts` (one `env.<ext>`) and `setup` (one `setup.<ext>`), the last two chosen by a fixed
-extension order, the OS and the interpreters at hand. A written field is the whole value, and `[]`
-turns a default off. A default script that runs is reported, a default setup is taken to need the
-network, and one that cannot run is reported as `script-not-run`. `local.env` is not an overlay file.
+**Decision:** files in conventional places take effect without a manifest: `bin/` prepended to
+`PATH`, `lib/python/` prepended to `PYTHONPATH`, the root `env` read as a `dotenv` file, one
+`env.<ext>` and one `setup.<ext>` chosen by a fixed extension order, the OS and the interpreters at
+hand, `CONTEXT.md`, `skills/*/SKILL.md` and `rules/*.md`. Each stays on unless the manifest's
+`[defaults]` table sets its key to `false`: `bin`, `lib`, `env`, `env_scripts`, `setup`, `context`,
+`skills`, `rules`. Declared entries add to the defaults, after them; a declared entry naming the same
+file or directory as a default entry replaces it, and one naming a root `env.<ext>` or `setup.<ext>`
+configures that file in the default choice. A default script that runs is reported, a default setup
+is taken to need the network, one that cannot run is reported as `script-not-run`, and `local.env` is
+not an overlay file.
 
-**Reason:** the owner ruled that the basics need no manifest, and that `env.*` and `setup.*` run by
-default, picked by runtime. One rule for every default adds no key and needs no merge: a reader
-never decides which of a declared and a default entry wins, and an empty list, which every field
-already accepts, is the single way to turn a default off. `lib/` is prepended, as in dotagents, so
-the overlay with the higher `priority` is found first on every search path. Running by default moves
-no trust decision: it happens only in an activated overlay, and every run is reported.
+**Reason:** the owner ruled that the basics need no manifest, that `bin/` is on `PATH` unless
+disabled, and that `env.*` and `setup.*` run by default, picked by runtime. One boolean per default is
+the single way to turn it off, and the keys read as a list of what an overlay opts out of. Declaring
+adds, so an author who adds a directory does not lose `bin/`; replacing a same-named entry lets an
+author change a default's settings without turning it off and without applying it twice. Unknown
+keys are errors, so a misspelt key fails rather than leaving a default on. Python modules go in
+`lib/python/`, the owner's choice, which leaves `lib/<runtime>/` for other runtimes; the `lib` key
+covers every one of them, so an overlay that turned libraries off stays that way when an edition adds
+one. `lib/python/` is prepended, as dotagents prepends its `lib/` and as `bin/` is: on every search
+path the overlay with the higher `priority` is then found first, where appending would invert that
+for libraries alone. Running by default moves no trust decision: it happens only in an activated
+overlay, and every run is reported.
 
-**Status:** adopted. The `rules` and `env_files` defaults are Proposed; dotagents applies the others,
-with the differences [Compatibility](../compatibility.md) lists.
+**Status:** adopted. The `rules` and `env` defaults and the `[defaults]` table are Proposed; dotagents
+applies the others, with the differences [Compatibility](../compatibility.md) lists.
