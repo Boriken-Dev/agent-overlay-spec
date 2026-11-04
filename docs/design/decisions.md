@@ -62,7 +62,9 @@ Env scripts are an opt-in, run with a named interpreter, and are reported.
 **Reason:** an overlay is shared and often public, so a secret value never belongs in it; a reference
 lets each consumer resolve it from where its user keeps secrets.
 
-**Status:** adopted; Proposed until an implementation reads it.
+**Status:** adopted; Proposed until an implementation reads it. "`dotenv` files hold literals only" is
+superseded by [decision 13](#13-env-values-are-substituted-in-the-order-of-application): text values
+are substituted, in every format.
 
 ## 7 — Per-OS variants as ordered arrays
 
@@ -154,3 +156,57 @@ overlay, and every run is reported.
 
 **Status:** adopted. The `rules` and `env` defaults and the `[defaults]` table are Proposed; dotagents
 applies the others, with the differences [Compatibility](../compatibility.md) lists.
+
+## 13 — Env values are substituted in the order of application
+
+**Decision:** an env value written as text, in `env`, in an `aos` or `dotenv` env file, or in an MCP
+server's `env`, is substituted when its variable is set. The syntax is braced placeholders only,
+`${NAME}`, with `$$` for a `$`, the defaults `-` and `:-` (and `=`, `:=`, which assign nothing), the
+alternates `+` and `:+`, nested words, `${#NAME}`, slices, glob replacements and trims, and case
+changes: the `drone` envsubst dialect plus alternates, as tplx implements it. Nothing runs and no file
+is read; `$NAME`, `$(...)` and backticks are characters; an unknown expression is text. Values are
+substituted one at a time in the order of application, each seeing the environment after every
+earlier entry (earlier overlays, path additions and env-script output, earlier files and lines), and
+an overlay's own `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_NAME` and `AOS_OVERLAY_STATE`. The entries of one
+mapping see the environment before it. An undefined name is an error; a placeholder never reads a
+variable whose value came from a secret reference; a single-quoted `dotenv` value is not
+substituted; a consumer shows a value as written, never its result.
+
+**Reason:** the owner asked for the `.env` file to work as tplx's shell templates do, with the result
+of one entry usable by the next. Braced-only, with a fixed set of string operations, keeps it static
+and implementable in Rust or Dart with no shell, while existing envsubst text keeps its meaning; the
+`drone` set was closest to what was asked, `alternate` was added, and `unquote` left out, since a
+`dotenv` value has already lost its quotes. One rule for every text value means a line moved
+between `env`, an `aos` file and a `dotenv` file keeps its meaning; only `${` and `$$` are special, so
+plain text is unaffected, and reading a manifest stays static. Chaining in one fixed order makes
+self-reference (`PATH=${MYTOOL_HOME}/bin:${PATH}`) work and cycles impossible, since nothing is
+substituted twice. Mapping entries cannot chain, because mapping order carries no meaning in the data
+model (decision 5). An undefined name is an error, not a consumer setting: a setting would let one
+overlay build two environments under two consumers, and the author already chooses per placeholder
+with `${NAME-}` or a default (no hidden choice). Refusing to read a secret keeps every secret value
+whole in exactly the variable its reference names, so redaction stays complete and no slice, length
+or copy of a secret can be reported. Single quotes stay literal because dotenv tools treat them so.
+
+**Status:** adopted; Proposed until an implementation reads it.
+
+## 14 — Setup is told its phase: install, sync, remove
+
+**Decision:** setup receives its phase as its first argument, before `args`, and as
+`AOS_SETUP_PHASE`. The consumer records, per identity and OS, the digest of the last setup that
+succeeded: with no record, setup runs `install`; with another digest, `sync`; with this digest,
+nothing, unless the user asks (`sync`); on removal, `remove` when a record exists, after the overlay
+stops being activated and before its state directory and dependencies are deleted. A failed
+`install` or `sync` blocks that digest's activation; a failed `remove` is reported and the overlay is
+removed anyway. The timeout and network rules apply in every phase. A script treats a phase it does
+not know as success with nothing to do; one that ignores its arguments keeps working.
+
+**Reason:** the owner asked for setup to take an argument for install, sync and remove. One script
+and one variant for every phase is the least an author writes, and needs no new manifest key: a
+`case` on the first argument, or nothing at all. Choosing the phase from a recorded digest makes the
+choice the same in every consumer and testable as data. "Once per digest" becomes `install` once,
+then `sync` per new digest, the same number of runs as before. The state directory stays per digest,
+so `sync` starts empty, as `install` does, and a running session keeps the previous digest's
+directory; removal must not depend on cleanup succeeding, or one failing script would make an overlay
+impossible to remove.
+
+**Status:** adopted; Proposed until an implementation reads it.

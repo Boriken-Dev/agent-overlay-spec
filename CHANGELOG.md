@@ -76,6 +76,21 @@ The first edition, `0.1.0-draft`, a development draft open for review.
   declared and not runnable.
 - An env script's output may also be one JSON object over several lines, as a pretty-printer
   writes it; reading vectors for that output.
+- Substitution in env values (Proposed): `${NAME}`, `$$`, defaults `-` `:-` (`=` `:=` assign
+  nothing), alternates `+` `:+`, nested words, `${#NAME}`, slices, glob replacements (`/`, `//`,
+  `/#`, `/%`), trims (`#`, `##`, `%`, `%%`) and case changes (`^`, `^^`, `,`, `,,`), the `drone`
+  envsubst dialect plus alternates; nothing runs, and `$NAME`, `$(...)` and backticks are
+  characters. It applies to text in `env`, `aos` and `dotenv` files and MCP `env`, one value at a
+  time in the order of application, so each value sees every earlier one, across lines, files and
+  overlays, and its own earlier value; an overlay's own `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_NAME` and
+  `AOS_OVERLAY_STATE` are readable. An undefined name is an error; a variable holding a secret is
+  never read; a single-quoted `dotenv` value is kept as written. Reading vectors for every operator,
+  escapes, undefined names, quotes, nesting, chaining and secrets, and composition vectors for
+  chains across overlays.
+- Setup phases (Proposed): setup gets `install`, `sync` or `remove` as its first argument and in
+  `AOS_SETUP_PHASE`, chosen from the digest of the last setup that succeeded; a failed `remove` is
+  reported and the overlay removed anyway; a script treats an unknown phase as nothing to do.
+  Vectors for the phase each change selects.
 
 - Conformance vectors as JSON data in `tests/vectors/`: reading (format line, data model, static
   reading, limits, `dotenv`), validation of every field, names and root variables, source strings,
@@ -88,8 +103,11 @@ The first edition, `0.1.0-draft`, a development draft open for review.
 - `setup_timeout` is replaced by `setup` variants; `setup.py` is one case of the default setup.
 - Env scripts run by default in an activated overlay, each run reported, unless the consumer's
   policy turns them off; they are no longer a separate opt-in.
-- A plain `env` file is read as `dotenv` (literal values) instead of being sourced by a shell, and
-  `pre.env` files mean nothing by name.
+- A plain `env` file is read as `dotenv` instead of being sourced by a shell, and `pre.env` files
+  mean nothing by name.
+- Env values written as text are substituted instead of literal; `$$` writes a `$`.
+- Setup runs `install` once, then `sync` once per new digest, instead of the same run once per
+  digest, and `remove` on removal.
 - `skills` adds to the skills found under `skills/` instead of replacing them; to offer only
   some, set `[defaults] skills = false` and list them.
 - Composition order is `(priority, name, identity)` with code-point string comparison, for every

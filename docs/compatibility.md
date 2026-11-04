@@ -17,10 +17,12 @@ table below is the list an implementation works from.
 | `PYTHONPATH` | An existing `lib/` prepended | **Changed:** `lib/python/` prepended by default; a bare `lib/` means nothing |
 | Rules | Only the files `rules` lists | `rules/<name>.md` by default, in path order |
 | Environment values | `env.py` / `pre.env.py` executed, `env` / `pre.env` sourced by bash, by file name | `env`, `env_files` (`aos` documents or `dotenv`), secret references. By default the root `env` is read as `dotenv` and one `env.<ext>` runs, chosen by runtime; `pre.env*` means nothing |
-| A plain `env` file | Sourced by bash: `$(...)`, `$NAME` and shell code run | **Changed:** read as `dotenv`, every value literal, nothing run or expanded |
+| A plain `env` file | Sourced by bash: `$(...)`, `$NAME` and shell code run | **Changed:** read as `dotenv`; `${NAME}` and its operators substituted line by line, single-quoted values kept as written, nothing run |
+| Substitution | None of its own: bash expands what it sources; `overlay.toml` strings are literal | Every env value written as text (in `env`, `aos` and `dotenv` files, MCP `env`) substituted when set, in the order of application, against the environment as it stands; an undefined name is an error; a variable holding a secret is never read; see [Substitution with tplx](#substitution-with-tplx) |
 | `local.env` | Read from the project's own store, never from an overlay | Not an overlay file: a consumer's own scope, outside the format |
 | Secrets | MCP `env_passthrough` and `headers_env` read the host environment | Secret references by provider and key, or by name; `env` provider reads are reported |
-| Setup | `setup.py` by file name, under dotagents' Python, cwd the installed copy, on every add and sync | `setup` variants per OS with an interpreter, a timeout (300 s default), a network need; by default one root `setup.<ext>`, chosen by runtime and taken to need the network; once per digest; output into `AOS_OVERLAY_STATE` |
+| Setup | `setup.py` by file name, under dotagents' Python, cwd the installed copy, on every add and sync | `setup` variants per OS with an interpreter, a timeout (300 s default), a network need; by default one root `setup.<ext>`, chosen by runtime and taken to need the network; output into `AOS_OVERLAY_STATE` |
+| Setup phases | No argument; run on add and on every sync, never on remove | The phase first, before `args`, and in `AOS_SETUP_PHASE`: `install` once, `sync` once per new digest, `remove` on removal (its failure reported, the removal done anyway), chosen from the digest of the last setup that succeeded |
 | `setup_timeout` | Top-level integer | `timeout` in each `setup` variant |
 | Dependencies | `requirements.txt` by file name into a shared Python environment | `runtime.python`: minimum version, `requirements` (reported unlocked) or `lock` with `lock_digest`; one environment per digest |
 | Runtime probing | None | `runtime.os`, `runtime.commands`, interpreter and version probes before placement |
@@ -55,7 +57,52 @@ table below is the list an implementation works from.
 - **`pre.env.py`, `pre.env`.** dotagents runs them in a tier before every overlay's `env`. AOS has
   one env-script step per overlay, in composition order; an earlier step is a lower `priority`.
 - **`cmds/`.** dotagents' own command modules, Implementation-Specific.
-- **Arguments.** dotagents passes `--level <level>` to `env.py`; a default script gets none.
+- **Arguments.** dotagents passes `--level <level>` to `env.py`; a default env script gets none, and
+  a default setup only its phase.
+
+## Substitution with tplx
+
+[tplx](https://pypi.org/project/tplx/) has the substitution AOS defines, so a Python consumer such as
+dotagents can use it instead of its own parser. Its `EnvsubstTemplate` with the `drone` dialect and
+`alternate` added to its `FEATURES` reads the same syntax: braced placeholders only (`PATTERN` is
+`braced`), and the features `escape`, `default`, `assign`, `alternate`, `nested`, `slice`,
+`replace`, `trim`, `case` and `length`, without `unquote`:
+
+```python
+from tplx.engines import EnvsubstTemplate
+
+class AOSEnvsubst(EnvsubstTemplate):
+    DIALECT = "drone"
+    FEATURES = EnvsubstTemplate.DIALECTS["drone"][1] | {"alternate"}
+```
+
+**Chaining.** `ShellTemplate.expand(text, variables)` substitutes one string against a mapping. A
+consumer calls it once per value, in the order of application, with the environment as it stands,
+and sets the result before the next value: `PATH=${MYTOOL_HOME}/bin:${PATH}` after
+`MYTOOL_HOME=...` gives the new directory before the old `PATH`, as the
+[vectors](https://github.com/Boriken-Dev/agent-overlay-spec/tree/main/tests/vectors) check. This was
+checked against tplx 0.2.1, with these conditions:
+
+- `expand` is a method of a template, so the consumer builds one from the text,
+  `AOSEnvsubst(text).expand(text, variables)`; it is not in the API that tplx's `AGENTS.md`
+  documents, so a consumer pins the version.
+- A template built without a loader is strict: an undefined name raises `UndefinedError`, as AOS
+  requires. A template from a loader takes the loader's mode, which must be `strict`.
+- tplx looks a name up as `name.upper()`, so the mapping's keys are upper case and every name
+  matches without regard to case. Off Windows, where AOS matches names exactly, build the mapping
+  from `template.references()`: each name the text reads, upper-cased, to the value AOS's own lookup
+  gives for it. The result then differs only for a value that reads two names equal under ASCII case.
+- The mapping also holds the overlay's own `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_NAME` and
+  `AOS_OVERLAY_STATE`.
+- tplx cannot know which variables hold a secret. It reads a variable through the mapping's `get`,
+  and only when the expression needs it, so a mapping whose `get` raises for those names enforces
+  [the rule](spec/v0/environment.md#secrets-and-substitution) at the same moment AOS does.
+
+Two further departures, each in text no author needs: tplx accepts a slice written with non-ASCII
+digits or white space (`${A: ١}`), which AOS leaves as text, and reads brackets that hold only a
+negation as part of a later bracket expression (`${A/[!]x[y]/z}`) where AOS refuses the pattern.
+The [reading vectors](https://github.com/Boriken-Dev/agent-overlay-spec/tree/main/tests/vectors)
+cover both.
 
 ## Ambiguities and interoperability risks
 

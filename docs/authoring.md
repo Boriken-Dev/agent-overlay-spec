@@ -12,9 +12,9 @@ a consumer looks for them, and they work with no manifest:
 | always-on rules in `rules/<name>.md` | adds them to the always-on rules |
 | initial context in `CONTEXT.md` | adds it to the agent's first context |
 | a skill in `skills/<name>/SKILL.md` | offers the skill |
-| `NAME=value` lines in `env` | sets them, as literal values |
+| `NAME=value` lines in `env` | sets them in order, substituting `${NAME}` placeholders |
 | a script in `env.py` (or `.js`, `.ps1`, `.sh`, ...) | runs it to compute environment values, and reports it |
-| a script in `setup.py` (or `.ps1`, `.sh`, ...) | runs it once per version, with the network, and reports it |
+| a script in `setup.py` (or `.ps1`, `.sh`, ...) | runs it with its phase (`install`, then `sync` for each new version, `remove`), with the network, and reports it |
 
 Other common paths are `kb/`, `references/`, `workflows/`, `setup/`, `env/` and `locks/`; they mean
 something when a field names them. A `local.env` is not part of an overlay: local overrides belong to
@@ -55,6 +55,34 @@ path = "setup.sh"
 network = false
 ```
 
+## Values that use other values
+
+An env value can read other variables, as a shell would in `"${...}"`, but nothing runs:
+
+```text
+# env, read line by line: each line sees the lines before it
+TOOL_HOME=${AOS_OVERLAY_ROOT}/tool
+TOOL_CACHE=${TOOL_CACHE_DIR:-${TOOL_HOME}/cache}
+PATH=${TOOL_HOME}/bin:${PATH}
+TOOL_PROMPT='${USER}$ '
+```
+
+- `PATH=...${PATH}` reads `PATH` as it was before the line. An overlay with a `bin/` cannot also set
+  `PATH`: there, `bin/` is already on it.
+- `${AOS_OVERLAY_ROOT}` is your overlay's root, whatever name it was installed under;
+  `${AOS_OVERLAY_STATE}` is its state directory. They are readable here, not set.
+- **An unset name is an error.** Give a default where a variable may be missing: `${NAME:-default}`,
+  or `${NAME-}` for empty. A refused value is better than `/bin` where you meant `$TOOL_HOME/bin`.
+- Defaults (`-`, `:-`), alternates (`+`, `:+`), the length `${#NAME}`, slices `${NAME:1:3}`,
+  replacements `${NAME//:/ }`, trims `${FILE%.*}` and case `${NAME^^}` work as in bash, on
+  globs. `$NAME` without braces, `$(...)` and backticks are characters; `$$` is a `$`.
+- Single quotes keep a `dotenv` value as written. In `overlay.cfg` and `aos` env files a string is
+  substituted the same way; write `$${` for a literal `${`.
+- Values chain in order: earlier lines and files, then `env`, and every overlay before yours. The
+  entries of one mapping (`env`, one `aos` file) do not see each other, so put a value you reuse in
+  an earlier file or line.
+- A placeholder cannot read a variable set from a secret reference. Use the reference itself.
+
 ## The manifest
 
 Start with the fields your consumers use:
@@ -80,7 +108,18 @@ YAML are optional. Do not add a format version: the edition belongs to the speci
 - **Runtime**: the OSes, the commands that must exist, a minimum Python with a locked requirements
   file and its digest.
 - **Setup**: a script per OS with its interpreter, a timeout, and whether it needs the network.
-  Setup writes into `$AOS_OVERLAY_STATE`, never into the overlay.
+  Setup writes into `$AOS_OVERLAY_STATE`, never into the overlay. Its first argument (and
+  `$AOS_SETUP_PHASE`) is the phase: `install`, `sync` after an update, `remove` before the overlay
+  and its state are deleted. Do nothing, successfully, for a phase you do not know; a script that
+  ignores the phase still works, and returns early on `remove` if its setup is slow:
+
+  ```sh
+  case "${1:-}" in
+    install|sync) prepare ;;
+    remove) cleanup ;;
+    *) ;;
+  esac
+  ```
 
 Each of these is a weakening when it loosens a default (network for setup, reading the host's
 environment, unlocked dependencies, no timeout), and consumers report it. Declare only what you need.

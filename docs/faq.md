@@ -28,8 +28,9 @@ language reads it. `$NAME` in a string is those characters.
 
 ## Does AOS run setup scripts or install dependencies?
 
-The format declares them; a consumer decides. Running setup is a trust decision, happens once per
-overlay digest outside the agent's sandbox, and is bounded by a timeout.
+The format declares them; a consumer decides. Running setup is a trust decision, happens outside
+the agent's sandbox in three phases (`install` once, `sync` per new digest, `remove`), and is
+bounded by a timeout.
 
 ## Where do secrets go?
 
@@ -50,7 +51,7 @@ consumer reports.
 
 Rename `overlay.toml` to `overlay.cfg`. `bin/`, `skills/`, `CONTEXT.md`, `env.py` and `setup.py`
 keep working by default, and Python modules move from `lib/` to `lib/python/`. Three more things
-change: a plain `env` file is read as `dotenv`
+change: a plain `env` file is read as `dotenv`, with `${NAME}` substituted,
 rather than sourced by bash, `pre.env` files and `requirements.txt` mean nothing by name (declare
 dependencies in `runtime`), and a `bin/*.py` becomes a command only through `[scripts]`. See
 [Compatibility](compatibility.md).
