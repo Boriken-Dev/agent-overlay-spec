@@ -71,8 +71,9 @@ A consumer MAY treat more names as sensitive; it MUST treat at least these.
 
 Setup, env scripts, commands and dependency installation run only under an explicit policy of the
 user or administrator: installing an overlay is a trust decision, fetching one is not. A consumer
-runs setup outside the agent's sandbox, once per digest, bounded by a timeout, with the network
-denied unless declared, and with the overlay root read-only where it can. Dependencies are installed
+runs setup outside the agent's sandbox, in its [phases](runtime.md#setup-phases) (`install` once,
+`sync` once per new digest, `remove` on removal), bounded by a timeout, with the network denied
+unless declared, and with the overlay root read-only where it can. Dependencies are installed
 from a lock file in hash-checking mode where one is declared.
 
 Starting an MCP server, running a command and running an env script are the same decision as

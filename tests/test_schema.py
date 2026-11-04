@@ -111,6 +111,8 @@ def test_every_default_in_the_conventions_example():
     assert result["env"]["TOOL_CACHE"] == "/ov/c/tool/cache"
     assert [s["path"] for s in result["env_scripts"]] == ["env.py"]
     assert result["setup"]["path"] == "setup.sh" and result["setup"]["network"] is True
+    added = aos.effective({}, dict(facts, files=texts, change="add", digest="sha256:" + "1" * 64))
+    assert added["setup_arguments"] == ["install"]
     assert aos.rules_of({}, files) == ["rules/always.md"]
     assert aos.context_of({}, files) == ["CONTEXT.md"]
     assert aos.skills_of({}, files) == ["check-conventions"]

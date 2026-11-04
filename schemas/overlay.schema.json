@@ -167,6 +167,7 @@
       "additionalProperties": false
     },
     "setupVariant": {
+      "description": "Runs with the phase (install, sync or remove) as its first argument, before args, and in AOS_SETUP_PHASE.",
       "type": "object",
       "required": ["interpreter", "path"],
       "properties": {

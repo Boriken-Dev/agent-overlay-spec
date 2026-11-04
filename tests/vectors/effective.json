@@ -1,5 +1,5 @@
 {
-  "description": "Applying one overlay. 'facts' describe the consumer: os, root, identity, state (its state directory), pinned, grants (what this overlay may read, by provider: secret names, file keys, host variables), base_env (the environment being built), host_env (its own), secrets (named), secret_files (the secrets directory), files (the overlay's files by relative path, with the text of those read as env files; the fields a manifest does not write take their defaults from them), providers, interpreters (the interpreters the consumer can run here; absent, python, node, powershell, bash and sh), env_scripts_enabled (the consumer's policy; absent, true), enforces_network. 'expect' gives the resulting environment, the selected setup and runtime variants, what a probe needs, and the weakenings as [id, subject]; or the refusal.",
+  "description": "Applying one overlay. 'facts' describe the consumer: os, root, identity, state (its state directory), pinned, grants (what this overlay may read, by provider: secret names, file keys, host variables), base_env (the environment being built), host_env (its own), secrets (named), secret_files (the secrets directory), files (the overlay's files by relative path, with the text of those read as env files; the fields a manifest does not write take their defaults from them), providers, interpreters (the interpreters the consumer can run here; absent, python, node, powershell, bash and sh), env_scripts_enabled (the consumer's policy; absent, true), enforces_network, and for setup phases change ('add', 'update', 'rerun' or 'remove'), digest (the overlay's) and recorded_digest (the digest of the last setup of this overlay that succeeded on this OS; absent, none). 'expect' gives the resulting environment, the selected setup and runtime variants, what a probe needs, and the weakenings as [id, subject], and with a change the setup_phase (null when setup does not run) and setup_arguments (the phase, then the variant's args); or the refusal.",
   "spec": "spec/v0/environment.md#order-of-application",
   "cases": [
     {
@@ -3241,6 +3241,447 @@
             "setup.py"
           ]
         ]
+      }
+    },
+    {
+      "id": "phase-add",
+      "description": "First add, nothing recorded: install.",
+      "manifest": {},
+      "facts": {
+        "os": "linux",
+        "root": "/srv/ov/docs-tools",
+        "identity": "docs-tools",
+        "pinned": true,
+        "files": {
+          "setup.sh": ""
+        },
+        "change": "add",
+        "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "expect": {
+        "ungranted": [],
+        "supported": true,
+        "env": {
+          "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools"
+        },
+        "env_scripts": [],
+        "setup": {
+          "interpreter": "sh",
+          "path": "setup.sh",
+          "args": [],
+          "timeout": 300,
+          "network": true
+        },
+        "python": null,
+        "node": null,
+        "needs": {
+          "interpreters": [
+            "sh"
+          ],
+          "commands": []
+        },
+        "weakenings": [
+          [
+            "setup-network",
+            "setup.sh"
+          ]
+        ],
+        "setup_phase": "install",
+        "setup_arguments": [
+          "install"
+        ]
+      }
+    },
+    {
+      "id": "phase-update",
+      "description": "A new digest after a setup that succeeded: sync, the phase before the declared arguments.",
+      "manifest": {
+        "setup": [
+          {
+            "interpreter": "sh",
+            "path": "setup.sh",
+            "args": [
+              "--quiet"
+            ]
+          }
+        ]
+      },
+      "facts": {
+        "os": "linux",
+        "root": "/srv/ov/docs-tools",
+        "identity": "docs-tools",
+        "pinned": true,
+        "files": {
+          "setup.sh": ""
+        },
+        "change": "update",
+        "recorded_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      "expect": {
+        "ungranted": [],
+        "supported": true,
+        "env": {
+          "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools"
+        },
+        "env_scripts": [],
+        "setup": {
+          "interpreter": "sh",
+          "path": "setup.sh",
+          "args": [
+            "--quiet"
+          ],
+          "timeout": 300,
+          "network": false
+        },
+        "python": null,
+        "node": null,
+        "needs": {
+          "interpreters": [
+            "sh"
+          ],
+          "commands": []
+        },
+        "weakenings": [],
+        "setup_phase": "sync",
+        "setup_arguments": [
+          "sync",
+          "--quiet"
+        ]
+      }
+    },
+    {
+      "id": "phase-update-same-digest",
+      "description": "Nothing changed: setup does not run.",
+      "manifest": {},
+      "facts": {
+        "os": "linux",
+        "root": "/srv/ov/docs-tools",
+        "identity": "docs-tools",
+        "pinned": true,
+        "files": {
+          "setup.sh": ""
+        },
+        "change": "update",
+        "recorded_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "expect": {
+        "ungranted": [],
+        "supported": true,
+        "env": {
+          "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools"
+        },
+        "env_scripts": [],
+        "setup": {
+          "interpreter": "sh",
+          "path": "setup.sh",
+          "args": [],
+          "timeout": 300,
+          "network": true
+        },
+        "python": null,
+        "node": null,
+        "needs": {
+          "interpreters": [
+            "sh"
+          ],
+          "commands": []
+        },
+        "weakenings": [
+          [
+            "setup-network",
+            "setup.sh"
+          ]
+        ],
+        "setup_phase": null,
+        "setup_arguments": null
+      }
+    },
+    {
+      "id": "phase-update-first-setup",
+      "description": "An update with nothing recorded (the earlier digest had no setup, or it failed): install.",
+      "manifest": {},
+      "facts": {
+        "os": "linux",
+        "root": "/srv/ov/docs-tools",
+        "identity": "docs-tools",
+        "pinned": true,
+        "files": {
+          "setup.sh": ""
+        },
+        "change": "update",
+        "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      "expect": {
+        "ungranted": [],
+        "supported": true,
+        "env": {
+          "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools"
+        },
+        "env_scripts": [],
+        "setup": {
+          "interpreter": "sh",
+          "path": "setup.sh",
+          "args": [],
+          "timeout": 300,
+          "network": true
+        },
+        "python": null,
+        "node": null,
+        "needs": {
+          "interpreters": [
+            "sh"
+          ],
+          "commands": []
+        },
+        "weakenings": [
+          [
+            "setup-network",
+            "setup.sh"
+          ]
+        ],
+        "setup_phase": "install",
+        "setup_arguments": [
+          "install"
+        ]
+      }
+    },
+    {
+      "id": "phase-rerun",
+      "description": "Run again on the user's request after a setup that succeeded: sync.",
+      "manifest": {},
+      "facts": {
+        "os": "linux",
+        "root": "/srv/ov/docs-tools",
+        "identity": "docs-tools",
+        "pinned": true,
+        "files": {
+          "setup.sh": ""
+        },
+        "change": "rerun",
+        "recorded_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "expect": {
+        "ungranted": [],
+        "supported": true,
+        "env": {
+          "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools"
+        },
+        "env_scripts": [],
+        "setup": {
+          "interpreter": "sh",
+          "path": "setup.sh",
+          "args": [],
+          "timeout": 300,
+          "network": true
+        },
+        "python": null,
+        "node": null,
+        "needs": {
+          "interpreters": [
+            "sh"
+          ],
+          "commands": []
+        },
+        "weakenings": [
+          [
+            "setup-network",
+            "setup.sh"
+          ]
+        ],
+        "setup_phase": "sync",
+        "setup_arguments": [
+          "sync"
+        ]
+      }
+    },
+    {
+      "id": "phase-rerun-never",
+      "description": "Run again with nothing recorded: install.",
+      "manifest": {},
+      "facts": {
+        "os": "linux",
+        "root": "/srv/ov/docs-tools",
+        "identity": "docs-tools",
+        "pinned": true,
+        "files": {
+          "setup.sh": ""
+        },
+        "change": "rerun",
+        "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "expect": {
+        "ungranted": [],
+        "supported": true,
+        "env": {
+          "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools"
+        },
+        "env_scripts": [],
+        "setup": {
+          "interpreter": "sh",
+          "path": "setup.sh",
+          "args": [],
+          "timeout": 300,
+          "network": true
+        },
+        "python": null,
+        "node": null,
+        "needs": {
+          "interpreters": [
+            "sh"
+          ],
+          "commands": []
+        },
+        "weakenings": [
+          [
+            "setup-network",
+            "setup.sh"
+          ]
+        ],
+        "setup_phase": "install",
+        "setup_arguments": [
+          "install"
+        ]
+      }
+    },
+    {
+      "id": "phase-remove",
+      "description": "Removing after a setup that succeeded: remove, with the variant's own timeout and network, reported as for any phase.",
+      "manifest": {},
+      "facts": {
+        "os": "linux",
+        "root": "/srv/ov/docs-tools",
+        "identity": "docs-tools",
+        "pinned": true,
+        "files": {
+          "setup.sh": ""
+        },
+        "change": "remove",
+        "recorded_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "expect": {
+        "ungranted": [],
+        "supported": true,
+        "env": {
+          "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools"
+        },
+        "env_scripts": [],
+        "setup": {
+          "interpreter": "sh",
+          "path": "setup.sh",
+          "args": [],
+          "timeout": 300,
+          "network": true
+        },
+        "python": null,
+        "node": null,
+        "needs": {
+          "interpreters": [
+            "sh"
+          ],
+          "commands": []
+        },
+        "weakenings": [
+          [
+            "setup-network",
+            "setup.sh"
+          ]
+        ],
+        "setup_phase": "remove",
+        "setup_arguments": [
+          "remove"
+        ]
+      }
+    },
+    {
+      "id": "phase-remove-never-set-up",
+      "description": "Removing with nothing recorded: setup does not run.",
+      "manifest": {},
+      "facts": {
+        "os": "linux",
+        "root": "/srv/ov/docs-tools",
+        "identity": "docs-tools",
+        "pinned": true,
+        "files": {
+          "setup.sh": ""
+        },
+        "change": "remove",
+        "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "expect": {
+        "ungranted": [],
+        "supported": true,
+        "env": {
+          "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools"
+        },
+        "env_scripts": [],
+        "setup": {
+          "interpreter": "sh",
+          "path": "setup.sh",
+          "args": [],
+          "timeout": 300,
+          "network": true
+        },
+        "python": null,
+        "node": null,
+        "needs": {
+          "interpreters": [
+            "sh"
+          ],
+          "commands": []
+        },
+        "weakenings": [
+          [
+            "setup-network",
+            "setup.sh"
+          ]
+        ],
+        "setup_phase": null,
+        "setup_arguments": null
+      }
+    },
+    {
+      "id": "phase-no-setup",
+      "description": "No setup selected on this OS: no phase runs.",
+      "manifest": {
+        "setup": [
+          {
+            "os": [
+              "windows"
+            ],
+            "interpreter": "powershell",
+            "path": "s/w.ps1"
+          }
+        ]
+      },
+      "facts": {
+        "os": "linux",
+        "root": "/srv/ov/docs-tools",
+        "identity": "docs-tools",
+        "pinned": true,
+        "change": "add",
+        "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "expect": {
+        "ungranted": [],
+        "supported": true,
+        "env": {
+          "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools"
+        },
+        "env_scripts": [],
+        "setup": null,
+        "python": null,
+        "node": null,
+        "needs": {
+          "interpreters": [],
+          "commands": []
+        },
+        "weakenings": [],
+        "setup_phase": null,
+        "setup_arguments": null
       }
     },
     {

@@ -7,8 +7,9 @@ decide where an overlay can go, and refuse with a reason, before it fetches or s
 > **Status:** dotagents runs `setup.py` at the overlay root under its own Python, on every add and
 > sync unless `--no-setup` is given, stopped after `setup_timeout` seconds (default 300, `0` for no
 > limit): the `.py` case of the [default setup](#default-scripts), run more often than once per
-> digest. It installs `requirements.txt` into a Python environment by file name, which AOS does not
-> do by default. It reads none of the fields below yet.
+> digest, with no [phase](#setup-phases) argument and never on remove. It installs
+> `requirements.txt` into a Python environment by file name, which AOS does not do by default. It
+> reads none of the fields below yet.
 
 ## Operating systems
 
@@ -81,7 +82,8 @@ consumers with the same interpreters run the same script:
 - `bash` comes before `sh`, the more specific before the more general.
 
 The script runs as a declared one does, with its field's defaults: an env script with no arguments
-and a timeout of 60 seconds; setup with no arguments, a timeout of 300 seconds, and `network = true`.
+and a timeout of 60 seconds; setup with the [phase](#setup-phases) as its only argument, a timeout
+of 300 seconds, and `network = true`.
 A default setup declares nothing, so it is taken to need the network, which is reported as
 `setup-network`. The selected interpreter is a requirement like a declared one.
 
@@ -183,7 +185,7 @@ off.
 | --- | --- | --- | --- |
 | `interpreter` | [interpreter name](#interpreters) | required | How it runs |
 | `path` | relative path | required | The script |
-| `args` | array of strings | `[]` | Arguments after the script |
+| `args` | array of strings | `[]` | Arguments after the [phase](#setup-phases) |
 | `timeout` | integer seconds, `0` for no limit, at most 2147483647 | `300` | Stopped, and failed, after this |
 | `network` | boolean | `false` | Whether it needs the network |
 | `os` | array of OS names | every OS | The OSes this variant applies on |
@@ -205,8 +207,9 @@ network = true
 Setup is code, and a [trust decision](security.md#execution-and-dependencies). A consumer that runs
 it:
 
-- runs the selected variant **once per overlay digest and OS**, after dependencies are installed and
-  before the overlay is first activated, and again only when the digest changes or its user asks;
+- runs the selected variant in a [phase](#setup-phases): `install` once, before the overlay is
+  first activated on an OS, then `sync` once for each new digest, before that digest is activated,
+  and `remove` when the overlay is removed; and in no other case, except when its user asks;
 - runs it **outside the agent's sandbox**, as part of preparing the overlay, never from the agent's
   session;
 - stops it after `timeout` and treats that as a failure; a consumer MAY lower or raise the timeout by
@@ -215,9 +218,61 @@ it:
   every process it started, so nothing it launched outlives it; it bounds the output it keeps;
 - denies it the network when `network` is `false`, or reports `network-not-enforced` when it cannot;
   `network = true` is a weakening, `setup-network`;
-- does not activate the overlay when setup fails, and reports the failure with the exit status.
+- does not activate the overlay when `install` or `sync` fails, and reports the failure with the
+  exit status.
 
 Setup MUST be idempotent: running it twice leaves what running it once did.
+
+### Setup phases
+
+Setup receives the **phase** as its first argument, before the variant's `args`, and as the
+variable `AOS_SETUP_PHASE`: `setup.sh install`, then `setup.sh sync`, then `setup.sh remove`. The
+same variant runs in every phase, with the same interpreter, timeout, network rule, process group
+and reporting; a phase changes only what the script is told.
+
+The consumer keeps a **record** for each overlay identity and OS: the digest of the last setup that
+succeeded there, or none. A phase is chosen from the change and that record:
+
+| Change | Record | Phase |
+| --- | --- | --- |
+| The overlay is added, or a digest is prepared for activation | none | `install` |
+| | another digest | `sync` |
+| | this digest | none: setup does not run |
+| Its user asks to run setup again | none | `install` |
+| | any digest | `sync` |
+| The overlay is removed | a digest | `remove` |
+| | none | none: setup does not run |
+
+A digest whose selected variant is absent runs nothing and leaves the record as it is. An `install`
+or `sync` that succeeds records its digest; the overlay's removal deletes the record, whatever
+`remove` did.
+
+| Phase | When | A script may assume | When it fails or times out |
+| --- | --- | --- | --- |
+| `install` | Before the overlay is first activated on this OS | Its dependencies are installed; the state directory exists, empty; no earlier setup of this overlay succeeded here | The overlay is not activated; the failure is reported; nothing is recorded |
+| `sync` | Before a new digest is activated, or on its user's request | Its dependencies are installed; the state directory of this digest exists, empty unless this digest's setup ran before; a setup of an earlier digest succeeded here | The new digest is not activated; the failure is reported. A consumer MAY keep the previous digest active, and says whether it does |
+| `remove` | When the overlay is removed, after it stops being activated and before its state directory and dependencies are deleted | They still exist, as setup left them; an `install` or `sync` succeeded here | The overlay is removed anyway: the state directory, dependencies and record are deleted, and the failure is reported |
+
+The timeout and the network rule apply in every phase as they do to setup: `remove` is stopped
+after `timeout`, denied the network unless `network = true`, and reported as `setup-network`,
+`network-not-enforced` or `no-timeout` like any other run.
+
+**Writing for phases.** A script MUST treat a phase it does not know as success with nothing to
+do (exit 0), so a later edition can add one. A script that ignores its arguments runs the same code
+in every phase: `install` and `sync` do what setup always did, and `remove`, since setup is
+idempotent and the state directory still holds its output, repeats a setup whose result is about to
+be deleted. That is harmless; a script whose setup is slow or uses the network returns early on
+`remove`:
+
+```sh
+#!/bin/sh
+set -eu
+case "${1:-}" in
+  install|sync) mkdir -p "$AOS_OVERLAY_STATE" && date -u > "$AOS_OVERLAY_STATE/prepared-at" ;;
+  remove) ;;    # nothing outside the state directory to undo
+  *) ;;         # a phase this script does not know: nothing to do
+esac
+```
 
 ## What a step receives
 
@@ -230,7 +285,8 @@ A setup variant and an env script run with:
     - `AOS_OVERLAY_NAME`: the normalized identity;
     - `AOS_OVERLAY_STATE`: an absolute, writable directory outside the root that belongs to this
       overlay's identity, digest and OS, and to no other overlay. Setup writes what it produces
-      here, never into the root, since a write in the root changes the [tree digest](integrity.md).
+      here, never into the root, since a write in the root changes the [tree digest](integrity.md);
+    - for setup, `AOS_SETUP_PHASE`: `install`, `sync` or `remove`, as its first argument says.
 
 A consumer sets `<NAME>_OVERLAY_STATE` to the same directory for every process the overlay serves,
 so its tools find what setup produced. Inside the agent's sandbox the state directory is read-only:

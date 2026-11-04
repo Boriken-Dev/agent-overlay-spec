@@ -1656,6 +1656,11 @@ def effective(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
         if isinstance(entry, dict) and ("provider" in entry or "secret" in entry):
             if entry.get("optional") and not granted(entry, facts):
                 ungranted.add(reference_name(entry))
+    phase = None
+    if "change" in facts:
+        phase = setup_phase(facts["change"], facts.get("recorded_digest"), facts.get("digest"))
+        if setup is None:
+            phase = None
     result = {
         "ungranted": sorted(ungranted),
         "supported": supported,
@@ -1667,7 +1672,29 @@ def effective(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
         "needs": {"interpreters": sorted(interpreters), "commands": sorted(set(commands))},
         "weakenings": sorted({tuple(w) for w in weakenings}),
     }
+    if "change" in facts:
+        result["setup_phase"] = phase
+        result["setup_arguments"] = None if phase is None else [phase] + setup["args"]
     return result
+
+
+#: What a consumer is doing to an overlay when it decides whether setup runs.
+CHANGES = ("add", "update", "rerun", "remove")
+
+
+def setup_phase(change: str, recorded: "Optional[str]", digest: "Optional[str]") -> "Optional[str]":
+    """The phase setup runs in, or None when it does not run.
+
+    ``recorded`` is the digest of the last setup of this overlay that succeeded on this OS, which
+    the consumer keeps and forgets when the overlay is removed.
+    """
+    if change == "remove":
+        return "remove" if recorded is not None else None
+    if recorded is None:
+        return "install"
+    if change == "rerun" or recorded != digest:
+        return "sync"
+    return None
 
 
 def compose(

@@ -30,6 +30,9 @@ the manifest's `defaults` turns it off; see [Package](package.md#defaults).
 **Placeholder**: `${NAME}` or one of its forms in an env value's text, substituted from the
 environment being built when the variable is set; see [Substitution](environment.md#substitution).
 
+**Setup phase**: what setup is told it is doing, `install`, `sync` or `remove`; see
+[Setup phases](runtime.md#setup-phases).
+
 **Secret reference**: a provider and its fields, or a secret's name, that say where a value comes
 from; never the value.
 
