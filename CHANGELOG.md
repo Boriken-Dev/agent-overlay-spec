@@ -28,8 +28,8 @@ The first edition, `0.1.0-draft`, a development draft open for review.
 - Runtime and setup (Proposed): `runtime` with supported OSes, required commands and Python and
   Node.js variants (minimum version, `requirements` or `lock` with `lock_digest`); `setup` variants
   per OS with an interpreter (`python`, `bash`, `sh`, `powershell`, `node`), a timeout (default 300
-  seconds), and a network need, run once per overlay digest with `AOS_OVERLAY_ROOT`,
-  `AOS_OVERLAY_NAME` and `AOS_OVERLAY_STATE`.
+  seconds), and a network need, run with `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_NAME` and
+  `AOS_OVERLAY_STATE`.
 - `skills` lists an overlay's skills; `context` lists initial-context files; `[harness.<id>]` gives
   per-harness context, skill delivery, model and effort hints (all Proposed).
 - `[scripts]` entries may name an interpreter and OSes; a string path's interpreter follows from its
@@ -88,9 +88,26 @@ The first edition, `0.1.0-draft`, a development draft open for review.
   escapes, undefined names, quotes, nesting, chaining and secrets, and composition vectors for
   chains across overlays.
 - Setup phases (Proposed): setup gets `install`, `sync` or `remove` as its first argument and in
-  `AOS_SETUP_PHASE`, chosen from the digest of the last setup that succeeded; a failed `remove` is
-  reported and the overlay removed anyway; a script treats an unknown phase as nothing to do.
-  Vectors for the phase each change selects.
+  `AOS_SETUP_PHASE`: `install` on the first add, `sync` on every sync (a fetch of the source
+  whatever it finds, a change of source, ref or pin, or setup run again on request), `remove` on
+  removal; a consumer with no sync of its own runs `sync` before activating a digest other than the
+  recorded one. The record per identity and OS holds the digest and phase of the last preparation
+  that succeeded. The state directory belongs to the identity and OS, kept across syncs and
+  digests, made empty before `install`, deleted after `remove`, read-only in the sandbox. A failed
+  `install` or `sync` keeps the record and blocks the digest it ran for, except the recorded one;
+  a failed `remove` is reported and the overlay removed anyway; an overlay under a new identity is
+  removed and added again. A script treats an unknown phase as nothing to do. Vectors for the
+  phase, the steps, the record and activation of each operation, with failures.
+- Dependencies (Proposed): `lib/python/requirements.txt` and `lib/node/package.json` install by
+  default at `install` and every `sync`, before setup (`[defaults] deps`), unless a
+  `runtime.python` file or a `runtime.node` `package` replaces them. A hash on every requirement,
+  or a `package-lock.json` beside `package.json` (`npm ci`), pins a file; an unpinned one installs
+  and is reported `unlocked-dependencies`; a partly hashed one is refused. Each install is reported
+  `deps-network`, and needs its interpreter and package manager (`npm`). `lib/node/` is on
+  `NODE_PATH`. `environment` (`"shared"` by default, a name, or `"isolated"`) chooses the
+  environment: shared ones install every member's file in one run, in composition order, block
+  overlays whose pins conflict, are rebuilt on every install, sync and removal, and live while an
+  overlay uses them. Vectors for each default, overrides, pins, sharing, conflicts and removal.
 
 - Conformance vectors as JSON data in `tests/vectors/`: reading (format line, data model, static
   reading, limits, `dotenv`), validation of every field, names and root variables, source strings,
@@ -106,8 +123,12 @@ The first edition, `0.1.0-draft`, a development draft open for review.
 - A plain `env` file is read as `dotenv` instead of being sourced by a shell, and `pre.env` files
   mean nothing by name.
 - Env values written as text are substituted instead of literal; `$$` writes a `$`.
-- Setup runs `install` once, then `sync` once per new digest, instead of the same run once per
-  digest, and `remove` on removal.
+- Setup runs `install` on the first add, then `sync` on every sync, whether or not the digest
+  changed, instead of the same run once per digest, and `remove` on removal. The state directory
+  belongs to the overlay's identity and OS instead of its digest.
+- `lib/python/requirements.txt` installs by default instead of meaning nothing, into the scope's
+  shared environment instead of one per digest, and `runtime.node` can name a `package.json`.
+- `NODE_PATH` joins `PATH` and `PYTHONPATH` as a variable `paths` adds to without `env-sensitive`.
 - `skills` adds to the skills found under `skills/` instead of replacing them; to offer only
   some, set `[defaults] skills = false` and list them.
 - Composition order is `(priority, name, identity)` with code-point string comparison, for every

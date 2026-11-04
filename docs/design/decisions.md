@@ -155,7 +155,9 @@ for libraries alone. Running by default moves no trust decision: it happens only
 overlay, and every run is reported.
 
 **Status:** adopted. The `rules` and `env` defaults and the `[defaults]` table are Proposed; dotagents
-applies the others, with the differences [Compatibility](../compatibility.md) lists.
+applies the others, with the differences [Compatibility](../compatibility.md) lists. The `deps`
+default and `lib/node/` were added by
+[decision 16](#16-dependencies-by-default-in-shared-named-or-isolated-environments).
 
 ## 13 — Env values are substituted in the order of application
 
@@ -208,5 +210,80 @@ then `sync` per new digest, the same number of runs as before. The state directo
 so `sync` starts empty, as `install` does, and a running session keeps the previous digest's
 directory; removal must not depend on cleanup succeeding, or one failing script would make an overlay
 impossible to remove.
+
+**Status:** adopted; Proposed until an implementation reads it. The phase chosen by digest alone, and
+the state directory per digest, are superseded by
+[decision 15](#15-phases-follow-the-consumers-operations-state-belongs-to-the-identity): `sync` runs
+on every sync, and the state directory belongs to the identity.
+
+## 15 — Phases follow the consumer's operations; state belongs to the identity
+
+**Decision:** setup runs `install` on the first add, `sync` on every sync the consumer performs, and
+`remove` on removal. A sync is any operation that brings an installed overlay up to date (fetching
+its source again whatever it finds, changing its source, ref or pin, running setup again on
+request), so a sync runs `sync` whether or not the digest changed; adding an overlay already
+prepared is a sync. A consumer with no sync operation of its own runs `sync` before it activates a
+digest other than the recorded one. The record, per identity and OS, holds the digest and phase of
+the last preparation that succeeded. The state directory belongs to the identity and OS, not the
+digest: kept across syncs and digests, made empty before `install`, deleted after `remove` whether
+`remove` succeeds or not, outside the root and the tree digest, read-only in the sandbox. A failed
+`install` or `sync` leaves the record and the state as the script left them, is reported, and blocks
+the digest it ran for, except the recorded digest itself, which stays active. An overlay under a new
+identity is a new overlay: the old identity is removed through its own `remove`, and the new one
+runs `install`.
+
+**Reason:** the owner asked whether setup, which ran once per digest, should also run on sync, and
+ruled that it should: a user who syncs expects the overlay brought up to date, and what setup
+prepares (a toolchain, a model, a cache) can go stale without the overlay changing. Tying phases to
+operations makes the rule one any consumer can apply, with or without a sync command. A state
+directory per digest made `sync` start empty, so a heavy setup fetched everything again on each
+update; one per identity lets `sync` update in place, which replaces the separate cache directory
+considered for that. Emptying it before `install` keeps the promise that `install` starts empty,
+since after a failed `install` the directory may hold its leftovers. Blocking a digest whose
+preparation failed still fits: only the record says a digest is prepared. The recorded digest is
+the exception because the record already vouches for it, and deactivating it on a failed re-run
+would let a network outage disable an overlay that was working. The state directory stays read-only
+in the sandbox, with more reason, since what an agent planted there would now reach every later
+sync; it stays outside the root, or a write would change the digest it is checked against.
+
+**Status:** adopted; Proposed until an implementation reads it. Supersedes the choice of phase by
+digest alone and the per-digest state directory of
+[decision 14](#14-setup-is-told-its-phase-install-sync-remove).
+
+## 16 — Dependencies by default, in shared, named or isolated environments
+
+**Decision:** `lib/python/requirements.txt` and `lib/node/package.json` are installed by default, at
+`install` and every `sync`, before setup; `[defaults] deps = false` turns both off, and a
+`runtime.python` variant naming `requirements` or `lock`, or a `runtime.node` variant naming
+`package`, replaces the default file. A requirements file with a `--hash` on every requirement is
+pinned, and one with some is refused; a `package.json` is pinned by the `package-lock.json` beside
+it (`npm ci`), otherwise installed with `npm install`. An unpinned file installs and is reported as
+`unlocked-dependencies`; every install is reported as `deps-network`. `lib/node/` is the Node.js
+library directory, on `NODE_PATH`, as `lib/python/` is on `PYTHONPATH`, each followed by the
+installed packages. Each runtime variant's `environment` chooses where packages go: `"shared"` (the
+default), the consumer's one environment for that runtime in the scope; a name, shared by the
+overlays choosing it; or `"isolated"`, the overlay's own. A shared or named environment is
+installed from every member's file in one run, in composition order; members pinning one package to
+different versions conflict, are reported with the package, and are not activated; the consumer
+never picks a version. Each install, sync and removal rebuilds the environment from the remaining
+members' files; a shared or named environment lives while an overlay uses it, an isolated one goes
+with its overlay. `lib/<runtime>/` with that ecosystem's manifest is kept for other runtimes.
+
+**Reason:** the owner ruled that `requirements.txt` in `lib/python/`, and each package manager's
+usual file, belong to the install, and that an unlocked file installs and is reported rather than
+being ignored, which overrides the earlier choice in [decision 12](#12-conventional-files-take-effect-by-default-until-defaults-turns-one-off)
+to install only from `runtime`. The owner then ruled that one environment per overlay downloads
+the same packages too often, so the default is the scope's shared environment, as dotagents keeps
+one per store, with a name or `isolated` to keep an overlay apart. Installing a shared environment
+in one run is what makes it fetch a package once and lets the package manager see every requirement
+together; a conflict blocks the overlays rather than picking a version, since either version would
+silently break one of them. Rebuilding, rather than uninstalling one overlay's packages, is the only
+way to take out exactly what no remaining file asks for: pip and npm uninstall a package but not the
+packages only it needed, and nothing records which overlay installed which. `pylock.toml` (PEP 751)
+is the standard Python lock format, but pip installs it only as an experiment, so hashes in the
+requirements file pin for now. npm reads one lock per install, so a shared Node.js environment of
+several overlays is unpinned and says so. The key is `environment`, not `env`, which already names
+environment variables; one `deps` key for every runtime, like `lib`, keeps an overlay that turned
+dependencies off that way when an edition adds a runtime.
 
 **Status:** adopted; Proposed until an implementation reads it.

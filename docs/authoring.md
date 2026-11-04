@@ -9,12 +9,14 @@ a consumer looks for them, and they work with no manifest:
 | --- | --- |
 | programs in `bin/` | puts `bin/` first on `PATH` |
 | Python modules in `lib/python/` | puts `lib/python/` first on `PYTHONPATH` |
+| Node.js modules in `lib/node/` | puts `lib/node/` first on `NODE_PATH` |
+| the packages they need in `lib/python/requirements.txt` or `lib/node/package.json` | installs them before setup, at every install and sync, and reports it |
 | always-on rules in `rules/<name>.md` | adds them to the always-on rules |
 | initial context in `CONTEXT.md` | adds it to the agent's first context |
 | a skill in `skills/<name>/SKILL.md` | offers the skill |
 | `NAME=value` lines in `env` | sets them in order, substituting `${NAME}` placeholders |
 | a script in `env.py` (or `.js`, `.ps1`, `.sh`, ...) | runs it to compute environment values, and reports it |
-| a script in `setup.py` (or `.ps1`, `.sh`, ...) | runs it with its phase (`install`, then `sync` for each new version, `remove`), with the network, and reports it |
+| a script in `setup.py` (or `.ps1`, `.sh`, ...) | runs it with its phase (`install` on the first add, `sync` on every sync, `remove`), with the network, and reports it |
 
 Other common paths are `kb/`, `references/`, `workflows/`, `setup/`, `env/` and `locks/`; they mean
 something when a field names them. A `local.env` is not part of an overlay: local overrides belong to
@@ -23,7 +25,7 @@ the user's or project's own configuration.
 ## Defaults and how to turn one off
 
 Each [default](spec/v0/package.md#defaults) stays on until you turn it off in `[defaults]`, one
-key each: `bin`, `lib`, `env`, `env_scripts`, `setup`, `context`, `skills`, `rules`.
+key each: `bin`, `lib`, `env`, `env_scripts`, `setup`, `deps`, `context`, `skills`, `rules`.
 
 ```toml
 [defaults]
@@ -107,11 +109,27 @@ YAML are optional. Do not add a format version: the edition belongs to the speci
   adds to another list variable, with the separator of each OS.
 - **Runtime**: the OSes, the commands that must exist, a minimum Python with a locked requirements
   file and its digest.
+- **Dependencies**: list packages in `lib/python/requirements.txt` and `lib/node/package.json`.
+  Pin them: a `--hash` on every requirement (`pip-compile --generate-hashes` writes one), and a
+  `package-lock.json` beside `package.json`; an unpinned file still installs, and is reported.
+  They go into the scope's shared environment, where every overlay's packages are installed
+  together, so two overlays pinning one package to two versions both fail to activate. To keep
+  yours apart, choose a name several overlays share, or `isolated`:
+
+  ```toml
+  [[runtime.python]]
+  environment = "isolated"
+  ```
+
+  An ES module reads a package from `NODE_PATH` through `createRequire(import.meta.url)`.
 - **Setup**: a script per OS with its interpreter, a timeout, and whether it needs the network.
-  Setup writes into `$AOS_OVERLAY_STATE`, never into the overlay. Its first argument (and
-  `$AOS_SETUP_PHASE`) is the phase: `install`, `sync` after an update, `remove` before the overlay
-  and its state are deleted. Do nothing, successfully, for a phase you do not know; a script that
-  ignores the phase still works, and returns early on `remove` if its setup is slow:
+  Setup writes into `$AOS_OVERLAY_STATE`, never into the overlay; that directory is kept from one
+  sync to the next. Its first argument (and `$AOS_SETUP_PHASE`) is the phase: `install` on the
+  first add, `sync` on every sync (also when nothing changed, and when the user asks to run setup
+  again), `remove` before the overlay and its state are deleted. Make `sync` cheap when there is
+  nothing to do, and update the state in place so a failure leaves the old state usable. Do
+  nothing, successfully, for a phase you do not know; a script that ignores the phase still
+  works, and returns early on `remove` if its setup is slow:
 
   ```sh
   case "${1:-}" in
@@ -121,8 +139,9 @@ YAML are optional. Do not add a format version: the edition belongs to the speci
   esac
   ```
 
-Each of these is a weakening when it loosens a default (network for setup, reading the host's
-environment, unlocked dependencies, no timeout), and consumers report it. Declare only what you need.
+Each of these is a weakening when it loosens a default (network for setup or for installing
+dependencies, reading the host's environment, unlocked dependencies, no timeout), and consumers
+report it. Declare only what you need.
 
 ## Skills and commands
 

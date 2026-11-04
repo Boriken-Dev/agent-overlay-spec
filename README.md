@@ -25,7 +25,9 @@ consumer pins the whole tree by one digest. See the
 - **Environment as data.** Plain values, paths inside the overlay, secret references by name and
   provider (never a value), env files, and `PATH`-style additions with a defined separator.
 - **Setup and runtime, declared.** A named interpreter per OS, a timeout with a default, a network
-  need, a minimum runtime version and a lockfile.
+  need, a minimum runtime version and a lockfile; packages from `lib/python/requirements.txt` and
+  `lib/node/package.json` in shared, named or isolated environments; setup told its phase on
+  every add, sync and removal.
 - **Integrity.** A canonical tree digest with test vectors, a source and pin form, and weakenings
   an implementation must report rather than apply silently.
 - **Conformance vectors as data**, so implementations in any language test against the same files.

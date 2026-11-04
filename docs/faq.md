@@ -29,8 +29,10 @@ language reads it. `$NAME` in a string is those characters.
 ## Does AOS run setup scripts or install dependencies?
 
 The format declares them; a consumer decides. Running setup is a trust decision, happens outside
-the agent's sandbox in three phases (`install` once, `sync` per new digest, `remove`), and is
-bounded by a timeout.
+the agent's sandbox in three phases (`install` on the first add, `sync` on every sync, `remove`),
+and is bounded by a timeout. Dependencies in `lib/python/requirements.txt` and
+`lib/node/package.json` install before setup, into an environment shared in the scope unless the
+overlay names one or asks for its own.
 
 ## Where do secrets go?
 
@@ -52,8 +54,8 @@ consumer reports.
 Rename `overlay.toml` to `overlay.cfg`. `bin/`, `skills/`, `CONTEXT.md`, `env.py` and `setup.py`
 keep working by default, and Python modules move from `lib/` to `lib/python/`. Three more things
 change: a plain `env` file is read as `dotenv`, with `${NAME}` substituted,
-rather than sourced by bash, `pre.env` files and `requirements.txt` mean nothing by name (declare
-dependencies in `runtime`), and a `bin/*.py` becomes a command only through `[scripts]`. See
+rather than sourced by bash, `pre.env` files mean nothing by name, a root `requirements.txt` moves
+to `lib/python/requirements.txt`, and a `bin/*.py` becomes a command only through `[scripts]`. See
 [Compatibility](compatibility.md).
 
 ## Does an overlay run code without a manifest?
