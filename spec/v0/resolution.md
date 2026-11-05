@@ -19,7 +19,9 @@ that a later file replaces an earlier one unless their own policy says so.
 A reader reports malformed documents and invalid fields. A read-only consumer MAY still expose an
 overlay's files when its manifest is invalid, provided it says that it ignored the manifest. A
 consumer MUST NOT apply any declaration of a manifest it could not read and validate: no setup, no
-environment, no MCP server, no command. Problems under `about` alone do not count: it is
+environment, no MCP server, no command. That holds for an overlay with
+[both manifests](manifest.md), and for an `OVERLAY.md` a [gate refuses](manifest.md#the-split), whose
+body does not become context either. Problems under `about` alone do not count: it is
 [informational only](catalog.md#informational-only).
 
 > **Status:** dotagents ignores an unreadable `overlay.toml` as a whole for contributions, replaces

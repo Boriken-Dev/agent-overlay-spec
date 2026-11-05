@@ -20,15 +20,17 @@ MANIFEST_FREE = ("minimal", "bin-only", "conventions")
 
 
 def example_roots() -> "list[Path]":
-    """Every example overlay: a directory holding overlay.cfg, plus the manifest-free ones."""
-    roots = {path.parent for path in EXAMPLES.rglob("overlay.cfg")}
+    """Every example overlay: a directory holding a manifest, plus the manifest-free ones."""
+    roots = {path.parent for name in aos.MANIFEST_FILES for path in EXAMPLES.rglob(name)}
     roots.update(EXAMPLES / name for name in MANIFEST_FREE)
     return sorted(roots)
 
 
 def manifest_of(root: Path) -> dict:
-    path = root / "overlay.cfg"
-    return aos.read_document(path.read_bytes()) if path.is_file() else {}
+    files = {
+        name: (root / name).read_bytes() for name in aos.MANIFEST_FILES if (root / name).is_file()
+    }
+    return aos.read_overlay(files)["manifest"]
 
 
 @pytest.mark.parametrize("root", example_roots(), ids=lambda p: p.relative_to(EXAMPLES).as_posix())
@@ -149,6 +151,21 @@ def test_one_manifest_in_three_formats_reads_the_same():
     assert toml == as_json == as_yaml
 
 
+def test_one_manifest_as_front_matter_reads_as_overlay_cfg():
+    """Every field reads the same whichever file carries it, and in whichever format."""
+    for name, line in (
+        ("complete.cfg", "#!toml\n"),
+        ("complete-json.cfg", ""),
+        ("complete-yaml.cfg", ""),
+    ):
+        text = (FIXTURES / "valid" / name).read_bytes().decode("utf-8")
+        wrapped = "---\n" + line + text + "---\nBody.\n"
+        expected = aos.read_document(text.encode("utf-8"))
+        found = aos.read_front_matter(wrapped.encode("utf-8"))
+        assert found["case"] == "mapping", found
+        assert found["data"] == expected
+
+
 INVALID = json.loads((FIXTURES / "invalid" / "expect.json").read_text(encoding="utf-8"))
 
 
@@ -248,6 +265,20 @@ def test_a_registry_is_a_catalog_in_the_minimal_form(name):
     assert catalog["form"] == "minimal"
     assert catalog["refused"] == [] and catalog["ignored"] == []
     assert sorted(catalog["entries"]) == ["engineering", "python-review"]
+
+
+def test_the_example_overlay_md_reads_as_its_overlay_cfg_twin_would():
+    root = EXAMPLES / "overlay-md"
+    files = {path: (root / path).read_bytes() for path in aos.tree_files(root)}
+    read = aos.read_overlay(files)
+    assert read["manifest_file"] == "OVERLAY.md"
+    assert read["context"] == ["OVERLAY.md", "kb/style.md"]
+    assert read["context_ignored"] == []
+    assert not read["issues"]
+    assert read["manifest"]["name"] == "release-notes-md"
+    assert read["manifest"]["about"]["summary"]
+    body = aos.split_front_matter(files["OVERLAY.md"])
+    assert files["OVERLAY.md"][body["body_offset"] :].strip()
 
 
 def test_the_example_catalog():

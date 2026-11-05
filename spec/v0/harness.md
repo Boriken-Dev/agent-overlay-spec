@@ -12,23 +12,26 @@ orchestrator).
 context = ["CONTEXT.md", "kb/glossary.md"]
 ```
 
-The `context` [default](package.md#defaults), `CONTEXT.md` at the overlay root when present, comes
-first; the listed files follow, and listing `CONTEXT.md`, as the example above does, puts it at its
-listed place instead. `[defaults] context = false` turns the default off.
+The `context` [default](package.md#defaults) comes first: the [body](manifest.md#overlaymd) of
+`OVERLAY.md` when it has one, otherwise `CONTEXT.md` at the overlay root when present. The listed files
+follow, and listing the default's file, as the example above does, puts it at its listed place instead.
+`[defaults] context = false` turns the default off.
 
 Each entry is a [relative path](manifest.md#fields) to a UTF-8 text file that MUST exist. A consumer
 adds the files overlay by overlay in [composition order](composition.md#deterministic-ordering),
-after the base context it starts from. A leading front matter block is not context and is dropped:
-after an optional byte-order mark, a first line that is `---`, up to the next line that is `---` or
-`...` (line ends `LF` or `CRLF`). Without that closing line there is no front matter. A consumer MAY bound the total size by a setting, and refuses with that setting's
-name when the bound is passed, rather than cutting text silently.
+after the base context it starts from. A leading front matter block, as [the split](manifest.md#the-split)
+finds it, is not context and is dropped, unread: a block that would not parse or names an unknown format
+is dropped the same, since no field of a context file is applied. Without a closing fence there is no
+block, and all of the file is context. A head past the split's [bound](manifest.md#bounds) is refused
+with that setting's name, never cut, and a consumer MAY bound the total size of the context by another
+setting, likewise.
 
 An operator chose to give the overlay to the agent, so the text is instruction, not fenced data; a
 consumer still marks where each file came from.
 
-> **Status:** dotagents adds the overlay root's `CONTEXT.md`, the `context` default, to the context
-> it assembles, without its front matter, and expands `<NAME>_OVERLAY_ROOT` placeholders in output
-> that is not written to a file. It does not read `context`.
+> **Status:** dotagents adds the overlay root's `CONTEXT.md` to the context it assembles, without its
+> front matter, and expands `<NAME>_OVERLAY_ROOT` placeholders in output that is not written to a file.
+> It reads neither `context` nor the body of an `OVERLAY.md`.
 
 ## Harness hints
 

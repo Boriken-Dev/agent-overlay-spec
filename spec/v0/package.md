@@ -1,7 +1,8 @@
 # Package format
 
-**Core.** An overlay is a directory tree. It MAY contain `overlay.cfg`; assets do not need a
-manifest, and the conventional paths take effect without one.
+**Core.** An overlay is a directory tree. It MAY contain a [manifest](manifest.md), `OVERLAY.md` or
+`overlay.cfg` and never both; assets do not need one, and the conventional paths take effect without
+one.
 
 ## Layout
 
@@ -10,7 +11,8 @@ means something only when a field names it.
 
 | Path | Meaning |
 |---|---|
-| `overlay.cfg` | Optional manifest: metadata and declarations |
+| `OVERLAY.md` | Optional manifest as front matter, and the overlay's context as its body |
+| `overlay.cfg` | Optional manifest as a document of its own, refused beside `OVERLAY.md` |
 | `bin/`, `lib/python/`, `lib/node/` | Programs, Python modules and Node.js modules, on `PATH`, `PYTHONPATH` and `NODE_PATH` by default |
 | `lib/python/requirements.txt`, `lib/node/package.json` | The overlay's [dependencies](runtime.md#dependencies), installed by default |
 | `rules/<name>.md`, `CONTEXT.md` | Always-on rules and initial context, by default |
@@ -43,7 +45,7 @@ manifest declares adds to the defaults.
 | `env_scripts` | one `env.<ext>` at the root, [chosen by runtime](runtime.md#default-scripts) | [`env_scripts`](environment.md#env-scripts) | Optional Extension |
 | `setup` | one `setup.<ext>` at the root, chosen the same way, taken to need the network | [`setup`](runtime.md#setup) | Optional Extension |
 | `deps` | `lib/python/requirements.txt` and `lib/node/package.json` installed at `install` and `sync`, before setup | [`runtime`](runtime.md#dependencies) | Optional Extension, **Proposed** |
-| `context` | `CONTEXT.md` at the root | [`context`](harness.md#context) | Optional Extension |
+| `context` | the [body](manifest.md#overlaymd) of `OVERLAY.md` when it has one, otherwise `CONTEXT.md` at the root | [`context`](harness.md#context) | Optional Extension |
 | `skills` | every `skills/<name>/SKILL.md` whose `<name>` is a skill name | [`skills`](skills.md#declaring-skills) | Optional Extension |
 | `rules` | every `rules/<name>.md` directly in `rules/`, ordered by path bytes | [`rules`](composition.md#merging) | Core, **Proposed** |
 
@@ -83,9 +85,10 @@ match, that file or directory does not apply at all.
 - `paths`: an entry whose `path` is `bin`, `lib/python` or `lib/node` replaces that default
   addition, whatever its variable. Other entries are added after the defaults, so declaring another directory keeps
   `bin/` on `PATH`.
-- `rules`, `context`, `env_files`: an entry naming the same file replaces that default entry.
-- `skills`: the listed skills are added to the ones found. With `skills = false` in `defaults`, the
-  list is exactly the skills the overlay offers.
+- `rules`, `context`, `env_files`: an entry naming the same file replaces that default entry. Naming
+  `OVERLAY.md` in `context` names its body.
+- `skills`: the listed skills, [bundled, named or sourced](skills.md#declaring-skills), are added to the
+  ones found. With `skills = false` in `defaults`, the list is exactly the skills the overlay offers.
 - `env_scripts`, `setup`: an entry naming a root `env.<ext>` or `setup.<ext>` configures that file in
   the [default choice](runtime.md#default-scripts). The file keeps its place in the order, takes the
   entry's interpreter, arguments, timeout, `os` and (for setup) `network`, and runs only if it is

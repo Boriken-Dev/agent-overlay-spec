@@ -1,14 +1,23 @@
 # Terminology
 
-**Overlay**: a directory of agent configuration assets and, optionally, an `overlay.cfg` manifest.
+**Overlay**: a directory of agent configuration assets and, optionally, a manifest.
 
 **Overlay root**: the overlay's top directory. Relative paths are resolved from it.
 
 **Identity**: the name a consumer installs an overlay under, compared normalized.
 
-**Manifest**: the optional document `overlay.cfg` at the overlay root.
+**Manifest**: the optional metadata at the overlay root: the front matter of `OVERLAY.md`, or the
+document `overlay.cfg`, never both.
 
-**Format line**: a first line starting `#!` that names the manifest's format.
+**Front matter**: a block at the start of a Markdown document between a `---` line and the next `---` or
+`...` line, split from the rest as [Manifest](manifest.md#the-split) says.
+
+**Body**: the bytes of a document after its front matter.
+
+**Viewer**, **gate**: a viewer shows a document to a person; a gate applies or validates it, and refuses
+what a viewer would still show.
+
+**Format line**: a first line starting `#!` that names a document's format, or its front matter's.
 
 **Data model**: the value a manifest reads as, the same whatever its format.
 
@@ -77,7 +86,7 @@ not require it.
 An implementation states which of these it claims; see [Conformance](conformance.md):
 
 1. **Read-only consumer**: lists and reads overlay files without changing them.
-2. **Manifest reader**: reads `overlay.cfg` into the data model and validates it.
+2. **Manifest reader**: reads `OVERLAY.md` and `overlay.cfg` into the data model and validates them.
 3. **Environment**: builds an environment from `env`, `env_files`, `paths` and root variables.
 4. **Runtime and setup**: probes runtimes and runs setup.
 5. **Integrity**: computes tree digests and enforces pins.

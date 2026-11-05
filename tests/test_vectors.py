@@ -39,6 +39,7 @@ def test_every_vector_file_is_run():
         "compose.json",
         "effective.json",
         "catalog.json",
+        "front_matter.json",
     }
     assert {path.name for path in VECTORS.glob("*.json")} == run
 
@@ -184,3 +185,89 @@ def test_catalog(case):
         except aos.ReadError as error:
             got = {"error": error.code}
     assert strict(json.loads(json.dumps(got))) == strict(case["expect"])
+
+
+FRONT_MATTER = cases("front_matter.json")
+
+
+def document_bytes(case: dict) -> bytes:
+    if "parts" in case:
+        return "".join(text * times for text, times in case["parts"]).encode("utf-8")
+    if "base64" in case:
+        return base64.b64decode(case["base64"])
+    return case["text"].encode("utf-8")
+
+
+def slice_of(expect: dict, key: str, data: bytes) -> None:
+    """A slice of the input, against how the vector gives it: text, base64 or its size."""
+    if key + "_size" in expect:
+        assert len(data) == expect[key + "_size"]
+    elif key + "_base64" in expect:
+        assert data == base64.b64decode(expect[key + "_base64"])
+    else:
+        assert data == expect[key].encode("utf-8")
+
+
+def check_document(case: dict) -> None:
+    data = document_bytes(case)
+    found = aos.read_front_matter(data, **case.get("limits", {}))
+    expect = case["expect"]
+    assert found["case"] == expect["case"]
+    for key in ("metadata_offset", "metadata_line", "body_offset", "body_line", "format"):
+        assert found.get(key) == expect.get(key), key
+    allowed = expect.get("error")
+    allowed = allowed if isinstance(allowed, list) else [allowed]
+    assert found.get("error") in allowed
+    if "line" in expect:
+        assert found["line"] == expect["line"]
+    if "metadata_offset" in expect:
+        slice_of(expect, "metadata", found["metadata"])
+    if "body_offset" in expect:
+        slice_of(expect, "body", data[expect["body_offset"] :])
+    if "data" in expect:
+        assert strict(found["data"]) == strict(expect["data"])
+    else:
+        assert "data" not in found
+
+
+def check_context_file(case: dict) -> None:
+    data = case["context_file"].encode("utf-8")
+    try:
+        got = {"text": aos.context_file_text(data, **case.get("limits", {})).decode("utf-8")}
+    except aos.ReadError as error:
+        got = {"error": error.code}
+    assert got == case["expect"]
+
+
+def check_overlay(case: dict) -> None:
+    files = {
+        path: (
+            base64.b64decode(value["base64"]) if isinstance(value, dict) else value.encode("utf-8")
+        )
+        for path, value in case["files"].items()
+    }
+    expect = case["expect"]
+    if "error" in expect:
+        with pytest.raises(aos.ReadError) as raised:
+            aos.read_overlay(files, **case.get("limits", {}))
+        assert raised.value.code == expect["error"]
+        if "line" in expect:
+            assert raised.value.line == expect["line"]
+        return
+    got = aos.read_overlay(files, **case.get("limits", {}))
+    got["applies"] = aos.applies(aos.validate(got["manifest"], set(files)))
+    if "digest" in expect:
+        got["digest"] = aos.digest_entries(
+            [((path.encode("utf-8"),), "file", value) for path, value in files.items()]
+        )[0]
+    assert strict(got) == strict(expect)
+
+
+@pytest.mark.parametrize("case", FRONT_MATTER, ids=ids(FRONT_MATTER))
+def test_front_matter(case):
+    if "files" in case:
+        check_overlay(case)
+    elif "context_file" in case:
+        check_context_file(case)
+    else:
+        check_document(case)

@@ -1352,6 +1352,19 @@
       }
     },
     {
+      "id": "two-manifests",
+      "description": "A validator that knows the files refuses OVERLAY.md beside overlay.cfg.",
+      "document": {},
+      "files": [
+        "OVERLAY.md",
+        "overlay.cfg"
+      ],
+      "expect": {
+        "valid": false,
+        "at": ""
+      }
+    },
+    {
       "id": "files-missing-rule",
       "description": "A rules file that does not exist.",
       "document": {
@@ -1363,22 +1376,6 @@
       "expect": {
         "valid": false,
         "at": "/rules/0"
-      }
-    },
-    {
-      "id": "files-missing-skill",
-      "description": "A listed skill without SKILL.md.",
-      "document": {
-        "skills": [
-          "k"
-        ]
-      },
-      "files": [
-        "skills/k/README.md"
-      ],
-      "expect": {
-        "valid": false,
-        "at": "/skills/0"
       }
     },
     {
@@ -2135,6 +2132,22 @@
       "expect": {
         "valid": false,
         "at": "/defaults"
+      }
+    },
+    {
+      "id": "files-missing-skill",
+      "description": "A listed skill without SKILL.md.",
+      "document": {
+        "skills": [
+          "k"
+        ]
+      },
+      "files": [
+        "skills/k/README.md"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
       }
     },
     {

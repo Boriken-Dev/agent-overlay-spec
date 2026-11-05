@@ -37,10 +37,19 @@ _SAFE_FORMAT_NAME = re.compile(r"^[A-Za-z0-9._-]+$")
 class ReadError(Exception):
     """A document AOS refuses. ``code`` is the vectors' error class."""
 
-    def __init__(self, code: str, detail: str = ""):
+    def __init__(
+        self,
+        code: str,
+        detail: str = "",
+        line: "Optional[int]" = None,
+        column: "Optional[int]" = None,
+    ):
         super().__init__("%s: %s" % (code, detail) if detail else code)
         self.code = code
         self.detail = detail
+        #: Where in the document, from 1, when the reader knows: the first line of the file is 1.
+        self.line = line
+        self.column = column
 
 
 # --------------------------------------------------------------------------------------------
@@ -52,8 +61,14 @@ def select_format(data: bytes) -> "tuple[str, bytes]":
     """The format name a document selects and the bytes its parser is given."""
     if data.startswith(b"\xef\xbb\xbf"):
         data = data[3:]
+    return _format_line(data, "toml")
+
+
+def _format_line(data: bytes, default: str) -> "tuple[str, bytes]":
+    """A first line ``#!`` names the format; otherwise ``default``. A byte-order mark is not
+    dropped here: where the parser's text starts it is an error."""
     if not data.startswith(b"#!"):
-        return "toml", data
+        return default, data
     end = data.find(b"\n")
     line, rest = (data[2:], b"") if end < 0 else (data[2:end], data[end + 1 :])
     try:
@@ -77,10 +92,17 @@ def read_document(
     if len(data) > max_bytes:
         raise ReadError("too-large")
     name, payload = select_format(data)
+    return _parse(_known_format(name), payload, max_depth)
+
+
+def _known_format(name: str) -> str:
     if name not in FORMATS:
         shown = name if _SAFE_FORMAT_NAME.match(name) else "(not shown)"
         raise ReadError("unsupported-format", shown)
-    return _parse(FORMATS[name], payload, max_depth)
+    return FORMATS[name]
+
+
+_TOML_POSITION = re.compile(r"at line (\d+), column (\d+)")
 
 
 def _parse(kind: str, payload: bytes, max_depth: int) -> "dict[str, Any]":
@@ -90,18 +112,28 @@ def _parse(kind: str, payload: bytes, max_depth: int) -> "dict[str, Any]":
     except UnicodeDecodeError:
         raise ReadError("invalid-utf8")
     if text.startswith("﻿"):
-        raise ReadError("parse-error", "a byte-order mark where the document starts")
+        raise ReadError("parse-error", "a byte-order mark where the document starts", 1, 1)
     if not text.strip(" \t\r\n"):
         return {}
-    if kind == "toml":
-        try:
-            value = tomllib.loads(text)
-        except tomllib.TOMLDecodeError as error:
-            raise ReadError("parse-error", str(error))
-    elif kind == "json":
-        value = _read_json(text)
-    else:
-        value = _read_yaml(text)
+    try:
+        if kind == "toml":
+            try:
+                value = tomllib.loads(text)
+            except tomllib.TOMLDecodeError as error:
+                at = _TOML_POSITION.search(str(error))
+                raise ReadError(
+                    "parse-error",
+                    str(error),
+                    int(at.group(1)) if at else None,
+                    int(at.group(2)) if at else None,
+                )
+        elif kind == "json":
+            value = _read_json(text)
+        else:
+            value = _read_yaml(text, max_depth)
+    except RecursionError:
+        # A parser that recurses on its input stops here, however deep the text goes.
+        raise ReadError("too-deep")
     if not isinstance(value, dict):
         raise ReadError("not-a-mapping")
     _check_model(value, 1, max_depth)
@@ -123,7 +155,7 @@ def _read_json(text: str) -> Any:
     try:
         return json.loads(text, object_pairs_hook=pairs, parse_constant=constant)
     except json.JSONDecodeError as error:
-        raise ReadError("parse-error", str(error))
+        raise ReadError("parse-error", str(error), error.lineno, error.colno)
 
 
 _YAML_INT = re.compile(r"^[-+]?[0-9]+$")
@@ -158,20 +190,24 @@ def _yaml_scalar(event: "yaml.ScalarEvent") -> Any:
     return value
 
 
-def _read_yaml(text: str) -> Any:
-    """One YAML document, built from parser events so no tag, anchor or merge key is applied."""
-    if any(c in text for c in "\x85  "):
+def _read_yaml(text: str, max_depth: int = DEFAULT_MAX_DEPTH) -> Any:
+    """One YAML document, built from parser events so no tag, anchor or merge key is applied.
+
+    Events are taken one at a time, so a refusal comes at the first node that earns it, before
+    the rest of the document is parsed and with nothing expanded.
+    """
+    if any(c in text for c in "\x85\u2028\u2029"):
         raise ReadError("parse-error", "a Unicode line break YAML 1.1 and 1.2 read differently")
-    try:
-        events = list(yaml.parse(text, Loader=yaml.SafeLoader))
-    except yaml.YAMLError as error:
-        raise ReadError("parse-error", str(error).splitlines()[0])
     stack: "list[Any]" = []
     keys: "list[Optional[str]]" = []
     root: Any = None
     documents = 0
 
-    def add(value: Any) -> None:
+    def refuse(code: str, event: Any, detail: str = "") -> ReadError:
+        mark = event.start_mark
+        return ReadError(code, detail, mark.line + 1, mark.column + 1)
+
+    def add(value: Any, event: Any) -> None:
         nonlocal root
         if not stack:
             root = value
@@ -181,44 +217,54 @@ def _read_yaml(text: str) -> Any:
             top.append(value)
         elif keys[-1] is None:
             if not isinstance(value, str):
-                raise ReadError("non-string-key")
+                raise refuse("non-string-key", event)
             if value == "<<":
-                raise ReadError("yaml-merge-key")
+                raise refuse("yaml-merge-key", event)
             if value in top:
-                raise ReadError("duplicate-key", value)
+                raise refuse("duplicate-key", event, value)
             keys[-1] = value
         else:
             top[keys[-1]] = value
             keys[-1] = None
 
-    for event in events:
-        if isinstance(event, yaml.AliasEvent):
-            raise ReadError("yaml-anchor", "alias")
-        if getattr(event, "anchor", None) is not None:
-            raise ReadError("yaml-anchor", "anchor")
-        if getattr(event, "tag", None) is not None:
-            raise ReadError("yaml-tag")
-        if isinstance(event, yaml.DocumentStartEvent):
-            if event.version is not None or event.tags:
-                raise ReadError("yaml-directive")
-            documents += 1
-            if documents > 1:
-                raise ReadError("parse-error", "more than one document")
-        elif isinstance(event, yaml.ScalarEvent):
-            add(_yaml_scalar(event))
-        elif isinstance(event, yaml.SequenceStartEvent):
-            value: Any = []
-            add(value)
-            stack.append(value)
-            keys.append(None)
-        elif isinstance(event, yaml.MappingStartEvent):
-            value = {}
-            add(value)
-            stack.append(value)
-            keys.append(None)
-        elif isinstance(event, (yaml.SequenceEndEvent, yaml.MappingEndEvent)):
-            stack.pop()
-            keys.pop()
+    try:
+        for event in yaml.parse(text, Loader=yaml.SafeLoader):
+            if isinstance(event, yaml.AliasEvent):
+                raise refuse("yaml-anchor", event, "alias")
+            if getattr(event, "anchor", None) is not None:
+                raise refuse("yaml-anchor", event, "anchor")
+            if getattr(event, "tag", None) is not None:
+                raise refuse("yaml-tag", event)
+            if isinstance(event, yaml.DocumentStartEvent):
+                if event.version is not None or event.tags:
+                    raise refuse("yaml-directive", event)
+                documents += 1
+                if documents > 1:
+                    raise refuse("parse-error", event, "more than one document")
+            elif isinstance(event, yaml.ScalarEvent):
+                try:
+                    scalar = _yaml_scalar(event)
+                except ReadError as error:
+                    raise refuse(error.code, event)
+                add(scalar, event)
+            elif isinstance(event, (yaml.SequenceStartEvent, yaml.MappingStartEvent)):
+                if len(stack) + 1 > max_depth:
+                    raise refuse("too-deep", event)
+                value: Any = [] if isinstance(event, yaml.SequenceStartEvent) else {}
+                add(value, event)
+                stack.append(value)
+                keys.append(None)
+            elif isinstance(event, (yaml.SequenceEndEvent, yaml.MappingEndEvent)):
+                stack.pop()
+                keys.pop()
+    except yaml.YAMLError as error:
+        mark = getattr(error, "problem_mark", None)
+        raise ReadError(
+            "parse-error",
+            str(error).splitlines()[0],
+            mark.line + 1 if mark else None,
+            mark.column + 1 if mark else None,
+        )
     return {} if documents == 0 or root is None else root
 
 
@@ -256,6 +302,192 @@ def _check_model(value: Any, depth: int, max_depth: int) -> None:
         return
     # TOML dates and times, and anything else a parser may produce.
     raise ReadError("datetime-value" if hasattr(value, "isoformat") else "unsupported-value")
+
+
+# --------------------------------------------------------------------------------------------
+# Front matter: OVERLAY.md, and the leading block of a context file or a SKILL.md.
+# --------------------------------------------------------------------------------------------
+
+BYTE_ORDER_MARK = b"\xef\xbb\xbf"
+WHITE_SPACE = b" \t\r\n"
+_FENCES = (b"---", b"...")
+
+
+def _fence(line: bytes, ended: bool) -> "Optional[bytes]":
+    """``---`` or ``...`` when the line is one. ``line`` excludes its LF; ``ended`` says one
+    followed, since a CR is part of a line end only before a LF."""
+    if ended and line.endswith(b"\r"):
+        line = line[:-1]
+    line = line.rstrip(b" \t")
+    return line if line in _FENCES else None
+
+
+def _may_open(head: bytes) -> bool:
+    """Whether a first line cut off at the bound could still be an opening fence."""
+    tail = head[3:]
+    if tail.endswith(b"\r"):
+        tail = tail[:-1]
+    return b"---".startswith(head[:3]) and not tail.strip(b" \t")
+
+
+def split_front_matter(data: bytes, *, max_bytes: int = DEFAULT_MAX_BYTES) -> "dict[str, Any]":
+    """Splits a document's bytes without parsing or changing them.
+
+    ``case`` is ``none``, ``unterminated``, ``too-large``, ``empty`` or ``present``. Offsets count
+    from the first byte of the file; ``max_bytes`` bounds the head, from after a byte-order mark
+    through the closing fence's line end, and nothing past it is read.
+    """
+    start = 3 if data.startswith(BYTE_ORDER_MARK) else 0
+    limit = start + max_bytes
+    whole = {"body_offset": start, "body_line": 1}
+    end = data.find(b"\n", start, limit)
+    if end < 0 and len(data) > limit:
+        if _may_open(data[start:limit]):
+            return {"case": "too-large"}
+        return dict(whole, case="none")
+    first = data[start:] if end < 0 else data[start:end]
+    if _fence(first, end >= 0) != b"---":
+        return dict(whole, case="none")
+    if end < 0:
+        return dict(whole, case="unterminated")
+    metadata_offset = at = end + 1
+    while True:
+        lf = data.find(b"\n", at, limit)
+        if lf < 0:
+            if len(data) > limit:
+                return {"case": "too-large"}
+            if _fence(data[at:], False) is None:
+                return dict(whole, case="unterminated")
+            body_offset = len(data)
+        elif _fence(data[at:lf], True) is None:
+            at = lf + 1
+            continue
+        else:
+            body_offset = lf + 1
+        metadata = data[metadata_offset:at]
+        return {
+            "case": "present" if metadata.strip(WHITE_SPACE) else "empty",
+            "metadata": metadata,
+            "metadata_offset": metadata_offset,
+            "metadata_line": 2,
+            "body_offset": body_offset,
+            "body_line": 1 + data.count(b"\n", start, body_offset),
+        }
+
+
+def read_front_matter(
+    data: bytes, *, max_bytes: int = DEFAULT_MAX_BYTES, max_depth: int = DEFAULT_MAX_DEPTH
+) -> "dict[str, Any]":
+    """The split, then the metadata read: YAML unless its first line names another format.
+
+    ``case`` tells apart ``none``, ``unterminated``, ``too-large``, ``empty``, ``unknown-format``,
+    ``does-not-parse``, ``not-a-mapping`` and ``mapping``, so a viewer can show the text. ``error``
+    and ``line`` are what a gate refuses with; ``data`` is the manifest where there is one.
+    """
+    found = split_front_matter(data, max_bytes=max_bytes)
+    case = found["case"]
+    if case in ("none", "empty"):
+        return dict(found, data={})
+    if case == "unterminated":
+        return dict(found, error="unterminated-front-matter", line=1)
+    if case == "too-large":
+        return dict(found, error="too-large", line=1)
+    metadata = found["metadata"]
+    first_line = found["metadata_line"]
+    named = metadata.startswith(b"#!")
+    try:
+        name, payload = _format_line(metadata, "yaml")
+        kind = _known_format(name)
+        found["format"] = kind
+        parsed = _parse(kind, payload, max_depth)
+    except ReadError as error:
+        if error.code in ("unsupported-format", "no-format-named"):
+            case = "unknown-format"
+        elif error.code == "not-a-mapping":
+            case = "not-a-mapping"
+        else:
+            case = "does-not-parse"
+        line = first_line + (1 if named else 0) + error.line - 1 if error.line else first_line
+        return dict(found, case=case, error=error.code, line=line)
+    if not payload.strip(WHITE_SPACE):
+        return dict(found, case="empty", data=parsed)
+    return dict(found, case="mapping", data=parsed)
+
+
+MANIFEST_FILES = ("OVERLAY.md", "overlay.cfg")
+
+
+def _as_bytes(value: Any) -> bytes:
+    return value if isinstance(value, bytes) else value.encode("utf-8")
+
+
+def _has_body(files: Any) -> bool:
+    """Whether the overlay's ``OVERLAY.md`` has a body. ``files`` holds the text of its files;
+    a bare list of paths says nothing about a body."""
+    if not isinstance(files, dict) or "OVERLAY.md" not in files:
+        return False
+    data = _as_bytes(files["OVERLAY.md"])
+    # The bound was a matter for reading the manifest; this only looks for the body it found.
+    found = split_front_matter(data, max_bytes=len(data))
+    if found["case"] == "unterminated":
+        return False
+    return bool(data[found["body_offset"] :].strip(WHITE_SPACE))
+
+
+def read_overlay(
+    files: "dict[str, Any]",
+    *,
+    max_bytes: int = DEFAULT_MAX_BYTES,
+    max_depth: int = DEFAULT_MAX_DEPTH,
+) -> "dict[str, Any]":
+    """What a gate reads from an overlay's files, by relative path: the manifest, the file it came
+    from, the context entries, the context files it ignores, and the problems of the manifest."""
+    present = [name for name in MANIFEST_FILES if name in files]
+    if len(present) > 1:
+        raise ReadError("two-manifests", "OVERLAY.md and overlay.cfg")
+    manifest: "dict[str, Any]" = {}
+    body = b""
+    body_line = 1
+    if present == ["overlay.cfg"]:
+        manifest = read_document(
+            _as_bytes(files["overlay.cfg"]), max_bytes=max_bytes, max_depth=max_depth
+        )
+    elif present:
+        data = _as_bytes(files["OVERLAY.md"])
+        found = read_front_matter(data, max_bytes=max_bytes, max_depth=max_depth)
+        if "error" in found:
+            raise ReadError(found["error"], "OVERLAY.md", found["line"])
+        manifest = found["data"]
+        body = data[found["body_offset"] :]
+        body_line = found["body_line"]
+    context = context_of(manifest, files)
+    if "OVERLAY.md" in context and _has_body(files):
+        try:
+            body.decode("utf-8")
+        except UnicodeDecodeError:
+            raise ReadError("invalid-utf8", "the body of OVERLAY.md", body_line)
+    result: "dict[str, Any]" = {
+        "manifest_file": present[0] if present else None,
+        "manifest": manifest,
+        "context": context,
+        "context_ignored": context_ignored(manifest, files),
+        "issues": [at for _code, at in validate(manifest, set(files))],
+    }
+    if isinstance(manifest.get("harness"), dict):
+        result["harness_context"] = {
+            harness: harness_context_of(manifest, harness, files)
+            for harness, hints in manifest["harness"].items()
+            if isinstance(hints, dict) and "context" in hints
+        }
+    return result
+
+
+def context_file_text(data: bytes, *, max_bytes: int = DEFAULT_MAX_BYTES) -> bytes:
+    """A context file's bytes as context: a closed block is dropped unread; the rest is kept."""
+    found = split_front_matter(data, max_bytes=max_bytes)
+    if found["case"] == "too-large":
+        raise ReadError("too-large", "front matter", 1)
+    return data[found["body_offset"] :]
 
 
 _DOTENV_LINE = re.compile(r"^[ \t]*(?:export[ \t]+)?([A-Za-z_][A-Za-z0-9_]*)[ \t]*=(.*)$")
@@ -803,6 +1035,8 @@ def _files(doc: "dict[str, Any]", files: "set[str]") -> "list[tuple[str, str]]":
         for index, name in enumerate(skills):
             if isinstance(name, str) and "skills/%s/SKILL.md" % name not in files:
                 found.append(("missing-skill", "/skills/%d" % index))
+    if "OVERLAY.md" in files and "overlay.cfg" in files:
+        found.append(("two-manifests", ""))
     mcp = doc.get("mcp")
     if isinstance(mcp, dict) and isinstance(mcp.get("skills"), list):
         for index, link in enumerate(mcp["skills"]):
@@ -1211,12 +1445,45 @@ def rules_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[str]":
     return _merge(found, _declared(manifest, "rules"))
 
 
+def _body_is_context(manifest: "dict[str, Any]", files: "Iterable[str]") -> bool:
+    if not _has_body(files):
+        return False
+    return default_on(manifest, "context") or "OVERLAY.md" in _declared(manifest, "context")
+
+
 def context_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[str]":
-    """The root ``CONTEXT.md``, then ``context``."""
+    """The body of ``OVERLAY.md`` or else the root ``CONTEXT.md``, then ``context``.
+
+    While a body is context, ``CONTEXT.md`` is not, wherever it is named.
+    """
     found = []
-    if default_on(manifest, "context") and "CONTEXT.md" in _members(files):
-        found = ["CONTEXT.md"]
-    return _merge(found, _declared(manifest, "context"))
+    if default_on(manifest, "context"):
+        if _has_body(files):
+            found = ["OVERLAY.md"]
+        elif "CONTEXT.md" in _members(files):
+            found = ["CONTEXT.md"]
+    merged = _merge(found, _declared(manifest, "context"))
+    if _body_is_context(manifest, files):
+        return [entry for entry in merged if entry != "CONTEXT.md"]
+    return merged
+
+
+def context_ignored(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[str]":
+    """The file a consumer reports as ignored because a body is the context instead."""
+    if _body_is_context(manifest, files) and "CONTEXT.md" in _members(files):
+        return ["CONTEXT.md"]
+    return []
+
+
+def harness_context_of(
+    manifest: "dict[str, Any]", harness: str, files: "Iterable[str]"
+) -> "list[str]":
+    """One harness's ``context``, without ``CONTEXT.md`` while a body is context."""
+    hints = manifest.get("harness", {}).get(harness, {})
+    listed = list(hints.get("context", []))
+    if _body_is_context(manifest, files):
+        return [entry for entry in listed if entry != "CONTEXT.md"]
+    return listed
 
 
 def skills_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[str]":

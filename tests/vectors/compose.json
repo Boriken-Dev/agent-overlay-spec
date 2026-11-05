@@ -631,6 +631,75 @@
       }
     },
     {
+      "id": "context-body-order",
+      "description": "An overlay's body stands where its CONTEXT.md would, in composition order.",
+      "overlays": {
+        "a": {
+          "priority": 100
+        },
+        "b": {
+          "priority": 200
+        },
+        "c": {
+          "priority": 300
+        }
+      },
+      "requested": [
+        "a",
+        "b",
+        "c"
+      ],
+      "files": {
+        "a": {
+          "CONTEXT.md": "a\n"
+        },
+        "b": {
+          "OVERLAY.md": "# b\n",
+          "CONTEXT.md": "ignored\n"
+        },
+        "c": {
+          "OVERLAY.md": "---\nname: c\n---\n \n",
+          "CONTEXT.md": "c\n"
+        }
+      },
+      "expect": {
+        "install_order": [
+          "a",
+          "b",
+          "c"
+        ],
+        "active": [
+          "a",
+          "b",
+          "c"
+        ],
+        "missing": [],
+        "root_variables": {
+          "a": "A_OVERLAY_ROOT",
+          "b": "B_OVERLAY_ROOT",
+          "c": "C_OVERLAY_ROOT"
+        },
+        "routing": [],
+        "rules": [],
+        "context": [
+          [
+            "a",
+            "CONTEXT.md"
+          ],
+          [
+            "b",
+            "OVERLAY.md"
+          ],
+          [
+            "c",
+            "CONTEXT.md"
+          ]
+        ],
+        "skills": {},
+        "skill_collisions": []
+      }
+    },
+    {
       "id": "env-across-overlays",
       "description": "Root variables first; then each overlay's env and paths in order: the later overlay wins and its prepends come first.",
       "overlays": {
