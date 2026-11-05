@@ -7,7 +7,7 @@
 
 **A vendor-neutral format for agent overlays: directories of instructions, skills, tools and
 environment that any agent manager can read without running anything.** An overlay declares what it
-needs (environment, path additions, setup, a runtime) as static data in `overlay.cfg`, and a
+needs (environment, path additions, setup, a runtime) as static data in `OVERLAY.md` or `overlay.cfg`, and a
 consumer pins the whole tree by one digest. See the
 [documentation](https://boriken-dev.github.io/agent-overlay-spec/).
 
@@ -18,8 +18,14 @@ consumer pins the whole tree by one digest. See the
 
 - **A directory is an overlay.** The manifest is optional; files keep their relative paths, and
   conventional ones (`bin/` on `PATH`, `skills/`, `env`, `setup.sh`) take effect by default.
-- **One data model, several syntaxes.** `overlay.cfg` is TOML unless its first line names another
-  format (`#!json`, `#!yaml`). Every reader reads TOML; nothing is guessed from content.
+- **One file, or a document of its own.** `OVERLAY.md` holds the manifest as front matter and the
+  overlay's context as its body, as `SKILL.md` does for a skill; `overlay.cfg` holds the same fields for
+  overlays written by tools. Both in one overlay is refused.
+- **One data model, several syntaxes.** Front matter is YAML and `overlay.cfg` is TOML unless a first
+  line names another format (`#!json`, `#!toml`, `#!yaml`). Every reader reads TOML and a restricted
+  YAML; nothing is guessed from content.
+- **Skills from where they live.** `skills` lists what an overlay offers: bundled, a name its consumer's
+  catalogs resolve, or a source with a pin, like `requirements.txt` without carrying copies.
 - **Static by rule.** Reading a manifest never executes, includes or interpolates anything, so a
   small parser in any language reads it.
 - **Environment as data.** Plain values, paths inside the overlay, secret references by name and
@@ -43,7 +49,20 @@ your implementation.
 ## Quick start
 
 The smallest overlay is a directory with one file, and a `bin/` in it goes on `PATH` with no
-manifest. Add `overlay.cfg` when you want metadata or declarations:
+manifest. Add `OVERLAY.md` when you want metadata or declarations, and what the agent should read
+first as its body:
+
+```markdown
+---
+name: review-basics
+description: Shared code review guidance.
+routing:
+  - Reviewing code → `$REVIEW_BASICS_OVERLAY_ROOT/kb/review.md`
+---
+Review the change for what it does, not how it is written.
+```
+
+Or write the manifest as `overlay.cfg`, TOML by default:
 
 ```toml
 name = "review-basics"
@@ -67,7 +86,7 @@ The same manifest in JSON:
 | Part | What it defines |
 | --- | --- |
 | [Package](https://boriken-dev.github.io/agent-overlay-spec/spec/v0/package/) | The directory, names and paths |
-| [Manifest](https://boriken-dev.github.io/agent-overlay-spec/spec/v0/manifest/) | `overlay.cfg`: format selection, data model, static reading, fields |
+| [Manifest](https://boriken-dev.github.io/agent-overlay-spec/spec/v0/manifest/) | `OVERLAY.md` and `overlay.cfg`: the split, format selection, restricted YAML, data model, static reading, fields |
 | [Environment](https://boriken-dev.github.io/agent-overlay-spec/spec/v0/environment/) | Values, secret references, env files, path additions, root variables, env scripts |
 | [Runtime and setup](https://boriken-dev.github.io/agent-overlay-spec/spec/v0/runtime/) | Interpreters, per-OS setup, timeouts, network, runtimes and lockfiles |
 | [Integrity](https://boriken-dev.github.io/agent-overlay-spec/spec/v0/integrity/) | The tree digest, pins and verification |

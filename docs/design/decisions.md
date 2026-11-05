@@ -30,6 +30,10 @@ namespaces remain a proposal.
 
 ## 4 — One manifest name, several syntaxes, TOML required
 
+> **Amended by [20](#20-overlaymd-is-the-standard-form-overlaycfg-stays-readable-both-is-refused) and
+> [22](#22-yaml-is-required-in-a-restricted-subset-toml-stays-required):** `overlay.cfg` is no longer the
+> only manifest, and YAML is no longer optional. The rest stands.
+
 **Decision:** the manifest is `overlay.cfg`. A first line `#!<format>` names its format; anything
 else means TOML; nothing is guessed from content; one leading byte-order mark is ignored. TOML is
 required of every reader; JSON and YAML are optional; an unsupported format is refused by name.
@@ -349,3 +353,98 @@ independently of it, so nothing in it can stand in for reading the overlay itsel
 claim a consumer can check, and it does.
 
 **Status:** adopted; the minimal form is what dotagents reads, the full form is Proposed.
+
+## 20 — `OVERLAY.md` is the standard form; `overlay.cfg` stays readable; both is refused
+
+**Decision:** an overlay's manifest is the front matter of `OVERLAY.md`, holding the same fields as
+`overlay.cfg`, `about` included, or it is `overlay.cfg`, which stays readable for overlays written by
+tools and for what is already published. An overlay with both is refused, never merged. A first line
+`#!<format>` inside the fence names the front matter's format; without one it is YAML. A body with
+anything but white space (space, tab, CR, LF) is the overlay's context, and `CONTEXT.md` beside it is
+ignored and reported. Digest rules are unchanged: the file is a member of the tree like any other.
+
+**Reason:** the owner's words were "just like skills we should be able to do OVERLAY.md …", "If thee is
+anything after the fontmatter then that becomes the context instead of CONTEXT.md" and "… it feels
+duplicative to have fontmatter and extra cfg file". One file is the form a person writes; a merge rule
+would keep the duplication and need a precedence no author could see. The format line goes inside the
+fence because there it is a YAML comment, so tools that know front matter still see front matter; before
+the fence it would make the file not start with a fence at all. A body naming a position in `context`
+works as `CONTEXT.md` does, so nothing new is needed to order it.
+
+**Status:** adopted; Proposed until an implementation reads it.
+
+## 21 — The split is a rule with vectors, not a crate; a block closes by `---` or `...`
+
+**Decision:** splitting a document is a normative rule in [Manifest](../spec/v0/manifest.md#the-split)
+with vectors, one step on bytes before any parser, and each reader keeps its own few lines. It tells apart
+no fence, unterminated, too large, empty, an unknown format, metadata that does not parse, metadata that
+is no mapping, and a mapping: a viewer shows what a gate refuses. The body's bytes never change. A block
+closes at the first following line that is `---` or `...`, with spaces and tabs allowed after a fence; only
+`---` opens. Only a line feed, with an optional carriage return before it, ends a line. Positions are
+offsets from the start of the file and lines from its first. Bounds are settings with no floor, and a
+split reads nothing past its bound.
+
+**Reason:** the owner: "we dont need a crate just to split it, only create it if we need to handle md files
+/ parse creat them etc to consolidate code". Rust, Dart and Python readers stay alike by a shared rule and
+shared cases. The split is separate from parsing because a viewer of a broken block still has to show
+the body, and because readers written apart disagreed: one accepted `---` or `...` with blanks after it,
+another only `---`, and dotagents split lines on characters other than a line feed.
+
+`...` closes a block because YAML ends a document with `...`, while `---` starts a new one; because
+[Context and harnesses](../spec/v0/harness.md#context) already allowed both, and narrowing it would put the
+metadata of a context file closed by `...` into an agent's context; and because one rule is kept for
+`OVERLAY.md`, context files and `SKILL.md`. A wider rule costs nothing a narrower one avoids: a reader
+that took only `---` would read metadata running on past a `...`, into what another reader calls the body,
+which is the real risk, and it is the disagreement the vectors exist to end. Blanks after a fence are
+allowed because they cannot be seen in an editor, and without them a manifest would turn silently into
+context. This widens harness.md by that one point.
+
+**Status:** adopted; Proposed until an implementation reads it. A shared crate is reconsidered only if
+parsing or creating Markdown has to be consolidated.
+
+## 22 — YAML is required, in a restricted subset; TOML stays required
+
+**Decision:** every reader reads TOML and YAML; JSON stays optional. YAML is a stated subset of YAML 1.2:
+no anchors, aliases, tags, merge keys, directives or second documents, the core schema's scalars and
+nothing else, string keys, and the size and depth bounds, the depth held while parsing in every format.
+Refusals happen where the construct stands, before anything is expanded. `overlay.cfg` keeps its own
+default of TOML, as do `aos` env files and catalogs named by no extension.
+
+**Reason:** front matter defaults to YAML, so a reader without YAML cannot read the standard form, and
+what is already written in `overlay.cfg` is TOML, so a reader without TOML cannot read that; dropping
+either breaks one of them. A default is about an unmarked document, which is why requiring YAML changes
+nothing an existing `overlay.cfg` means. The subset was already most of static reading; making it the
+required form is what lets it be the same in Rust and Dart, where the common Dart loader applies aliases
+first. The `<<` key is refused in any scalar style, since the check is on the key as read, and a reader
+must not need its parser's view of quoting to agree with another reader.
+
+**Status:** adopted. dotagents reads this with its `yaml` extra; other readers are Proposed.
+
+## 23 — `skills` also names skills from elsewhere, in the one field
+
+**Decision:** each entry of `skills` is a name or a table of `name`, `source`, and optional `ref` and
+`pin`. A name with `skills/<name>/SKILL.md` in the overlay is bundled; any other name resolves through the
+consumer's catalogs, whose new `skills` table lists them, and a table says where to fetch it. No catalog
+offering a name is missing, two is ambiguous, both reported with the overlay naming it and never guessed. A
+validator flags every name neither bundled nor sourced, where it used to refuse a name with no directory,
+and refuses a table whose name is also bundled. Listing runs nothing and reads no skill's files until they
+are fetched. An entry with no pin is reported `unpinned`. What an overlay would do lists these skills with
+their sources before any is fetched, and a consumer that does not fetch says so of each.
+
+A manifest names no local source and holds no credential. A fetched directory is checked against its pin
+before any file of it is read, needs a `SKILL.md` at its root, and is refused when its front matter names
+another skill; nothing in it is an overlay.
+
+**Reason:** the owner: "… they should have also a skills file with names to skills that it requires like
+requirements.txt for python or just put it in the overlay.cfg/frontmatter", then "we can use the same skills
+section …". No overlay published uses the field, so extending it costs nothing, and it works in both manifest
+forms without another file. Catalogs had to list skills apart from overlays, since an overlay is not a skill
+of its name; they keep every other rule, label and refusal, so nothing is learnt twice. A source in a
+manifest is held tighter than one in a catalog on this machine, because a manifest travels and a user's
+catalog does not: a local path in one means whatever the next machine holds there, and a credential in
+one is published with it. [Agent Skills](https://agentskills.io/specification) requires a skill's `name` to
+equal its directory's and front matter to carry it, which is what makes a name mismatch a refusal; it
+says nothing of where skills are hosted, so a source names the skill's own directory, whichever repository
+layout holds it. AOS keeps its wider name rule for what is already bundled, recommending that form.
+
+**Status:** adopted; Proposed until an implementation reads it.

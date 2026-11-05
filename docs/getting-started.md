@@ -9,7 +9,20 @@ review-basics/
 └── instructions.md
 ```
 
-There is no required manifest. Add `overlay.cfg` when you want metadata or declarations:
+There is no required manifest. Add `OVERLAY.md` when you want metadata or declarations, with what the
+agent should read first as its body:
+
+```markdown
+---
+name: review-basics
+description: Shared code review guidance.
+---
+Review the change for what it does, not how it is written.
+```
+
+The front matter is YAML unless its first line names another format (`#!toml`, `#!json`), and a body
+takes the place of `CONTEXT.md`. A tool that writes manifests can write `overlay.cfg` instead, with the
+same fields; an overlay never has both:
 
 ```toml
 name = "review-basics"
@@ -61,7 +74,8 @@ dotagents overlays add review-basics --repo ./overlays
 That is one manager's command; AOS requires neither dotagents nor a command line. A read-only
 integration can show the files without installing them.
 
-> dotagents reads `overlay.toml` today; see [Compatibility](compatibility.md).
+> dotagents 0.9.0 and Canoa read `overlay.cfg` and not yet `OVERLAY.md`; see
+> [Compatibility](compatibility.md#overlaymd-yaml-and-named-skills).
 
 ## Next
 

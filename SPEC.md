@@ -16,7 +16,8 @@ configuration, a runtime, a programming language, or a transport for obtaining o
 
 - [Terminology and conformance classes](spec/v0/terminology.md)
 - [Package layout](spec/v0/package.md)
-- [Manifest: reading `overlay.cfg`, the data model, the fields](spec/v0/manifest.md)
+- [Manifest: `OVERLAY.md` and its split, reading `overlay.cfg`, restricted YAML, the data model, the
+  fields](spec/v0/manifest.md)
 - [Composition](spec/v0/composition.md), [dependencies](spec/v0/dependencies.md),
   [resolution](spec/v0/resolution.md)
 - [Environment](spec/v0/environment.md) and [runtime and setup](spec/v0/runtime.md)

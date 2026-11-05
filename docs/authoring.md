@@ -12,8 +12,9 @@ a consumer looks for them, and they work with no manifest:
 | Node.js modules in `lib/node/` | puts `lib/node/` first on `NODE_PATH` |
 | the packages they need in `lib/python/requirements.txt` or `lib/node/package.json` | installs them before setup, at every install and sync, and reports it |
 | always-on rules in `rules/<name>.md` | adds them to the always-on rules |
-| initial context in `CONTEXT.md` | adds it to the agent's first context |
+| initial context as the body of `OVERLAY.md`, or in `CONTEXT.md` | adds it to the agent's first context |
 | a skill in `skills/<name>/SKILL.md` | offers the skill |
+| a skill from elsewhere, named in `skills` | shows it with its source, and fetches it if you accept the overlay |
 | `NAME=value` lines in `env` | sets them in order, substituting `${NAME}` placeholders |
 | a script in `env.py` (or `.js`, `.ps1`, `.sh`, ...) | runs it to compute environment values, and reports it |
 | a script in `setup.py` (or `.ps1`, `.sh`, ...) | runs it with its phase (`install` on the first add, `sync` on every sync, `remove`), with the network, and reports it |
@@ -97,9 +98,51 @@ routing = ["- Service reviews → `$TEAM_REVIEW_OVERLAY_ROOT/kb/review.md`"]
 priority = 450
 ```
 
-Write it in TOML, or put `#!json` or `#!yaml` on the first line. Every reader reads TOML; JSON and
-YAML are optional. Do not add a format version: the edition belongs to the specification. See the
-[manifest reference](spec/v0/manifest.md) for every field.
+That is `overlay.cfg`, TOML unless `#!json` or `#!yaml` is on its first line. Written by hand, the
+same fields are usually better as the front matter of `OVERLAY.md`, with the overlay's context as its
+body, so there is one file to read:
+
+```markdown
+---
+requires: [engineering]
+routing:
+  - Service reviews → `$TEAM_REVIEW_OVERLAY_ROOT/kb/review.md`
+priority: 450
+---
+Review services with their failure modes in mind.
+```
+
+- The front matter is YAML, or what `#!toml` or `#!json` names as the first line inside the fence, and
+  it closes with `---` or `...`.
+- The YAML is [restricted](spec/v0/manifest.md#restricted-yaml): no anchors, aliases, tags, merge keys or
+  second documents, and `yes` is a string.
+- A body makes `CONTEXT.md` beside it ignored, and reported, so keep one or the other. `[defaults]
+  context = false` keeps a body as notes for people.
+- An overlay with both `OVERLAY.md` and `overlay.cfg` is refused.
+
+Every reader reads TOML and restricted YAML; JSON is optional. Do not add a format version: the edition
+belongs to the specification. See the [manifest reference](spec/v0/manifest.md) for every field.
+
+## Name the skills you need
+
+`skills` lists your bundled skills, and the ones you need without carrying a copy:
+
+```toml
+skills = [
+  "summarize-docs",                # skills/summarize-docs/SKILL.md, in this overlay
+  "pdf",                           # no such directory: the consumer's catalogs resolve it
+  { name = "review", source = "https://github.com/example/skills.git#skills/review", pin = "sha256:8280aaf5de7c4f61342f648586d534e481ae095cef223dded70f5b1db5bd84a1" },
+]
+```
+
+- A source points at the skill's own directory, the one holding its `SKILL.md`. It is a remote location
+  with no credential in it: a manifest names no place on the consumer's machine.
+- Pin what you reviewed: a skill with no pin is reported `unpinned`, each time.
+- A validator flags a bare name with no directory, so a typo shows before anyone looks it up. A consumer
+  that cannot find one reports it missing, and never picks between two catalogs by itself.
+- Use the [Agent Skills](https://agentskills.io/specification#name-field) form of a name, lowercase with
+  single hyphens, equal to the directory's name.
+- Until your consumers read this field they [refuse the overlay](compatibility.md#overlaymd-yaml-and-named-skills).
 
 ## Declare what the overlay needs
 
@@ -174,9 +217,9 @@ tags = ["documentation", "release", "changelog"]
 - Links are `https`. `license` is an SPDX expression (`MIT`, `MIT OR Apache-2.0`).
 - Tags are lowercase words joined by `-`; a store filters and searches by them.
 
-To offer several overlays, publish a **catalog**: a TOML, JSON or YAML file, named by its format,
-listing each overlay's source. A registry is already one; add tables where you want a store to show
-more, and a `pin` where you reviewed a revision:
+To offer several overlays, or skills overlays can name, publish a **catalog**: a TOML, JSON or YAML
+file, named by its format, listing each one's source. A registry is already one; add tables where you
+want a store to show more, and a `pin` where you reviewed a revision:
 
 ```toml
 name = "Example overlays"
@@ -192,6 +235,9 @@ pin = "sha256:8280aaf5de7c4f61342f648586d534e481ae095cef223dded70f5b1db5bd84a1"
 [overlays.release-notes.about]
 summary = "Release notes and changelogs, written the same way in every repository."
 icon = "icons/release-notes.png"
+
+[skills]
+pdf = "https://github.com/example/skills.git#skills/pdf"
 ```
 
 Relative sources and icons resolve beside the catalog file. A store shows what a catalog says

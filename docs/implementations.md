@@ -1,8 +1,11 @@
 # Implementations
 
 Any application can add AOS support in its own language and architecture. Every declaration is
-static data, so a reader needs a TOML parser and nothing that executes; Python, Rust, Dart, Go and
-JavaScript are equally suitable.
+static data, so a reader needs a TOML parser, a YAML parser whose events it can read before anything is
+applied, a few lines to split front matter, and nothing that executes; Python, Rust, Dart, Go and
+JavaScript are equally suitable. A YAML loader that applies aliases first is not enough: Dart's
+`package:yaml`, for one, hands back the expanded document, and a reader there needs a parser that
+refuses first.
 
 ## Reference implementation
 
@@ -30,11 +33,11 @@ and documented.
 | Class | Minimum useful support |
 |---|---|
 | Read-only consumer | List an overlay's files and expose them; treat the manifest as optional. |
-| Manifest reader | Read `overlay.cfg` (format line, TOML, the data model, static reading), keep unknown top-level keys, report errors. |
+| Manifest reader | Read `OVERLAY.md` (the split, front matter) and `overlay.cfg` (format line, TOML, restricted YAML, the data model, static reading), keep unknown top-level keys, report errors. |
 | Environment | Build an environment from the declarations, resolve secret references, report weakenings. |
 | Integrity | Compute the tree digest; refuse a pin mismatch. |
-| Resolver | Parse sources, normalize identities, resolve `requires`, order overlays. |
-| Manager | Install, compose, remove; document scopes, collisions and execution policy. |
+| Resolver | Parse sources, normalize identities, resolve `requires`, order overlays; resolve skill names through catalogs, reporting what is missing or ambiguous. |
+| Manager | Install, compose, remove; document scopes, collisions and execution policy; fetch and check an overlay's skills after the user accepts them, or report each as not delivered. |
 | Store | Read catalogs, list and search their entries by label, show `about` and icons; show what an overlay would do from its own manifest before installing it. |
 
 Each class has [vectors](spec/v0/conformance.md#vectors) to test against. See

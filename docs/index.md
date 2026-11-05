@@ -5,7 +5,8 @@ environment that any agent manager can read without running anything.** Teams ke
 guidance, skills and helpers in focused overlays, and each project or agent takes the ones it needs.
 
 An overlay is a directory, and files in conventional places (`bin/`, `skills/`, `env`) work without
-a manifest. `overlay.cfg` is its optional manifest: TOML unless its first line names another format,
+a manifest. Its optional manifest is the front matter of `OVERLAY.md`, whose body is its context, or
+`overlay.cfg`: TOML unless its first line names another format,
 and always static data. It declares what the overlay needs (environment variables,
 path additions, a runtime, a setup step) so a consumer can decide where it can run before running
 anything, and it can be pinned by one digest of the whole tree.

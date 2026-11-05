@@ -11,6 +11,23 @@ The first edition, `0.1.0-draft`, a development draft open for review.
 
 ### Added
 
+- `OVERLAY.md` (Proposed): the manifest as front matter, YAML by default or as a `#!<format>` first line
+  inside the fence names, holding the same fields as `overlay.cfg`, `about` included; a body with anything
+  but white space is the overlay's context, and `CONTEXT.md` beside it is ignored and reported. An overlay
+  with both `OVERLAY.md` and `overlay.cfg` is refused; `overlay.cfg` stays readable, TOML by default. Digest
+  rules are unchanged. A consumer that does not read `OVERLAY.md` says so, or refuses the overlay.
+- The split of a document into metadata and body, a normative rule with vectors in
+  `tests/vectors/front_matter.json`: no fence, unterminated, too large, empty, an unknown format, metadata
+  that does not parse or is no mapping, as a viewer and a gate each treat them; the closing fence (`---` or
+  `...`, blanks allowed after it); a byte-order mark and `\r`; the body's bytes never changed; positions;
+  bounds as settings with no floor, and nothing read past one.
+- `skills` entries may be a name for the consumer's catalogs to resolve, or a table of `name`, `source`,
+  `ref` and `pin` (Proposed). Catalogs gain a `skills` table. Missing and ambiguous names are reported and
+  never guessed, an entry with no pin is reported `unpinned`, "what it would do" lists them with their
+  sources, and a consumer that does not fetch says so of each. A manifest names no local source and holds
+  no credential; a fetched skill is checked against its pin first, needs a `SKILL.md`, and must not name
+  another skill. Vectors in `tests/vectors/skills.json`.
+
 - The package format, manifest fields, composition, dependencies, sources, skills, commands, MCP
   declarations, security and conformance, grounded in the dotagents overlay format.
 - A JSON Schema for the manifest, examples, and schema fixtures.
@@ -133,6 +150,16 @@ The first edition, `0.1.0-draft`, a development draft open for review.
   runtime, needs and weakenings. Conformance classes name the vectors each one passes.
 
 ### Changed
+
+- **YAML is required of every reader**, as a [restricted subset](spec/v0/manifest.md#restricted-yaml) of YAML
+  1.2; TOML stays required and `overlay.cfg` keeps its default of TOML. JSON stays optional. The depth bound
+  holds while parsing, in every format, and a mapping key `<<` is refused in any scalar style.
+- A validator no longer refuses a listed skill with no directory: it flags it (`skill-from-catalog`), and
+  refuses a table whose name is also bundled and a name differing from a bundled one only in case. A skill
+  name is also a single path component.
+- A front matter block in a context file follows the split: blanks after a fence are allowed, and only a line
+  feed ends a line. A catalog may hold `overlays`, `skills` or both, and one from elsewhere cannot name a
+  `file:` URL of any kind.
 
 - `overlay.toml` is now `overlay.cfg`, with no second name.
 - `setup_timeout` is replaced by `setup` variants; `setup.py` is one case of the default setup.

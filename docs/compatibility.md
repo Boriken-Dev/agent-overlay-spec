@@ -1,14 +1,15 @@
 # Compatibility and open decisions
 
 This page compares the specification with dotagents 0.8.3, the reference implementation, from its
-source and tests. "Proposed" in the specification means no implementation reads the field yet; the
-table below is the list an implementation works from.
+source and tests, and for [`OVERLAY.md`, YAML and named skills](#overlaymd-yaml-and-named-skills) with
+dotagents 0.9.0 and Canoa. "Proposed" in the specification means no implementation reads the field yet;
+the table below is the list an implementation works from.
 
 ## What dotagents does and what AOS declares
 
 | Topic | dotagents 0.8.3 | AOS |
 | --- | --- | --- |
-| Manifest | `overlay.toml`, TOML only; a small hand reader when no TOML library imports | `overlay.cfg`: TOML by default, `#!json` / `#!yaml` on the first line; static; one data model |
+| Manifest | `overlay.toml`, TOML only; a small hand reader when no TOML library imports | `OVERLAY.md`, front matter (YAML by default) and body, or `overlay.cfg`: TOML by default, `#!json` / `#!yaml` on the first line; both refused; static; one data model |
 | Ordinary fields | Tolerant: a wrong type becomes the default, with a warning | A validator refuses; a consumer applies nothing of an invalid manifest |
 | `name`, `description`, `requires`, `routing`, `rules`, `priority` | As specified | Unchanged (Core) |
 | Root variable | `<NAME>_OVERLAY_ROOT`, set only when unset | Always set to the root the consumer exposes |
@@ -27,8 +28,8 @@ table below is the list an implementation works from.
 | `setup_timeout` | Top-level integer | `timeout` in each `setup` variant |
 | Dependencies | A root `requirements.txt` by file name into one Python environment per store | **Changed:** `lib/python/requirements.txt` and `lib/node/package.json` by default, or a file `runtime.python` / `runtime.node` names; installed at `install` and every `sync`, before setup; pinned by hashes or `package-lock.json`, an unpinned file reported; into the scope's shared environment (as dotagents' per-store one), a named one, or the overlay's own; conflicting pins block the overlays involved |
 | Runtime probing | None | `runtime.os`, `runtime.commands`, interpreter and version probes before placement |
-| Context | Root `CONTEXT.md` by file name | The same by default, then the `context` list and per-harness `context` |
-| Skills | Every `skills/*/SKILL.md` published | The same by default, for skill names, plus the `skills` list |
+| Context | Root `CONTEXT.md` by file name | The body of `OVERLAY.md`, or the same, by default, then the `context` list and per-harness `context` |
+| Skills | Every `skills/*/SKILL.md` published | The same by default, for skill names, plus the `skills` list: bundled, named or sourced |
 | Scripts | `bin/*.py` and `[scripts]` strings, run under Python | `[scripts]` only: strings by extension, or `{ path, interpreter, os }`; `bin/` is on `PATH`, and a file in it is no command by default |
 | MCP stdio | Working directory inherited from the gateway; `env` strings | Working directory the overlay root; `env` values may be references |
 | Harness hints | None | `[harness.<id>]`: `context`, `skills`, `model`, `effort` |
@@ -37,12 +38,54 @@ table below is the list an implementation works from.
 | Store metadata | None; an `[about]` table would be an unknown key, ignored | `[about]`: `summary`, `icon` (PNG or WebP), `homepage`, `repository`, `license`, `authors`, `tags`; informational, never applied |
 | Integrity | A SHA-256 per installed file in its install record; no tree digest, no pin | The tree digest, pins checked at install and at each activation, a mismatch refuses |
 | Installed copy | Keeps `.dotagents-install.json` and setup output inside the overlay directory | The copy stays as verified; state goes to `AOS_OVERLAY_STATE`, one directory per identity and OS kept across syncs |
-| Weakenings | Not reported | Twelve identifiers reported each time, never silently |
+| Weakenings | Not reported | Twelve identifiers reported each time, never silently, `unpinned` covering a skill from elsewhere too |
 | Secret grants | `env_passthrough` and `headers_env` pass any named host variable | A reference resolves only when the consumer's configuration grants it to that overlay |
 | Reserved variables | An overlay's `env.py` can set any variable, another overlay's root included | `AOS_*`, `*_OVERLAY_ROOT`, `*_OVERLAY_STATE` cannot be set by an overlay |
 | Relative paths | `[scripts]` paths checked; rules paths checked for containment | One rule for every path and digest member: no excluded or device names in any case, no trailing dot or space, no `:` or control characters |
 | Source safety | Refuses a location or ref starting with `-` | Also refuses `::`, a host starting with `-`, other schemes, and a `#path` that is not a relative path |
 | Processes per overlay | One environment for every overlay's processes | Each overlay's setup, scripts and servers get only that overlay's declarations |
+
+## `OVERLAY.md`, YAML and named skills
+
+What two consumers do with each of these until they read it, from dotagents 0.9.0 (its tag) and
+Canoa's readers (`crates/canoa-host` and `app/lib/profile/`, read and run on 2026-11-05):
+
+| An overlay with | dotagents 0.9.0 | Canoa | Says so? |
+| --- | --- | --- | --- |
+| `skills` naming a name with no directory | `overlays add` refuses it: `missing-skill` | Not applied: `missing-skill` | **Yes**: a refusal, and the overlay is not applied without the skill |
+| `skills` with a table | `overlays add` refuses it: `pattern` | Not applied: `schema` | **Yes**: a refusal |
+| `#!yaml` in `overlay.cfg` | Reads it, within the same restrictions, with its `yaml` extra; without it, `unsupported-format` | `unsupported-format`, by name | **Yes** where it does not read it |
+| A `.yaml` or `.yml` catalog | Reads it | `unsupported-format` | **Yes** where it does not read it |
+| `OVERLAY.md` and no `overlay.cfg` | No manifest: its front matter is not read, and the conventional files apply | The same | **No** |
+| A body in `OVERLAY.md` | Not context; `CONTEXT.md` still is | The same | **No** |
+| `OVERLAY.md` beside `overlay.cfg` | Reads `overlay.cfg`, not refused | The same | **No** |
+| A catalog with `skills` | Reads `overlays` and takes no skill from it; with `skills` alone, it offers nothing | Reads `overlays`; with `skills` alone, `not-a-catalog` | Nothing depends on it: neither resolves a name, and each refuses a manifest naming one |
+| A context file opening `--- ` or closing `... `, with blanks after the fence | dotagents: no front matter, the block is context | Canoa: the same | **No**, and it only affects a file written that way |
+
+**A named skill is never lost silently while it is in `overlay.cfg`.** Both consumers refuse such an
+overlay outright, rather than applying it without the skill. Neither fetches yet, so an author who needs
+either to run an overlay today bundles the skill.
+
+**`OVERLAY.md` is the one silent case, and no text here can close it for software already released.**
+To a consumer from before this amendment `OVERLAY.md` is a file with no meaning, so it applies the
+overlay as having no manifest: `requires`, `skills`, `env`, `setup`, everything in the front matter, is
+absent, with no word said. So:
+
+- **Authors:** an overlay that needs anything its manifest declares stays `overlay.cfg` until the
+  consumers it serves read `OVERLAY.md`. In particular, an overlay naming skills from elsewhere is in
+  `overlay.cfg`, where every consumer above refuses what it cannot do. An `OVERLAY.md` that declares
+  nothing, a name and a body, loses its name and leaves its body unread.
+- **Consumers:** a consumer's next release either reads `OVERLAY.md`, or
+  [says so of an overlay that holds one](spec/v0/manifest.md) and refuses it. dotagents and Canoa have
+  this as their first step.
+
+Moving a consumer takes, in order: the split and its vectors (`front_matter.json`), a YAML reader within
+the [subset](spec/v0/manifest.md#restricted-yaml) (Canoa's refuses YAML today, and its 19 YAML reading
+vectors become ones it runs), `skills` as names and tables with the rule of
+[what it flags](spec/v0/skills.md#declaring-skills), then fetching, or reporting each skill as
+[not delivered](spec/v0/skills.md#a-consumer-that-does-not-fetch). Two consumers' front matter readers
+differ today, as the vectors now show: one takes a closing `...` and blanks after a fence and another
+only `---`, and dotagents splits lines on more than a line feed (a form feed, U+2028).
 
 ## dotagents conventions that are not defaults
 

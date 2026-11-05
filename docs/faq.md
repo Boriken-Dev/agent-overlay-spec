@@ -9,17 +9,30 @@ No. `0.1.0-draft` is a development draft open for review, not a 1.0 promise.
 No. AOS is a package format and a set of declarations; dotagents is the reference implementation.
 Any language or manager can implement it.
 
-## Is `overlay.cfg` required?
+## Is a manifest required?
 
 No. A directory with no manifest is a valid overlay, and its conventional files (`bin/`,
 `lib/python/`, `skills/`, `rules/`, `CONTEXT.md`, `env`, `env.<ext>`, `setup.<ext>`) take effect
 by default.
 
-## Why `overlay.cfg` and not `overlay.toml`?
+## `OVERLAY.md` or `overlay.cfg`?
 
-One file name, several syntaxes: a manifest is TOML unless its first line names another format
-(`#!json`, `#!yaml`). Every reader must read TOML; the others are optional. The data model is the
-same in every format. dotagents reads `overlay.toml` today.
+`OVERLAY.md` when a person writes it: the manifest as front matter and the context as the body, in one
+file, as a skill's `SKILL.md` is. `overlay.cfg` when a tool writes it, or for a consumer that does not
+read `OVERLAY.md` yet. The fields are the same; an overlay with both is refused.
+
+## Which formats must a reader read?
+
+TOML and YAML. Front matter is YAML unless its first line inside the fence names another format, and
+`overlay.cfg` is TOML unless its first line does, so a reader needs both; JSON is optional. The data
+model is the same in every format. YAML is a [restricted subset](spec/v0/manifest.md#restricted-yaml),
+which refuses what expands a document or constructs objects.
+
+## Does an overlay carry the skills it needs?
+
+It can, or it can [name them](spec/v0/skills.md#declaring-skills) like `requirements.txt` does packages:
+by a name the consumer's catalogs resolve, or with a source and a pin. A consumer shows them before it
+fetches anything, and fetching runs nothing.
 
 ## Can a manifest include another file or use variables?
 
@@ -51,7 +64,8 @@ consumer reports.
 
 ## Will my existing dotagents overlay need migration?
 
-Rename `overlay.toml` to `overlay.cfg`. `bin/`, `skills/`, `CONTEXT.md`, `env.py` and `setup.py`
+Rename `overlay.toml` to `overlay.cfg`, or move its fields to `OVERLAY.md`'s front matter once your
+consumers read it. `bin/`, `skills/`, `CONTEXT.md`, `env.py` and `setup.py`
 keep working by default, and Python modules move from `lib/` to `lib/python/`. Three more things
 change: a plain `env` file is read as `dotenv`, with `${NAME}` substituted,
 rather than sourced by bash, `pre.env` files mean nothing by name, a root `requirements.txt` moves
