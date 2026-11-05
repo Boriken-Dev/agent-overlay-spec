@@ -13,7 +13,7 @@
     "priority": { "type": "integer" },
     "defaults": { "$ref": "#/$defs/defaults" },
     "context": { "description": "Added after the context default (the root CONTEXT.md); an entry naming the same file replaces that default entry.", "type": "array", "items": { "$ref": "#/$defs/relPath" } },
-    "skills": { "description": "Added to the skills default (every skills/<name>/SKILL.md).", "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/toolName" } },
+    "skills": { "description": "Added to the skills default (every skills/<name>/SKILL.md). A name with no such file is resolved through the consumer's catalogs; a table names where to fetch it.", "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/skillEntry" } },
     "env": { "$ref": "#/$defs/envMap" },
     "env_files": { "description": "Added after the env default (the root file env, read as dotenv); an entry naming env replaces that default entry.", "type": "array", "items": { "$ref": "#/$defs/envFile" } },
     "paths": { "description": "Added after the bin (bin/ to PATH) and lib (lib/python/ to PYTHONPATH) defaults; an entry naming the same directory replaces that default entry.", "type": "array", "items": { "$ref": "#/$defs/pathAddition" } },
@@ -59,6 +59,23 @@
     },
     "overlayName": { "type": "string", "pattern": "^[A-Za-z](?:[A-Za-z0-9_.-]*[A-Za-z0-9])?$" },
     "toolName": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$" },
+    "skillEntry": {
+      "description": "A skill's name, bundled or for the consumer's catalogs to resolve, or a table naming its source.",
+      "oneOf": [
+        { "$ref": "#/$defs/toolName" },
+        {
+          "type": "object",
+          "required": ["name", "source"],
+          "properties": {
+            "name": { "$ref": "#/$defs/toolName" },
+            "source": { "$ref": "#/$defs/sourceString" },
+            "ref": { "$ref": "#/$defs/gitRef" },
+            "pin": { "$ref": "#/$defs/digest" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
     "envName": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
     "osName": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
     "osList": { "type": "array", "items": { "$ref": "#/$defs/osName" } },
@@ -362,9 +379,9 @@
       "additionalProperties": false
     },
     "catalog": {
-      "description": "A catalog: the overlays a store lists, by name. Not a manifest: validate a catalog against this definition. Its fields are advertising; the fetched overlay's own manifest and tree are authoritative.",
+      "description": "A catalog: the overlays and skills a store lists, by name. Not a manifest: validate a catalog against this definition. Its fields are advertising; what is fetched is authoritative.",
       "type": "object",
-      "required": ["overlays"],
+      "anyOf": [{ "required": ["overlays"] }, { "required": ["skills"] }],
       "properties": {
         "name": { "$ref": "#/$defs/line" },
         "description": { "type": "string" },
@@ -372,6 +389,11 @@
         "overlays": {
           "type": "object",
           "propertyNames": { "$ref": "#/$defs/overlayName" },
+          "additionalProperties": { "$ref": "#/$defs/catalogEntry" }
+        },
+        "skills": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/toolName" },
           "additionalProperties": { "$ref": "#/$defs/catalogEntry" }
         }
       },

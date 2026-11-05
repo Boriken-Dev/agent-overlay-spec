@@ -923,7 +923,67 @@ def _semantic(doc: "dict[str, Any]") -> "list[tuple[str, str]]":
     if isinstance(about, dict) and isinstance(about.get("license"), str):
         if not valid_license(about["license"]):
             found.append(("license-expression", "/about/license"))
+    found += _skills(doc.get("skills"))
     return found
+
+
+def _skill_at(entry: Any, index: int) -> str:
+    """The pointer of an entry's name: the entry, or the ``name`` of a table."""
+    return "/skills/%d/name" % index if isinstance(entry, dict) else "/skills/%d" % index
+
+
+def _skills(skills: Any) -> "list[tuple[str, str]]":
+    """The rules of ``skills`` that need no files: names, and what a table's source may be."""
+    found: "list[tuple[str, str]]" = []
+    if not isinstance(skills, list):
+        return found
+    seen: "set[str]" = set()
+    for index, entry in enumerate(skills):
+        name = skill_name(entry)
+        if not isinstance(name, str):
+            continue
+        at = _skill_at(entry, index)
+        if _SKILL_NAME.match(name) and not valid_relpath(name):
+            found.append(("skill-name", at))
+        if name.lower() in seen:
+            found.append(("skill-duplicate", at))
+        seen.add(name.lower())
+        if isinstance(entry, dict) and isinstance(entry.get("source"), str):
+            found += _manifest_source(entry, "/skills/%d" % index)
+    return found
+
+
+def _manifest_source(entry: "dict[str, Any]", at: str) -> "list[tuple[str, str]]":
+    """A manifest names a source on no machine in particular, and holds no credential."""
+    found: "list[tuple[str, str]]" = []
+    try:
+        parsed = parse_source(entry["source"])
+    except ValueError:
+        return [("invalid-source", at + "/source")]
+    if local_source(parsed):
+        found.append(("local-source", at + "/source"))
+    elif parsed["kind"] == "url" and not _WEB_URL.match(parsed["location"] or ""):
+        found.append(("invalid-source", at + "/source"))
+    elif _holds_credentials(parsed["location"] or ""):
+        found.append(("source-credentials", at + "/source"))
+    if "ref" in entry and (parsed["kind"] != "git" or parsed["ref"] is not None):
+        found.append(("ref-not-allowed", at + "/ref"))
+    return found
+
+
+_WEB_URL = re.compile(r"^https?://", re.IGNORECASE)
+
+
+def _holds_credentials(location: str) -> bool:
+    """A query, a password anywhere, or a user over a web URL: what a source shows without.
+
+    ``ssh://git@host`` and ``git@host:path`` name an account, not a secret."""
+    if "://" not in location:
+        return False
+    scheme, rest = location.split("://", 1)
+    authority = rest.split("/", 1)[0]
+    user = authority.rpartition("@")[0]
+    return "?" in rest or ":" in user or bool(user and scheme.lower() in ("http", "https"))
 
 
 def _mcp(mcp: Any) -> "list[tuple[str, str]]":
@@ -1032,9 +1092,16 @@ def _files(doc: "dict[str, Any]", files: "set[str]") -> "list[tuple[str, str]]":
                 found.append(("env-path-conflict", "/env/%s" % name))
     skills = doc.get("skills")
     if isinstance(skills, list):
-        for index, name in enumerate(skills):
-            if isinstance(name, str) and "skills/%s/SKILL.md" % name not in files:
-                found.append(("missing-skill", "/skills/%d" % index))
+        bundled = bundled_skills(files)
+        folded = {name.lower() for name in bundled}
+        for index, entry in enumerate(skills):
+            name = skill_name(entry)
+            if not isinstance(name, str) or name.lower() not in folded:
+                continue
+            if isinstance(entry, dict):
+                found.append(("skill-ambiguous", _skill_at(entry, index)))
+            elif name not in bundled:
+                found.append(("skill-case", _skill_at(entry, index)))
     if "OVERLAY.md" in files and "overlay.cfg" in files:
         found.append(("two-manifests", ""))
     mcp = doc.get("mcp")
@@ -1044,6 +1111,20 @@ def _files(doc: "dict[str, Any]", files: "set[str]") -> "list[tuple[str, str]]":
             if isinstance(name, str) and "skills/%s/SKILL.md" % name not in files:
                 found.append(("missing-skill", "/mcp/skills/%d/name" % index))
     return found
+
+
+def skill_flags(doc: "dict[str, Any]", files: "Iterable[str]") -> "list[tuple[str, str]]":
+    """What a validator flags without refusing: each name neither bundled nor given a source,
+    which only a consumer's catalogs can resolve, so a typo is seen before it is looked up."""
+    skills = doc.get("skills")
+    if not isinstance(skills, list):
+        return []
+    folded = {name.lower() for name in bundled_skills(files)}
+    return [
+        ("skill-from-catalog", "/skills/%d" % index)
+        for index, entry in enumerate(skills)
+        if isinstance(entry, str) and entry.lower() not in folded
+    ]
 
 
 def tree_files(root: Path) -> "set[str]":
@@ -1193,6 +1274,22 @@ _GIT_PREFIXES = ("git@", "ssh://", "git://")
 
 def _is_git_location(location: str) -> bool:
     return location.endswith(".git") or location.startswith(_GIT_PREFIXES)
+
+
+def shown_source(parsed: "dict[str, Optional[str]]", ref: "Optional[str]" = None) -> str:
+    """A parsed source as a consumer shows it: no user information or query in a URL."""
+    location = parsed["location"] or ""
+    if "://" in location:
+        scheme, rest = location.split("://", 1)
+        authority, slash, tail = rest.partition("/")
+        location = "%s://%s%s%s" % (
+            scheme,
+            authority.rpartition("@")[2].split("?", 1)[0],
+            slash,
+            tail.split("?", 1)[0],
+        )
+    ref = ref if ref is not None else parsed["ref"]
+    return location + ("@" + ref if ref else "") + ("#" + parsed["path"] if parsed["path"] else "")
 
 
 def parse_source(text: str) -> "dict[str, Optional[str]]":
@@ -1486,16 +1583,46 @@ def harness_context_of(
     return listed
 
 
-def skills_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[str]":
-    """Every ``skills/<name>/SKILL.md`` with a skill name, and the skills ``skills`` lists."""
-    found = set(_declared(manifest, "skills"))
+def skill_name(entry: Any) -> Any:
+    """The name of an entry of ``skills``: the string, or a table's ``name``."""
+    return entry.get("name") if isinstance(entry, dict) else entry
+
+
+def bundled_skills(files: "Iterable[str]") -> "set[str]":
+    """The names with a ``skills/<name>/SKILL.md`` in the overlay."""
+    found = set()
+    for path in _members(files):
+        parts = path.split("/")
+        if len(parts) == 3 and parts[0] == "skills" and parts[2] == "SKILL.md":
+            if _SKILL_NAME.match(parts[1]):
+                found.add(parts[1])
+    return found
+
+
+def skill_entries(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[dict[str, Any]]":
+    """Every skill the overlay offers, by name bytes: ``bundled``, from a ``source``, or a name
+    for the consumer's ``catalog`` to resolve."""
+    bundled = bundled_skills(files)
+    found: "dict[str, dict[str, Any]]" = {}
     if default_on(manifest, "skills"):
-        for path in _members(files):
-            parts = path.split("/")
-            if len(parts) == 3 and parts[0] == "skills" and parts[2] == "SKILL.md":
-                if _SKILL_NAME.match(parts[1]):
-                    found.add(parts[1])
-    return _by_bytes(found)
+        found = {name: {"name": name, "origin": "bundled"} for name in bundled}
+    for entry in _declared(manifest, "skills"):
+        if isinstance(entry, dict):
+            source = shown_source(parse_source(entry["source"]), entry.get("ref"))
+            item = {"name": entry["name"], "origin": "source", "source": source}
+            if "pin" in entry:
+                item["pin"] = entry["pin"]
+            found[entry["name"]] = item
+        elif entry in bundled:
+            found[entry] = {"name": entry, "origin": "bundled"}
+        else:
+            found[entry] = {"name": entry, "origin": "catalog"}
+    return [found[name] for name in _by_bytes(found)]
+
+
+def skills_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[str]":
+    """The names of :func:`skill_entries`."""
+    return [entry["name"] for entry in skill_entries(manifest, files)]
 
 
 def env_files_of(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[Any]":
@@ -2245,6 +2372,14 @@ def environments(
     }
 
 
+def _skill_origin(entry: "dict[str, Any]", identity: str) -> Any:
+    """What two overlays must share to name one skill without colliding: a bundled skill is its
+    overlay's own, one from elsewhere is its source and pin."""
+    if entry["origin"] == "bundled":
+        return ("bundled", identity)
+    return (entry.get("source"), entry.get("pin"))
+
+
 def compose(
     overlays: "dict[str, dict[str, Any]]",
     requested: "list[str]",
@@ -2269,14 +2404,16 @@ def compose(
             [i, path] for i in active for path in context_of(overlays[i], files.get(i, []))
         ],
     }
-    winners: "dict[str, tuple[str, str]]" = {}
+    winners: "dict[str, tuple[str, str, Any]]" = {}
     collisions: "set[str]" = set()
     for identity in active:
-        for name in skills_of(overlays[identity], files.get(identity, [])):
-            if name.lower() in winners:
-                collisions.add(name.lower())
-            winners[name.lower()] = (name, identity)
-    result["skills"] = {name: identity for name, identity in winners.values()}
+        for entry in skill_entries(overlays[identity], files.get(identity, [])):
+            folded = entry["name"].lower()
+            origin = _skill_origin(entry, identity)
+            if folded in winners and winners[folded][2] != origin:
+                collisions.add(folded)
+            winners[folded] = (entry["name"], identity, origin)
+    result["skills"] = {name: identity for name, identity, _origin in winners.values()}
     result["skill_collisions"] = sorted(collisions)
     if facts is not None:
         try:
@@ -2490,6 +2627,16 @@ def _join(*parts: str) -> str:
     return posixpath.normpath(posixpath.join(*[part for part in parts if part] or ["."]))
 
 
+def local_source(parsed: "dict[str, Optional[str]]") -> bool:
+    """A source on the consumer's machine: a directory, or a local Git path or ``file:`` URL."""
+    location = parsed["location"] or ""
+    if parsed["kind"] == "directory":
+        return True
+    if parsed["kind"] == "git":
+        return _local_git(location)
+    return location.lower().startswith("file:")
+
+
 def resolve_entry_source(
     entry: "dict[str, Optional[str]]", origin: "Optional[dict[str, Optional[str]]]"
 ) -> "dict[str, Optional[str]]":
@@ -2498,9 +2645,7 @@ def resolve_entry_source(
 
     location = entry["location"] or ""
     relative = entry["kind"] == "directory" and not _absolute_directory(location)
-    local = (entry["kind"] == "directory" and not relative) or (
-        entry["kind"] == "git" and _local_git(location)
-    )
+    local = (not relative) and local_source(entry)
     if origin is None or origin["kind"] == "directory":
         if relative and origin is not None:
             folder = posixpath.dirname((origin["location"] or "").replace("\\", "/"))
@@ -2585,13 +2730,19 @@ def read_catalog(
     """
     document = read_catalog_document(data, name, **limits)
     overlays = document.get("overlays")
-    if not isinstance(overlays, dict):
+    skills = document.get("skills")
+    if not isinstance(overlays, dict) and not isinstance(skills, dict):
         raise ReadError("not-a-catalog")
     origin = parse_source(base) if base else None
-    result: "dict[str, Any]" = {
-        "form": "minimal" if all(isinstance(v, str) for v in overlays.values()) else "full"
-    }
     ignored: "list[str]" = []
+    if not isinstance(overlays, dict):
+        if "overlays" in document:
+            ignored.append("/overlays")
+        overlays = {}
+    listed = list(overlays.values()) + (list(skills.values()) if isinstance(skills, dict) else [])
+    result: "dict[str, Any]" = {
+        "form": "minimal" if all(isinstance(v, str) for v in listed) else "full"
+    }
     for field, check in _CATALOG_FIELD.items():
         if field in document:
             if check.is_valid(document[field]):
@@ -2615,8 +2766,153 @@ def read_catalog(
                 entries[key] = _catalog_entry(overlays[key], at, origin, ignored)
             except CatalogRefusal as refusal:
                 refused.append([key, refusal.code])
-    result.update(entries=entries, refused=refused, ignored=sorted(ignored))
+    result.update(entries=entries, refused=refused)
+    if isinstance(skills, dict):
+        result["skills"] = _catalog_skills(skills, origin, ignored)
+    elif "skills" in document:
+        ignored.append("/skills")
+    result["ignored"] = sorted(ignored)
     return result
+
+
+def valid_skill_name(name: str) -> bool:
+    """A skill name is also one path component, since a consumer makes a directory of it."""
+    return bool(_SKILL_NAME.match(name)) and valid_relpath(name)
+
+
+def _catalog_skills(
+    skills: "dict[str, Any]", origin: "Optional[dict[str, Optional[str]]]", ignored: "list[str]"
+) -> "dict[str, Any]":
+    """A catalog's ``skills``: entries as ``overlays`` holds them, names compared by ASCII case."""
+    holders: "dict[str, int]" = {}
+    for key in skills:
+        holders[key.lower()] = holders.get(key.lower(), 0) + 1
+    entries: "dict[str, Any]" = {}
+    refused: "list[list[str]]" = []
+    for key in sorted(skills):
+        if not valid_skill_name(key):
+            refused.append([key, "invalid-name"])
+        elif holders[key.lower()] > 1:
+            refused.append([key, "duplicate-name"])
+        else:
+            try:
+                entries[key] = _catalog_entry(
+                    skills[key], "/skills/" + _escape(key), origin, ignored
+                )
+            except CatalogRefusal as refusal:
+                refused.append([key, refusal.code])
+    return {"entries": entries, "refused": refused}
+
+
+def resolve_skills(
+    overlays: "dict[str, dict[str, Any]]",
+    requested: "list[str]",
+    files: "dict[str, Any]",
+    catalogs: "Iterable[tuple[str, dict[str, Any]]]" = (),
+    order: "Iterable[str]" = (),
+    fetches: bool = True,
+) -> "dict[str, Any]":
+    """What a consumer shows before installing and reports after: every skill of the active
+    overlays with where it comes from, each name no catalog offers or more than one does, each
+    without a pin, and the collisions. ``catalogs`` are ``(label, read_catalog result)``; ``order``
+    is the order of labels the user configured, if any; a consumer that does not ``fetches``
+    delivers only bundled skills and says so for the rest."""
+    visited, _missing = resolve(overlays, requested)
+    active = composition_order(overlays, visited)
+    catalogs = list(catalogs)
+    list_catalogs(catalogs)
+    rank = [normalize_name(label) for label in order]
+    out: "dict[str, list[Any]]" = {
+        "skills": [],
+        "missing": [],
+        "ambiguous": [],
+        "unpinned": [],
+        "not_fetched": [],
+    }
+    winners: "dict[str, tuple[str, str, Any]]" = {}
+    collisions: "set[str]" = set()
+    for identity in active:
+        for entry in skill_entries(overlays[identity], files.get(identity, [])):
+            item = dict(entry, overlay=identity)
+            name = entry["name"]
+            if entry["origin"] == "catalog":
+                offers = []
+                for label, catalog in catalogs:
+                    listed = catalog.get("skills", {}).get("entries", {})
+                    for key in listed:
+                        if key.lower() == name.lower():
+                            offers.append((label, listed[key]))
+                offers = _ranked(offers, rank)
+                if not offers:
+                    item["origin"] = "missing"
+                    out["missing"].append([name, identity])
+                elif len(offers) > 1:
+                    labels = sorted(label for label, _entry in offers)
+                    item.update(origin="ambiguous", catalogs=labels)
+                    out["ambiguous"].append([name, identity, labels])
+                else:
+                    item["catalog"], offer = offers[0]
+                    item["source"] = shown_source(offer["source"])
+                    if "pin" in offer:
+                        item["pin"] = offer["pin"]
+            out["skills"].append(item)
+            if item["origin"] in ("missing", "ambiguous"):
+                continue
+            if item["origin"] != "bundled":
+                if not fetches:
+                    out["not_fetched"].append([name, identity])
+                    continue
+                if "pin" not in item:
+                    out["unpinned"].append([name, identity])
+            folded = name.lower()
+            origin = _skill_origin(item, identity)
+            if folded in winners and winners[folded][2] != origin:
+                collisions.add(folded)
+            winners[folded] = (name, identity, origin)
+    out["delivered"] = {name: identity for name, identity, _origin in winners.values()}
+    out["collisions"] = sorted(collisions)
+    return out
+
+
+def _ranked(offers: "list[Any]", rank: "list[str]") -> "list[Any]":
+    """The first catalog in the user's order that offers the name; without one, all of them."""
+    for label in rank:
+        for offer in offers:
+            if normalize_name(offer[0]) == label:
+                return [offer]
+    return offers
+
+
+def read_fetched_skill(
+    name: str,
+    files: "dict[str, Any]",
+    pin: "Optional[str]" = None,
+    *,
+    max_bytes: int = DEFAULT_MAX_BYTES,
+    max_depth: int = DEFAULT_MAX_DEPTH,
+) -> str:
+    """Checks a skill fetched under ``name``, by relative path to content, before it is delivered,
+    and returns its tree digest. The pin comes first, so nothing unverified is parsed."""
+    entries = [
+        (tuple(part.encode("utf-8") for part in path.split("/")), "file", _as_bytes(value))
+        for path, value in files.items()
+    ]
+    try:
+        digest = digest_entries(entries)[0]
+    except DigestError as error:
+        raise ReadError(error.code, error.path)
+    if pin is not None and not same_digest(pin, digest):
+        raise ReadError("pin-mismatch", name)
+    if "SKILL.md" not in files:
+        raise ReadError("not-a-skill", name)
+    found = read_front_matter(
+        _as_bytes(files["SKILL.md"]), max_bytes=max_bytes, max_depth=max_depth
+    )
+    if "error" in found:
+        raise ReadError("skill-unreadable", found["error"], found["line"])
+    if "name" in found["data"] and found["data"]["name"] != name:
+        raise ReadError("skill-name-mismatch", name)
+    return digest
 
 
 def list_catalogs(catalogs: "list[tuple[str, dict[str, Any]]]") -> "dict[str, Any]":

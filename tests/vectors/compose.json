@@ -631,6 +631,166 @@
       }
     },
     {
+      "id": "skills-one-from-elsewhere",
+      "description": "Two overlays naming one skill alike do not collide: by name, or by the same source and pin.",
+      "overlays": {
+        "a": {
+          "skills": [
+            "pdf",
+            {
+              "name": "review",
+              "source": "https://github.com/example/skills.git#skills/review",
+              "pin": "sha256:abababababababababababababababababababababababababababababababab"
+            }
+          ]
+        },
+        "b": {
+          "skills": [
+            "PDF",
+            {
+              "name": "Review",
+              "source": "https://github.com/example/skills.git#skills/review",
+              "pin": "sha256:abababababababababababababababababababababababababababababababab"
+            }
+          ]
+        }
+      },
+      "requested": [
+        "a",
+        "b"
+      ],
+      "expect": {
+        "install_order": [
+          "a",
+          "b"
+        ],
+        "active": [
+          "a",
+          "b"
+        ],
+        "missing": [],
+        "root_variables": {
+          "a": "A_OVERLAY_ROOT",
+          "b": "B_OVERLAY_ROOT"
+        },
+        "routing": [],
+        "rules": [],
+        "context": [],
+        "skills": {
+          "PDF": "b",
+          "Review": "b"
+        },
+        "skill_collisions": []
+      }
+    },
+    {
+      "id": "skills-collide-from-elsewhere",
+      "description": "Different sources, or different pins, of one name fall under the collision rule: reported, and the overlay later in order wins.",
+      "overlays": {
+        "a": {
+          "skills": [
+            {
+              "name": "review",
+              "source": "https://github.com/example/skills.git#skills/review",
+              "pin": "sha256:abababababababababababababababababababababababababababababababab"
+            },
+            {
+              "name": "lint",
+              "source": "https://github.com/example/skills.git#skills/review-a"
+            }
+          ]
+        },
+        "b": {
+          "skills": [
+            {
+              "name": "review",
+              "source": "https://github.com/example/skills.git#skills/review",
+              "pin": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+            },
+            {
+              "name": "lint",
+              "source": "https://github.com/example/skills.git#skills/review-b"
+            }
+          ]
+        }
+      },
+      "requested": [
+        "a",
+        "b"
+      ],
+      "expect": {
+        "install_order": [
+          "a",
+          "b"
+        ],
+        "active": [
+          "a",
+          "b"
+        ],
+        "missing": [],
+        "root_variables": {
+          "a": "A_OVERLAY_ROOT",
+          "b": "B_OVERLAY_ROOT"
+        },
+        "routing": [],
+        "rules": [],
+        "context": [],
+        "skills": {
+          "lint": "b",
+          "review": "b"
+        },
+        "skill_collisions": [
+          "lint",
+          "review"
+        ]
+      }
+    },
+    {
+      "id": "skills-bundled-against-named",
+      "description": "A bundled skill and the same name from elsewhere collide.",
+      "overlays": {
+        "a": {},
+        "b": {
+          "skills": [
+            "pdf"
+          ]
+        }
+      },
+      "requested": [
+        "a",
+        "b"
+      ],
+      "files": {
+        "a": [
+          "skills/pdf/SKILL.md"
+        ]
+      },
+      "expect": {
+        "install_order": [
+          "a",
+          "b"
+        ],
+        "active": [
+          "a",
+          "b"
+        ],
+        "missing": [],
+        "root_variables": {
+          "a": "A_OVERLAY_ROOT",
+          "b": "B_OVERLAY_ROOT"
+        },
+        "routing": [],
+        "rules": [],
+        "context": [],
+        "skills": {
+          "pdf": "b"
+        },
+        "skill_collisions": [
+          "pdf"
+        ]
+      }
+    },
+    {
       "id": "context-body-order",
       "description": "An overlay's body stands where its CONTEXT.md would, in composition order.",
       "overlays": {

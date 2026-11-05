@@ -40,6 +40,7 @@ def test_every_vector_file_is_run():
         "effective.json",
         "catalog.json",
         "front_matter.json",
+        "skills.json",
     }
     assert {path.name for path in VECTORS.glob("*.json")} == run
 
@@ -96,6 +97,9 @@ def test_validation(case):
         assert aos.applies(issues) is case["expect"]["applies"], issues
     if case["expect"]["valid"]:
         assert not issues, issues
+        if files is not None:
+            flags = [at for _code, at in aos.skill_flags(case["document"], files)]
+            assert flags == case["expect"].get("flags", [])
     else:
         at = case["expect"]["at"]
         assert any(
@@ -271,3 +275,26 @@ def test_front_matter(case):
         check_context_file(case)
     else:
         check_document(case)
+
+
+SKILLS = cases("skills.json")
+
+
+@pytest.mark.parametrize("case", SKILLS, ids=ids(SKILLS))
+def test_skills(case):
+    if "fetched" in case:
+        try:
+            got = {"digest": aos.read_fetched_skill(case["name"], case["fetched"], case.get("pin"))}
+        except aos.ReadError as error:
+            got = {"error": error.code}
+    else:
+        catalogs = [(item["label"], read_catalog(item)) for item in case.get("catalogs", [])]
+        got = aos.resolve_skills(
+            case["overlays"],
+            case["requested"],
+            case.get("files", {}),
+            catalogs,
+            case.get("order", ()),
+            case.get("fetches", True),
+        )
+    assert strict(json.loads(json.dumps(got))) == strict(case["expect"])

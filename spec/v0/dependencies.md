@@ -31,4 +31,6 @@ graph LR
 > Removal refuses to remove an overlay another requires unless forced.
 
 There are no version constraints, optional dependencies or source pins in `requires`. A consumer pins
-the overlays it installs in its own configuration ([Integrity](integrity.md)).
+the overlays it installs in its own configuration ([Integrity](integrity.md)). `requires` names
+overlays; the skills an overlay needs are in its [`skills`](skills.md#declaring-skills), which may say
+where to fetch each.

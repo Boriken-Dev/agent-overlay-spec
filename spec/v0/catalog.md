@@ -3,9 +3,11 @@
 **Optional Extension, Proposed.** A **store** is a consumer, or the part of one, that lists overlays
 for a person to find and install, by name, summary, icon and tags, from one or more catalogs. This
 section defines what an overlay says about itself for a store (`about`), the catalog a store lists
-from, and what a store may believe of either.
+from, through which a consumer also [resolves skill names](skills.md#resolving-a-name), and what a store
+may believe of either.
 
-**All of it is informational.** A consumer that shows no store ignores this section and loses
+**All of it is informational**, but for a catalog's `skills`, which a consumer that resolves skill
+names reads. A consumer that shows no store and resolves no names ignores this section and loses
 nothing: no field here changes what an overlay does.
 
 > **Status:** dotagents reads the minimal form of a catalog as its registry (see
@@ -14,7 +16,7 @@ nothing: no field here changes what an overlay does.
 
 ## Informational fields
 
-`about` is a table of `overlay.cfg`:
+`about` is a table of the manifest, in `overlay.cfg` as here or in `OVERLAY.md`'s front matter:
 
 ```toml
 name = "release-notes"
@@ -119,9 +121,10 @@ the overlay, which installs and activates as if it had no icon.
 
 ## Catalogs
 
-**Optional Extension.** A **catalog** is a document listing overlays by name with the source of
-each, so a store can list and search them without fetching any. It is the registry that dotagents
-reads, extended: a registry is a catalog in the [minimal form](#entries-and-forms). A catalog can be
+**Optional Extension.** A **catalog** is a document listing overlays and skills by name with the
+source of each, so a store can list and search them, and a consumer resolve a name, without fetching
+any. It is the registry that dotagents reads, extended: a registry is a catalog in the
+[minimal form](#entries-and-forms). A catalog can be
 a file in any directory or repository, or at a URL, and a consumer can be given
 [several](#several-catalogs).
 
@@ -134,7 +137,8 @@ existing registries are named by format:
   byte-order mark is dropped and the rest is parsed whole: a first line `#!...` is not a format line
   (TOML reads it as a comment, JSON as an error).
 - Any other name (`catalog.cfg`, or none) is read as [`overlay.cfg` is](manifest.md#reading-overlaycfg):
-  a format line, else TOML.
+  a format line, else TOML. A catalog is never a front matter document: `catalog.md` is not read as
+  `OVERLAY.md` is.
 
 Everything else of [reading](manifest.md#reading-overlaycfg) holds: UTF-8, the data model, static
 reading, and limits on size and depth, as settings with defaults (4 MiB and 64 are RECOMMENDED,
@@ -160,23 +164,30 @@ description = "Conventions for release notes and changelogs."
 summary = "Release notes and changelogs, written the same way in every repository."
 icon = "icons/release-notes.png"
 tags = ["documentation", "release", "changelog"]
+
+[skills]
+pdf = "https://github.com/example/skills.git#skills/pdf"
 ```
 
-A catalog is a mapping with an `overlays` mapping:
+A catalog is a mapping with an `overlays` mapping, a `skills` mapping, or both:
 
 | Key | Type | Meaning |
 | --- | --- | --- |
-| `overlays` | mapping of name to entry | Required. The overlays the catalog lists |
+| `overlays` | mapping of name to entry | The overlays the catalog lists |
+| `skills` | mapping of skill name to entry | The skills the catalog lists, [resolving](skills.md#resolving-a-name) a name an overlay gives without a source |
 | `name` | line | The catalog's title, informational |
 | `description` | string | What the catalog holds, informational |
 | `homepage` | https URL | A page about the catalog, informational |
 
-Other top-level keys are allowed, kept and not acted on, as in a manifest. A document without an
-`overlays` mapping, including one that is itself a mapping of names to sources, is not a catalog
-(`not-a-catalog`).
+Other top-level keys are allowed, kept and not acted on, as in a manifest. A document with neither
+mapping, including one that is itself a mapping of names to sources, is not a catalog (`not-a-catalog`).
+Where one is a mapping and the other is present and is not, the other is reported at its pointer and
+the catalog is read.
 
 Each key of `overlays` is an overlay **name**, valid and compared normalized as
-[identities](package.md#names-and-paths) are. Its value, the **entry**, is either:
+[identities](package.md#names-and-paths) are; each key of `skills` is a
+[skill name](skills.md#declaring-skills), compared without regard to ASCII case. The two are listed
+apart, so one name can be both. A value, the **entry**, is either:
 
 - a **string**, the overlay's [source](distribution.md#source-form): a **minimal entry**; or
 - a **table**, a **full entry**:
@@ -188,6 +199,9 @@ Each key of `overlays` is an overlay **name**, valid and compared normalized as
 | `pin` | digest | A [tree digest](integrity.md#digest-form) the catalog's author reviewed |
 | `description` | string | Informational, as the manifest's |
 | `about` | table | The [informational fields](#informational-fields); its `icon` is a file beside the catalog |
+
+For a skill, the source is the skill's own directory, as a [table in a manifest](skills.md#declaring-skills)
+names it, and `pin` is its tree digest.
 
 A full entry has no other key: an unknown key refuses the entry, since a misspelt `pin` must not
 install an overlay unpinned.
@@ -216,7 +230,7 @@ catalog file from.
 - Any other source stays as written. A Git location written as a relative path (`../other.git`) is
   not defined by this edition: a catalog writes Git locations in full.
 - **A catalog from elsewhere names nothing on this machine.** In a catalog read from a Git
-  repository or a URL, an absolute directory, or a Git location that is a local path or a `file:`
+  repository or a URL, an absolute directory, a Git location that is a local path, or any `file:`
   URL, refuses the entry (`local-source`): a catalog chooses its own sources, and one naming a
   local path would install whatever the consumer's machine holds there.
 - `ref` belongs to a Git source that has no ref of its own. A `ref` beside an `@ref`, on a relative
@@ -228,12 +242,12 @@ relative path, it cannot leave the catalog's directory.
 
 ### What a store lists
 
-A store refuses an entry, **alone**, and reports it:
+A store refuses an entry, **alone**, and reports it, in `overlays` and in `skills` alike:
 
 | The entry | Class |
 | --- | --- |
-| Its name is not a valid overlay name | `invalid-name` |
-| Its name normalizes as another's in the same catalog: both are refused | `duplicate-name` |
+| Its name is not a valid overlay name, or skill name | `invalid-name` |
+| Its name compares equal to another's in the same mapping of the catalog: both are refused | `duplicate-name` |
 | It is neither a string nor a table; a table has no string `source`, an unknown key, or a `ref` of the wrong form | `invalid-entry` |
 | Its source is not one ([source form](distribution.md#source-form)) | `invalid-source` |
 | Its `pin` is not a digest | `invalid-pin` |
@@ -294,6 +308,11 @@ activating, never from catalog claims**:
 - its env scripts; its setup, the variant that would run on this OS and its network need; its
   dependency files, their environments and whether each is pinned;
 - the overlays it `requires`, each shown and accepted the same way;
+- its context: the [body](manifest.md#overlaymd) of `OVERLAY.md` or `CONTEXT.md`, and a `CONTEXT.md`
+  that is ignored;
+- every [skill it names from elsewhere](skills.md#resolving-a-name), each with its source, the catalog
+  that offered it, and whether it is pinned, and every name that is missing or ambiguous, all accepted
+  together with the overlay. These are shown before any of them is fetched;
 - the variables it sets or adds to, the secrets and host variables it asks for, its MCP servers and
   its commands;
 - every [weakening](security.md#weakenings) activating it would report, `unpinned` included.

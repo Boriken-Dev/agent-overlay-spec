@@ -193,12 +193,18 @@ def test_invalid_fixture_is_refused_where_expected(name):
         ({"runtime": {"python": [{"lock": "l.txt"}]}}, "/runtime/python/0/lock"),
         ({"scripts": {"x": "bin/x.py"}}, "/scripts/x"),
         ({"harness": {"codex": {"context": ["a.md"]}}}, "/harness/codex/context/0"),
-        ({"skills": ["absent"]}, "/skills/0"),
     ],
 )
 def test_a_named_file_must_exist(doc, at):
     assert at in [found for _code, found in aos.validate(doc, set())]
     assert not aos.validate(doc)
+
+
+def test_a_listed_skill_needs_no_directory_but_is_flagged():
+    doc = {"skills": ["absent", {"name": "fetched", "source": "https://example.org/skills/x"}]}
+    assert not aos.validate(doc, set())
+    assert aos.skill_flags(doc, set()) == [("skill-from-catalog", "/skills/0")]
+    assert aos.skill_flags(doc, {"skills/absent/SKILL.md"}) == []
 
 
 def test_schema_allows_unknown_top_level_keys():
@@ -281,6 +287,25 @@ def test_the_example_overlay_md_reads_as_its_overlay_cfg_twin_would():
     assert files["OVERLAY.md"][body["body_offset"] :].strip()
 
 
+def test_the_example_naming_skills_from_elsewhere():
+    root = EXAMPLES / "skills-from-elsewhere"
+    catalog_path = REGISTRY / "catalog.toml"
+    catalog = aos.read_catalog(
+        catalog_path.read_bytes(), catalog_path.name, catalog_path.as_posix()
+    )
+    manifest = manifest_of(root)
+    files = aos.tree_files(root)
+    assert [at for _code, at in aos.skill_flags(manifest, files)] == ["/skills/1"]
+    found = aos.resolve_skills({"x": manifest}, ["x"], {"x": files}, [("examples", catalog)])
+    assert {item["name"]: item["origin"] for item in found["skills"]} == {
+        "summarize-docs": "bundled",
+        "pdf": "catalog",
+        "review": "source",
+    }
+    assert found["missing"] == [] and found["ambiguous"] == []
+    assert found["unpinned"] == [["pdf", "x"]]
+
+
 def test_the_example_catalog():
     path = REGISTRY / "catalog.toml"
     data = path.read_bytes()
@@ -289,6 +314,7 @@ def test_the_example_catalog():
     assert catalog["form"] == "full"
     assert catalog["refused"] == [] and catalog["ignored"] == []
     assert len(catalog["entries"]) == 3
+    assert sorted(catalog["skills"]["entries"]) == ["pdf"] and not catalog["skills"]["refused"]
     for name, entry in catalog["entries"].items():
         icon = entry["about"]["icon"]
         assert aos.read_icon((REGISTRY / icon).read_bytes(), icon)

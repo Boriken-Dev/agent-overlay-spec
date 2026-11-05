@@ -3,6 +3,153 @@
   "spec": "spec/v0/manifest.md#validation",
   "cases": [
     {
+      "id": "files-missing-skill",
+      "description": "A listed name with no SKILL.md is for the consumer's catalogs to resolve: valid, and flagged.",
+      "document": {
+        "skills": [
+          "k"
+        ]
+      },
+      "files": [
+        "skills/k/README.md"
+      ],
+      "expect": {
+        "valid": true,
+        "flags": [
+          "/skills/0"
+        ]
+      }
+    },
+    {
+      "id": "skills-from-elsewhere",
+      "description": "Bundled, named and sourced together; only the bare name with no directory is flagged.",
+      "document": {
+        "skills": [
+          "summarize-docs",
+          "pdf",
+          {
+            "name": "review",
+            "source": "https://github.com/example/skills.git#skills/review",
+            "pin": "sha256:abababababababababababababababababababababababababababababababab"
+          }
+        ]
+      },
+      "files": [
+        "skills/summarize-docs/SKILL.md"
+      ],
+      "expect": {
+        "valid": true,
+        "flags": [
+          "/skills/1"
+        ]
+      }
+    },
+    {
+      "id": "skills-table-ref",
+      "description": "A table with a ref, for a Git source written without one.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://github.com/example/skills.git#skills/review",
+            "ref": "v1"
+          }
+        ]
+      },
+      "files": [],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "skills-table-source-ref",
+      "description": "A Git source may carry its own ref instead.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://github.com/example/skills.git@v1#skills/review"
+          }
+        ]
+      },
+      "files": [],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "skills-table-account",
+      "description": "An SSH account is not a credential.",
+      "document": {
+        "skills": [
+          {
+            "name": "a",
+            "source": "git@github.com:example/skills.git#a"
+          },
+          {
+            "name": "b",
+            "source": "ssh://git@github.com/example/skills.git#b"
+          }
+        ]
+      },
+      "files": [],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "skills-table-web",
+      "description": "A web URL can be a source.",
+      "document": {
+        "skills": [
+          {
+            "name": "a",
+            "source": "https://example.org/skills/a",
+            "pin": "sha256:abababababababababababababababababababababababababababababababab"
+          }
+        ]
+      },
+      "files": [],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "skills-table-no-files",
+      "description": "Without the files, a validator checks a table's shape and its source alone.",
+      "document": {
+        "skills": [
+          {
+            "name": "a",
+            "source": "https://example.org/skills/a"
+          },
+          "b"
+        ]
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "skills-bundled-defaults-off",
+      "description": "With the default off, a listed name that is bundled is still bundled, not flagged.",
+      "document": {
+        "defaults": {
+          "skills": false
+        },
+        "skills": [
+          "k"
+        ]
+      },
+      "files": [
+        "skills/k/SKILL.md",
+        "skills/other/SKILL.md"
+      ],
+      "expect": {
+        "valid": true
+      }
+    },
+    {
       "id": "empty",
       "description": "No manifest reads as the empty mapping.",
       "document": {},
@@ -1332,6 +1479,70 @@
       }
     },
     {
+      "id": "fixture-skills-local-source",
+      "description": "tests/fixtures/invalid/skills-local-source.cfg",
+      "document": {
+        "skills": [
+          {
+            "name": "r",
+            "source": "../r"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "fixture-skills-source-credentials",
+      "description": "tests/fixtures/invalid/skills-source-credentials.cfg",
+      "document": {
+        "skills": [
+          {
+            "name": "r",
+            "source": "https://u:p@example.org/r.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "fixture-skills-table-no-source",
+      "description": "tests/fixtures/invalid/skills-table-no-source.cfg",
+      "document": {
+        "skills": [
+          {
+            "name": "r"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "fixture-skills-table-unknown-key",
+      "description": "tests/fixtures/invalid/skills-table-unknown-key.cfg",
+      "document": {
+        "skills": [
+          {
+            "name": "r",
+            "source": "https://example.org/r",
+            "pinn": "sha256:abababababababababababababababababababababababababababababababab"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
       "id": "fixture-unknown-key-null-json",
       "description": "tests/fixtures/invalid/unknown-key-null-json.cfg",
       "document": {
@@ -1349,6 +1560,626 @@
       "expect": {
         "valid": false,
         "at": "/routing/0"
+      }
+    },
+    {
+      "id": "skills-entry-number",
+      "description": "An entry is a name or a table.",
+      "document": {
+        "skills": [
+          5
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-table-unknown-key",
+      "description": "A misspelt pin must not fetch a skill unpinned.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://github.com/example/skills.git#skills/review",
+            "pinn": "sha256:abababababababababababababababababababababababababababababababab"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-table-no-source",
+      "description": "A table without a source: a bare name is the string form.",
+      "document": {
+        "skills": [
+          {
+            "name": "review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-table-no-name",
+      "description": "A table without a name.",
+      "document": {
+        "skills": [
+          {
+            "source": "https://github.com/example/skills.git#skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-table-bad-pin",
+      "description": "A pin is a digest.",
+      "document": {
+        "skills": [
+          {
+            "pin": "sha1:0123",
+            "name": "review",
+            "source": "https://github.com/example/skills.git#skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-table-bad-ref",
+      "description": "A ref has the form a catalog's has.",
+      "document": {
+        "skills": [
+          {
+            "ref": "release/1.0",
+            "name": "review",
+            "source": "https://github.com/example/skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-table-blank-source",
+      "description": "A source that is only white space.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "   "
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-ref-beside-ref",
+      "description": "A ref beside an @ref.",
+      "document": {
+        "skills": [
+          {
+            "ref": "v2",
+            "name": "review",
+            "source": "https://github.com/example/skills.git@v1"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/ref"
+      }
+    },
+    {
+      "id": "skills-ref-on-web-url",
+      "description": "A ref on a source that is not Git.",
+      "document": {
+        "skills": [
+          {
+            "ref": "v2",
+            "name": "review",
+            "source": "https://example.org/skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/ref"
+      }
+    },
+    {
+      "id": "skills-source-relative",
+      "description": "A relative directory: a manifest names no place on the consumer's machine.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "../review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "skills-source-absolute",
+      "description": "An absolute directory.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "/srv/skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "skills-source-drive",
+      "description": "A drive path.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "C:\\skills\\review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "skills-source-unc",
+      "description": "A UNC path.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "\\\\host\\share\\review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "skills-source-home",
+      "description": "A home directory: nothing in a source is expanded, and it is a local path.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "~/.ssh"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "skills-source-local-git",
+      "description": "A Git location that is a local path.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "../review.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "skills-source-explicit-local-git",
+      "description": "git+ on a local path.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "git+/srv/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "skills-source-file-git",
+      "description": "A file: URL to a repository.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "file:///srv/review.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "skills-source-file-url",
+      "description": "A file: URL.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "file:///etc/passwd"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "skills-source-file-url-case",
+      "description": "The scheme compares without ASCII case.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "FILE:///etc/passwd"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "skills-source-other-scheme",
+      "description": "A URL source is http or https.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "ftp://example.org/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "skills-source-option",
+      "description": "A location starting with '-' would reach git as an option.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "-oProxyCommand=x.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "skills-source-helper",
+      "description": "Git's remote-helper syntax runs a program.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "ext::sh -c x.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "skills-source-bad-path",
+      "description": "A #path that leaves the location.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://github.com/example/skills.git#../x"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "skills-source-password",
+      "description": "A password in a URL.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://user:secret@github.com/example/skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "skills-source-token-user",
+      "description": "A user in a web URL is how a token travels.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://token@github.com/example/skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "skills-source-ssh-password",
+      "description": "A password in an SSH URL.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "ssh://git:secret@github.com/example/skills.git"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "skills-source-query",
+      "description": "A query holds tokens too.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://example.org/skills/review?token=t"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/source"
+      }
+    },
+    {
+      "id": "skills-name-device",
+      "description": "A skill name becomes a directory: a Windows device name cannot.",
+      "document": {
+        "skills": [
+          "con"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-name-device-extension",
+      "description": "Nor with an extension.",
+      "document": {
+        "skills": [
+          "NUL.txt"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-name-trailing-dot",
+      "description": "A trailing dot aliases the name without it on Windows.",
+      "document": {
+        "skills": [
+          "pdf."
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-name-short",
+      "description": "The shape of a Windows short name.",
+      "document": {
+        "skills": [
+          "PROGRA~1"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-name-pyc",
+      "description": "A name a tree digest leaves out.",
+      "document": {
+        "skills": [
+          "x.pyc"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
+      }
+    },
+    {
+      "id": "skills-name-table-device",
+      "description": "A table's name is held to the same rule.",
+      "document": {
+        "skills": [
+          {
+            "name": "aux",
+            "source": "https://github.com/example/skills.git#skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/name"
+      }
+    },
+    {
+      "id": "skills-duplicate-case",
+      "description": "Names equal without regard to ASCII case are one directory on Windows and macOS.",
+      "document": {
+        "skills": [
+          "Review",
+          "review"
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/1"
+      }
+    },
+    {
+      "id": "skills-duplicate-table",
+      "description": "A name and a table for one skill.",
+      "document": {
+        "skills": [
+          "review",
+          {
+            "name": "REVIEW",
+            "source": "https://github.com/example/skills.git#skills/review"
+          }
+        ]
+      },
+      "expect": {
+        "valid": false,
+        "at": "/skills/1/name"
+      }
+    },
+    {
+      "id": "skills-table-also-bundled",
+      "description": "A table whose name is also bundled is ambiguous within the overlay.",
+      "document": {
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://github.com/example/skills.git#skills/review"
+          }
+        ]
+      },
+      "files": [
+        "skills/review/SKILL.md"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/name"
+      }
+    },
+    {
+      "id": "skills-table-also-bundled-case",
+      "description": "Compared without regard to ASCII case.",
+      "document": {
+        "skills": [
+          {
+            "name": "Review",
+            "source": "https://github.com/example/skills.git#skills/review"
+          }
+        ]
+      },
+      "files": [
+        "skills/review/SKILL.md"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/name"
+      }
+    },
+    {
+      "id": "skills-table-also-bundled-default-off",
+      "description": "Whether or not the default offers the bundled one.",
+      "document": {
+        "defaults": {
+          "skills": false
+        },
+        "skills": [
+          {
+            "name": "review",
+            "source": "https://github.com/example/skills.git#skills/review"
+          }
+        ]
+      },
+      "files": [
+        "skills/review/SKILL.md"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/skills/0/name"
+      }
+    },
+    {
+      "id": "skills-name-case-of-bundled",
+      "description": "A name differing from a bundled skill only in case resolves to neither.",
+      "document": {
+        "skills": [
+          "Review"
+        ]
+      },
+      "files": [
+        "skills/review/SKILL.md"
+      ],
+      "expect": {
+        "valid": false,
+        "at": "/skills/0"
       }
     },
     {
@@ -2132,22 +2963,6 @@
       "expect": {
         "valid": false,
         "at": "/defaults"
-      }
-    },
-    {
-      "id": "files-missing-skill",
-      "description": "A listed skill without SKILL.md.",
-      "document": {
-        "skills": [
-          "k"
-        ]
-      },
-      "files": [
-        "skills/k/README.md"
-      ],
-      "expect": {
-        "valid": false,
-        "at": "/skills/0"
       }
     },
     {

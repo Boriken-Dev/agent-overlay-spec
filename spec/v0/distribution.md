@@ -44,7 +44,10 @@ ref is a full commit id (40 or 64 hexadecimal digits) and the pin is the tree di
 tag can move.
 
 A consumer that logs or stores a source removes any user information and query string from it first
-(`https://user:secret@host/x.git?token=t` is shown as `https://host/x.git`).
+(`https://user:secret@host/x.git?token=t` is shown as `https://host/x.git`). Who writes a source limits
+what it can be: a [catalog from elsewhere](catalog.md#sources-in-a-catalog) names nothing on the
+consumer's machine, and neither does a [manifest](skills.md#declaring-skills), which holds no credential
+either.
 
 > **Status:** dotagents parses exactly this form (`<location>[@<ref>][#<path>]`) for repositories and
 > overlays. It also reads registries (a JSON, TOML or YAML mapping from name or alias to source,

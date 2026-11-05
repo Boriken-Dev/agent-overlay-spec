@@ -51,5 +51,9 @@
   "setup-table.cfg": "/setup",
   "skills-bad-name.cfg": "/skills/0",
   "skills-duplicate.cfg": "/skills",
+  "skills-local-source.cfg": "/skills/0/source",
+  "skills-source-credentials.cfg": "/skills/0/source",
+  "skills-table-no-source.cfg": "/skills/0",
+  "skills-table-unknown-key.cfg": "/skills/0",
   "unknown-key-null-json.cfg": "/routing/0"
 }

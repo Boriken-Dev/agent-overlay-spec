@@ -7,26 +7,32 @@ rules and the classes they serve are in
 | File | What it checks |
 | --- | --- |
 | `reading.json` | Format line, TOML default, JSON and YAML data model, static reading, limits, `dotenv` and its substitution, env-script output, and catalogs read by file name |
-| `validation.json` | Every field, valid and invalid, and files a field names; whether a manifest with problems under `about` still applies |
+| `front_matter.json` | `OVERLAY.md` and front matter: the split, the closing fence, a byte-order mark and `\r`, the body's bytes, positions, bounds, the format line, restricted YAML including billion-laughs and deep-nesting shapes, a context file's text, and an overlay's two manifests and its context |
+| `skills.json` | Skills from elsewhere: where a name resolves, missing and ambiguous names, pins, what a consumer that does not fetch says, collisions, and the checks on a fetched skill |
+| `validation.json` | Every field, valid and invalid, and files a field names; whether a manifest with problems under `about` still applies; which skill names a validator flags |
 | `names.json` | Overlay identities, normalization, root variables |
 | `source.json` | `[git+]<location>[@<ref>][#<path>]` |
 | `digest.json` | The tree digest |
 | `compose.json` | `requires`, cycles, composition order, contributions, environment across overlays (values chained from one overlay to the next), and the defaults of `rules`, `context`, `skills` and `paths` |
 | `effective.json` | One overlay's environment, setup, setup phases, runtime, needs and weakenings on a given OS, with the defaults of `paths`, `env_files`, `env_scripts` and `setup` |
-| `catalog.json` | Catalogs in both forms, sources resolved beside the catalog, refused entries and ignored fields, names several catalogs share, and icons |
+| `catalog.json` | Catalogs in both forms, overlays and skills, sources resolved beside the catalog, refused entries and ignored fields, names several catalogs share, and icons |
 
 Error classes:
 
 - reading: `invalid-utf8`, `no-format-named`, `unsupported-format`, `parse-error`, `not-a-mapping`,
   `null-value`, `duplicate-key`, `non-string-key`, `datetime-value`, `non-finite-float`,
   `integer-range`, `invalid-unicode`, `yaml-tag`, `yaml-anchor`, `yaml-merge-key`,
-  `yaml-directive`, `too-deep`, `too-large`, `dotenv-syntax`, `env-script-output`;
+  `yaml-directive`, `too-deep`, `too-large`, `dotenv-syntax`, `env-script-output`,
+  `unterminated-front-matter`, and for an overlay's files `two-manifests`;
 - substituting, in `dotenv` reading cases and when applying: `undefined-variable`,
   `secret-placeholder`, `invalid-pattern`;
 - digest: `symlink`, `special-file`, `non-utf8-name`, `invalid-name`, `case-collision`;
 - applying: `unresolved-reference`, `invalid-reference`, `missing-file`, `invalid-env-file`,
   `env-path-conflict`, `reserved-variable`;
 - resolving: `cycle`, `invalid-source`;
+- skills: `skill-name`, `skill-duplicate`, `skill-ambiguous`, `skill-case`, `local-source`,
+  `source-credentials`, `ref-not-allowed` in a manifest, and when one is fetched `pin-mismatch`,
+  `not-a-skill`, `skill-unreadable`, `skill-name-mismatch`;
 - catalogs: `not-a-catalog` and the reading classes for a whole catalog; for an entry
   `invalid-name`, `duplicate-name`, `invalid-entry`, `invalid-source`, `invalid-pin`,
   `ref-not-allowed`, `leaves-repository`, `local-source`; for several catalogs `invalid-label`,

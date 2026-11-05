@@ -1,6 +1,7 @@
 # A catalog in the full form: the registry format, with informational fields a store lists and
 # searches before it fetches anything. registry.json, registry.toml and registry.yaml are catalogs
-# in the minimal form. Relative sources and icons resolve beside this file.
+# in the minimal form. Relative sources and icons resolve beside this file. Its skills table is what
+# an overlay's bare skill names resolve through.
 name = "Example overlays"
 description = "The overlays of the AOS examples, listed for a store."
 homepage = "https://example.org/overlays"
@@ -36,3 +37,10 @@ repository = "https://github.com/example/overlays"
 license = "MIT OR Apache-2.0"
 authors = ["Example Docs Team <docs@example.org>"]
 tags = ["documentation", "release", "changelog"]
+
+# A skill's entry has the fields of an overlay's. Skills and overlays are listed apart: one name can
+# be both.
+[skills.pdf]
+source = "https://github.com/example/skills.git#skills/pdf"
+ref = "v1.2.0"
+description = "Reads and fills PDF files."

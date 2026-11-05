@@ -11,11 +11,32 @@ Reading a manifest executes nothing, reads no other file, and consults no enviro
 ([static reading](manifest.md#static-reading)). A consumer can therefore show a user everything an
 overlay would do (its environment, path additions, setup, runtime, servers and weakenings) before
 any of it happens, from the manifest and the overlay's list of files, which decides the
-[defaults](package.md#defaults). YAML tags, anchors, aliases and merge keys are refused because
-general YAML loaders construct objects or expand documents from them; JSON duplicate keys are
-refused because two readers would disagree on which value wins.
+[defaults](package.md#defaults). YAML [tags, anchors, aliases and merge keys](manifest.md#restricted-yaml)
+are refused because general YAML loaders construct objects or expand documents from them, a few hundred
+bytes into billions of nodes; they are refused where they stand, since a check after expanding comes too
+late. JSON duplicate keys are refused because two readers would disagree on which value wins.
 
-A reader bounds the size and nesting of what it reads, by settings with defaults.
+A reader bounds the size and nesting of what it reads, by settings with defaults, and holds the depth
+bound while parsing, so text deep enough to exhaust a recursive parser's stack is a refusal, not a
+crash. [The split](manifest.md#the-split) works on bytes and reads nothing past its bound, so it spends
+nothing on a body it is not asked for, however large.
+
+## The body of `OVERLAY.md`
+
+A body is [context](harness.md#context), and context is instruction: it steers the agent with the
+standing a `CONTEXT.md` has, so it reaches an agent only from an overlay the user accepted. Showing an
+overlay is not giving it to an agent:
+
+- a store or a viewer shows a body as text, marked as the overlay's, renders no HTML in it and fetches
+  nothing it links to, and never adds it to an agent's context to describe the overlay;
+- what is in the fence never reaches an agent as context: not a manifest's fields, not `about`, not a
+  block a viewer could not read. An unclosed block in `OVERLAY.md` is refused, not shown to an agent;
+- every byte of `OVERLAY.md` is under the [tree digest](integrity.md#tree-digest), so a pin covers the
+  body as it covers `CONTEXT.md`.
+
+Two readers that disagree about where a block ends would apply one manifest and show another, or send
+an agent what another reader took for metadata, so [the split](manifest.md#the-split) is byte-exact and
+held by vectors.
 
 ## Trust and sources
 
@@ -34,7 +55,7 @@ then reports the refusal the same way.
 
 | Id | When |
 | --- | --- |
-| `unpinned` | An overlay is activated without a [pin](integrity.md#pins). |
+| `unpinned` | An overlay is activated without a [pin](integrity.md#pins), or a [skill from elsewhere](skills.md#resolving-a-name) is named without one. The subject is the overlay, or the skill. |
 | `setup-network` | The selected [setup](runtime.md#setup) variant declares `network = true`, or a [default setup](runtime.md#default-scripts) is selected. |
 | `network-not-enforced` | The selected setup variant declares no network, and the consumer cannot deny it one. |
 | `no-timeout` | The selected setup variant or an [env script](environment.md#env-scripts) that runs has `timeout = 0`. |
@@ -142,6 +163,30 @@ variables it reads before starting it.
   consumer's machine.
 - **Names across catalogs** are never resolved silently: a name two catalogs offer is shown
   qualified by catalog, and installing it unqualified asks the user.
+
+## Skills from elsewhere
+
+An overlay's [`skills`](skills.md) can make a consumer fetch code and instructions the overlay's digest
+does not cover, so naming a source is a request, and only the user's yes grants it:
+
+- **Who may name a source.** Anyone who writes a manifest may ask for a source, and it asks for nothing
+  on the consumer's machine: [local sources and credentials are refused](skills.md#declaring-skills).
+  What is fetched is what the user accepted: the overlay and its skills [together](catalog.md#before-installing),
+  each source shown first, and fetching never happens before that, for an overlay from a project or a
+  catalog above all. A source is reached with the consumer's own network position and Git transports, as
+  an overlay's source is, so the consumer limits those as [distribution](distribution.md#source-form) says.
+- **A name resolving to code.** A bare name is resolved by the catalogs the user chose, never by the
+  overlay, so an overlay can only ask for what those already offer, under a name it chose. That can still
+  be another skill than its author meant, so each is shown with its source before it is accepted, a name
+  two catalogs offer is never picked by itself, and the overlay's pin is only as good as the entry: a
+  name with no pin is reported `unpinned` each time.
+- **Fetching is not running.** A skill is instructions and files: [nothing in it runs by default, and
+  nothing in it is read as an overlay](skills.md#fetching). So a skill cannot name further skills, and a
+  fetched tree's digest is checked before any file of it is parsed.
+- **A skill is what it says.** A skill whose `SKILL.md` gives another name than the one accepted is
+  refused, so a fetched skill cannot take a trusted skill's place in a harness by naming itself after it.
+  A [collision](skills.md#delivery) between overlays' skills is reported, and the configuration can
+  refuse it.
 
 ## Collisions and updates
 
