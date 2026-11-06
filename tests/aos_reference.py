@@ -429,8 +429,6 @@ def _has_body(files: Any) -> bool:
     data = _as_bytes(files["OVERLAY.md"])
     # The bound was a matter for reading the manifest; this only looks for the body it found.
     found = split_front_matter(data, max_bytes=len(data))
-    if found["case"] == "unterminated":
-        return False
     return bool(data[found["body_offset"] :].strip(WHITE_SPACE))
 
 

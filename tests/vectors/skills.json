@@ -560,6 +560,119 @@
       }
     },
     {
+      "id": "resolve-table-ref-shown",
+      "description": "A table's ref is part of its source as shown, and the same source written with @ref is the same skill.",
+      "overlays": {
+        "a": {
+          "skills": [
+            {
+              "name": "lint",
+              "source": "https://github.com/example/skills.git#lint",
+              "ref": "v3",
+              "pin": "sha256:abababababababababababababababababababababababababababababababab"
+            }
+          ]
+        },
+        "b": {
+          "skills": [
+            {
+              "name": "lint",
+              "source": "https://github.com/example/skills.git@v3#lint",
+              "pin": "sha256:abababababababababababababababababababababababababababababababab"
+            }
+          ]
+        }
+      },
+      "requested": [
+        "a",
+        "b"
+      ],
+      "expect": {
+        "skills": [
+          {
+            "name": "lint",
+            "origin": "source",
+            "source": "https://github.com/example/skills.git@v3#lint",
+            "pin": "sha256:abababababababababababababababababababababababababababababababab",
+            "overlay": "a"
+          },
+          {
+            "name": "lint",
+            "origin": "source",
+            "source": "https://github.com/example/skills.git@v3#lint",
+            "pin": "sha256:abababababababababababababababababababababababababababababababab",
+            "overlay": "b"
+          }
+        ],
+        "missing": [],
+        "ambiguous": [],
+        "unpinned": [],
+        "not_fetched": [],
+        "delivered": {
+          "lint": "b"
+        },
+        "collisions": []
+      }
+    },
+    {
+      "id": "resolve-table-ref-differs",
+      "description": "Another ref is another source: a collision.",
+      "overlays": {
+        "a": {
+          "skills": [
+            {
+              "name": "lint",
+              "source": "https://github.com/example/skills.git#lint",
+              "ref": "v3",
+              "pin": "sha256:abababababababababababababababababababababababababababababababab"
+            }
+          ]
+        },
+        "b": {
+          "skills": [
+            {
+              "name": "lint",
+              "source": "https://github.com/example/skills.git#lint",
+              "ref": "v4",
+              "pin": "sha256:abababababababababababababababababababababababababababababababab"
+            }
+          ]
+        }
+      },
+      "requested": [
+        "a",
+        "b"
+      ],
+      "expect": {
+        "skills": [
+          {
+            "name": "lint",
+            "origin": "source",
+            "source": "https://github.com/example/skills.git@v3#lint",
+            "pin": "sha256:abababababababababababababababababababababababababababababababab",
+            "overlay": "a"
+          },
+          {
+            "name": "lint",
+            "origin": "source",
+            "source": "https://github.com/example/skills.git@v4#lint",
+            "pin": "sha256:abababababababababababababababababababababababababababababababab",
+            "overlay": "b"
+          }
+        ],
+        "missing": [],
+        "ambiguous": [],
+        "unpinned": [],
+        "not_fetched": [],
+        "delivered": {
+          "lint": "b"
+        },
+        "collisions": [
+          "lint"
+        ]
+      }
+    },
+    {
       "id": "resolve-unpinned-table",
       "description": "A table without a pin is reported unpinned, by name and overlay.",
       "overlays": {

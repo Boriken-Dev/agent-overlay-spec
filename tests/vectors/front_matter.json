@@ -821,6 +821,30 @@
       }
     },
     {
+      "id": "doc-unterminated-unicode-line-break-before-fence",
+      "description": "A line ending in '---' after U+2029 is no fence.",
+      "text": "---\nname: x ---\nbody\n",
+      "expect": {
+        "case": "unterminated",
+        "body_offset": 0,
+        "body_line": 1,
+        "error": "unterminated-front-matter",
+        "body": "---\nname: x ---\nbody\n"
+      }
+    },
+    {
+      "id": "doc-unterminated-next-line-before-fence",
+      "description": "Nor after U+0085.",
+      "text": "---\nname: x...\nbody\n",
+      "expect": {
+        "case": "unterminated",
+        "body_offset": 0,
+        "body_line": 1,
+        "error": "unterminated-front-matter",
+        "body": "---\nname: x...\nbody\n"
+      }
+    },
+    {
       "id": "doc-bound-exact",
       "description": "The head fits the bound exactly: it counts through the closing line's end.",
       "text": "---\nname: x\n---\nbody\n",
