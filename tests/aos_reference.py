@@ -165,7 +165,7 @@ def _parse(kind: str, payload: bytes, max_depth: int) -> "dict[str, Any]":
     except RecursionError:
         # A parser that recurses on its input stops here, however deep the text goes.
         raise ReadError("too-deep")
-    except ValueError as error:
+    except (ValueError, OverflowError) as error:
         # What a parser cannot convert: an integer too long to read, an escape past Unicode.
         raise ReadError("integer-range" if "digits" in str(error) else "parse-error", str(error))
     if not isinstance(value, dict):
