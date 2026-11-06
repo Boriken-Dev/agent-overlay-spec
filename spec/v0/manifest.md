@@ -320,12 +320,14 @@ manifest.
 | `setup` | array of setup variants | Optional Extension, **Proposed** | `[]`, after the [defaults](package.md#defaults) | [Runtime and setup](runtime.md#setup) |
 | `scripts` | mapping of command name to script | Optional Extension | `{}` | [Commands](commands.md) |
 | `mcp` | mapping | Optional Extension | absent | [MCP](mcp.md) |
+| `hooks` | mapping of event to hook | Optional Extension, **Proposed** | `{}`, after the [defaults](package.md#defaults) | [Hooks](hooks.md) |
 | `harness` | mapping of harness id to hints | Optional Extension, **Proposed** | `{}` | [Context and harnesses](harness.md#harness-hints) |
 | `about` | mapping of informational fields | Optional Extension, **Proposed**, informational | absent | [Store metadata](catalog.md#informational-fields) |
 
-Seven fields have [defaults](package.md#defaults) that come from the overlay's files. They apply
+Eight fields have [defaults](package.md#defaults) that come from the overlay's files. They apply
 first, the field's declared entries follow, and a declared entry naming the same file or directory
-as a default entry replaces it; `defaults` turns one off. A field's class is the class of its
+as a default entry replaces it (in `hooks`, one naming the same event); `defaults` turns one off.
+Every field reads the same in `OVERLAY.md`'s front matter as in `overlay.cfg`, `hooks` included. A field's class is the class of its
 declaration; the class of each default is in that section.
 
 A **relative path** is `/`-separated and relative to the overlay root, and every component of it:

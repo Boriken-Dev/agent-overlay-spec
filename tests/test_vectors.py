@@ -41,6 +41,7 @@ def test_every_vector_file_is_run():
         "catalog.json",
         "front_matter.json",
         "skills.json",
+        "hooks.json",
     }
     assert {path.name for path in VECTORS.glob("*.json")} == run
 
@@ -142,8 +143,8 @@ def test_compose(case):
     result = aos.compose(case["overlays"], case["requested"], case.get("files"), case.get("facts"))
     if "facts" in case:
         reduced = {"active": result["active"], "env": result.get("env", result.get("env_error"))}
-        # Dependency environments are checked where a case states them.
-        for key in ("environments", "conflicts", "blocked", "left"):
+        # Dependency environments and hook reports are checked where a case states them.
+        for key in ("environments", "conflicts", "blocked", "left", "hook_reports"):
             if key in case["expect"]:
                 reduced[key] = result[key]
         result = reduced
@@ -299,4 +300,37 @@ def test_skills(case):
             case.get("order", ()),
             case.get("fetches", True),
         )
+    assert strict(json.loads(json.dumps(got))) == strict(case["expect"])
+
+
+HOOKS = cases("hooks.json")
+
+
+def hook_plan(case: dict) -> dict:
+    facts = dict(case["facts"])
+    files = facts["files"]
+    if "manifest" in case:
+        manifest = case["manifest"]
+        issues = [at for _code, at in aos.validate(manifest, set(files))]
+    else:
+        read = aos.read_overlay({path: text.encode("utf-8") for path, text in files.items()})
+        manifest, issues = read["manifest"], read["issues"]
+    facts["files"] = list(files)
+    return dict(aos.hook_plan(manifest, facts), issues=sorted(set(issues)))
+
+
+@pytest.mark.parametrize("case", HOOKS, ids=ids(HOOKS))
+def test_hooks(case):
+    kind = case["id"].split("-", 1)[0]
+    if kind == "plan":
+        got = hook_plan(case)
+    elif kind == "payload":
+        got = aos.hook_payload(case["event"], case["known"])
+    elif kind == "output":
+        try:
+            got = {"output": aos.hook_result(case["event"], case["run"], case.get("limits", {}))}
+        except aos.HookFailure as failure:
+            got = {"failed": failure.cause}
+    else:
+        got = aos.fire_event(case["event"], case["runs"], case.get("applies"), case.get("limits"))
     assert strict(json.loads(json.dumps(got))) == strict(case["expect"])

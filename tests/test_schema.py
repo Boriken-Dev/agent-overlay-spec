@@ -16,7 +16,7 @@ FIXTURES = ROOT / "tests" / "fixtures"
 
 
 #: Example overlays with no manifest.
-MANIFEST_FREE = ("minimal", "bin-only", "conventions")
+MANIFEST_FREE = ("minimal", "bin-only", "conventions", "hook-script")
 
 
 def example_roots() -> "list[Path]":
@@ -193,6 +193,9 @@ def test_invalid_fixture_is_refused_where_expected(name):
         ({"runtime": {"python": [{"lock": "l.txt"}]}}, "/runtime/python/0/lock"),
         ({"scripts": {"x": "bin/x.py"}}, "/scripts/x"),
         ({"harness": {"codex": {"context": ["a.md"]}}}, "/harness/codex/context/0"),
+        ({"hooks": {"prompt": "hooks/prompt.py"}}, "/hooks/prompt"),
+        ({"hooks": {"pre-tool": {"run": "hooks/guard.sh"}}}, "/hooks/pre-tool/run"),
+        ({"hooks": {"pre-tool": {"match": ["execute"]}}}, "/hooks/pre-tool"),
     ],
 )
 def test_a_named_file_must_exist(doc, at):
@@ -322,3 +325,30 @@ def test_the_example_catalog():
         assert aos.normalize_name(manifest_of(root).get("name", root.name)) == name
         if "pin" in entry:
             assert aos.same_digest(entry["pin"], aos.tree_digest(root)), name
+
+
+def test_the_example_hook_script_gets_the_events_without_content():
+    root = EXAMPLES / "hook-script"
+    plan = aos.hook_plan({}, {"os": "linux", "files": aos.tree_files(root), "scope": "user"})
+    assert [entry["event"] for entry in plan["hooks"]] == [
+        "pre-env",
+        "session-start",
+        "session-end",
+        "turn-end",
+        "cd",
+        "pre-compact",
+    ]
+    assert {entry["path"] for entry in plan["hooks"]} == {"hook.py"}
+
+
+def test_the_example_hooks_table():
+    root = EXAMPLES / "hooks-table"
+    manifest = manifest_of(root)
+    plan = aos.hook_plan(manifest, {"os": "windows", "files": aos.tree_files(root)})
+    by_event = {entry["event"]: entry for entry in plan["hooks"]}
+    assert "turn-end" not in by_event and "prompt" not in by_event
+    assert by_event["session-start"]["match"] == ["new", "resume"]
+    assert by_event["pre-tool"]["path"] == "hook.py"
+    assert by_event["pre-tool"]["on_failure"] == "refuse"
+    assert by_event["post-tool"]["path"] == "hooks/after_edit.py"
+    assert plan["on"] is False and plan["reports"] == [["hook-not-allowed", ""]]

@@ -71,3 +71,8 @@ MUST NOT apply them in this edition: a key that grants a permission, changes app
 or adds hooks, servers, environment or commands would let an overlay loosen the harness without any
 weakening being reported. Hints are suggestions: they never override the user's or the operator's
 choice, and a consumer that ignores one is still conforming.
+
+An overlay's code runs at a session's events by one route, [Hooks](hooks.md): the `hooks` field and
+`hook.<ext>`, listed before installing, off until the user allows them at the overlay's digest, bounded,
+reported, and unable to grant. A `hooks` key in a harness table is that harness's own data like any
+other, and is never applied.

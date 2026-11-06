@@ -9,7 +9,7 @@ decides to trust it, and then pins what was trusted.
 
 Reading a manifest executes nothing, reads no other file, and consults no environment
 ([static reading](manifest.md#static-reading)). A consumer can therefore show a user everything an
-overlay would do (its environment, path additions, setup, runtime, servers and weakenings) before
+overlay would do (its environment, path additions, setup, runtime, servers, hooks and weakenings) before
 any of it happens, from the manifest and the overlay's list of files, which decides the
 [defaults](package.md#defaults). YAML [tags, anchors, aliases and merge keys](manifest.md#restricted-yaml)
 are refused because general YAML loaders construct objects or expand documents from them, a few hundred
@@ -63,6 +63,7 @@ then reports the refusal the same way.
 | `network-not-enforced` | The selected setup variant declares no network, and the consumer cannot deny it one. |
 | `no-timeout` | The selected setup variant or an [env script](environment.md#env-scripts) that runs has `timeout = 0`. |
 | `env-script` | An env script runs, declared or by default. |
+| `hook` | An overlay's or a scope's [hooks](hooks.md) are on, and one runs at an event. The subject is the event. |
 | `script-not-run` | A [default script](runtime.md#default-scripts) is present and none can run on this OS with the consumer's interpreters. The subject is each file. |
 | `env-passthrough` | A granted value is read from the consumer's own environment: an env value with `provider = "env"`, an MCP `env_passthrough` or `headers_env` entry. The subject is the variable read. |
 | `secret-read` | A granted [secret reference](environment.md#secret-references) is resolved for the overlay. The subject is the reference (`secret:<name>`, `file:<key>`, `<provider>:<key>`). |
@@ -105,7 +106,7 @@ installed before setup, from a lock in hash-checking mode where the file is pinn
 [environments](runtime.md#environments) outside every root that are read-only in the sandbox.
 
 Starting an MCP server, running a command and running an env script are the same decision as
-setup: code from the overlay runs. Overlays an overlay `requires` are shown and accepted like the
+setup: code from the overlay runs. A hook is that decision and one more, [below](#hooks). Overlays an overlay `requires` are shown and accepted like the
 ones asked for, never installed silently.
 
 `env.<ext>` and `setup.<ext>` [run by default](runtime.md#default-scripts), without a manifest.
@@ -121,6 +122,33 @@ An overlay's files under an [excluded name](package.md#layout) (`__pycache__`, `
 Node.js and Git load code from them implicitly. So a consumer never installs them, counts any such
 entry in an installed copy as a [mismatch](integrity.md#pins), and runs Python from an overlay with
 `PYTHONPYCACHEPREFIX` pointing outside the root, so no bytecode is ever written or read there.
+
+## Hooks
+
+A [hook](hooks.md) is the overlay's code running at every session, outside the sandbox, and some events
+tell it what the user typed or what a tool is about to do. Activating an overlay is therefore not enough
+to run one:
+
+- **Off until allowed at a digest.** Hooks run only while the overlay's tree digest is one at which the
+  user allowed them. Any change of a file turns them off again, so an update cannot start running new
+  code at the next session. Nothing an overlay, a catalog or a project holds allows them; the user's own
+  configuration needs no allowance.
+- **Declared statically, shown first.** Every event, its script, its `match`, timeout and
+  `on_failure`, and what its payload holds is in the manifest and the list of files, and
+  [listed before installing](catalog.md#before-installing).
+- **Told little.** A payload holds the event's own keys and nothing else: never the environment, a
+  variable, a secret or another overlay's data. Events that carry the user's words or a tool's input
+  (`prompt`, `pre-tool`, `post-tool`) reach a hook only when its manifest names them. A hook gets its own
+  overlay's environment, not the session's.
+- **Tightens, never grants.** A hook adds context, blocks, denies or asks. There is no output that
+  approves, any other decision is refused as `grant`, and a consumer never hands a harness the hook's own
+  output or exit status, so a harness's own approval vocabulary cannot pass through it. Variables reach a
+  shell through a loader, with no decision attached, never in the command's text.
+- **Bounded.** Time, output and payload are bounded by settings with defaults; a run is stopped, and
+  everything it started ended, when its time runs out.
+- **Fails visibly.** A failure is reported with its cause and never quoted. It refuses the event only
+  when the author asked for that (`on_failure = "refuse"`), so a guard fails closed, and an output a
+  consumer cannot apply on a harness is reported, never dropped.
 
 ## Paths and filenames
 

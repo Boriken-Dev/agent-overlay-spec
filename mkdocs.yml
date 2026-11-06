@@ -45,6 +45,7 @@ nav:
       - Commands: spec/v0/commands.md
       - Skills: spec/v0/skills.md
       - Context and harnesses: spec/v0/harness.md
+      - Hooks: spec/v0/hooks.md
       - MCP: spec/v0/mcp.md
       - Distribution: spec/v0/distribution.md
       - Store and catalogs: spec/v0/catalog.md

@@ -49,6 +49,13 @@ runs the `sync` phase.
 **State directory**: a directory outside the overlay root, per identity and OS, where setup
 writes; kept across syncs and digests, deleted after removal.
 
+**Hook**: a script an overlay, or a scope's own configuration, runs at an event of a session; see
+[Hooks](hooks.md).
+
+**Event**: a named moment of a session at which hooks run, such as `session-start` or `pre-tool`.
+
+**Session**: one run of a harness with an agent, from the moment it opens to the moment it ends.
+
 **Scope**: a set of overlays a consumer installs and activates together, such as a user's or a
 project's. A consumer documents its scopes; AOS defines none.
 
@@ -93,5 +100,6 @@ An implementation states which of these it claims; see [Conformance](conformance
 6. **Resolver**: resolves sources and dependencies in a deterministic order.
 7. **Manager**: installs, updates, removes and composes overlays.
 8. **Store**: lists overlays from catalogs, with their informational fields and icons.
+9. **Hooks**: runs hooks at a session's events, allowed by digest, and applies what they output.
 
 A class includes another's obligations only when the implementation claims both.

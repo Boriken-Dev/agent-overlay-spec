@@ -6,6 +6,7 @@ is right and this module has a bug. It is test code, not a library.
 
 from __future__ import annotations
 
+import base64
 import json
 import math
 import re
@@ -953,6 +954,11 @@ def _integers(doc: "dict[str, Any]") -> "list[tuple[str, str]]":
             for index, item in enumerate(items):
                 if isinstance(item, dict):
                     check(item.get("timeout"), "/%s/%d/timeout" % (key, index))
+    hooks = doc.get("hooks")
+    if isinstance(hooks, dict):
+        for event, entry in hooks.items():
+            if isinstance(entry, dict):
+                check(entry.get("timeout"), "/hooks/%s/timeout" % event)
     return found
 
 
@@ -1175,6 +1181,13 @@ def named_files(doc: "dict[str, Any]") -> "list[tuple[str, str]]":
                 out.append(("/scripts/%s" % name, target))
             elif isinstance(target, dict) and isinstance(target.get("path"), str):
                 out.append(("/scripts/%s/path" % name, target["path"]))
+    hooks = doc.get("hooks")
+    if isinstance(hooks, dict):
+        for event, entry in hooks.items():
+            if isinstance(entry, str):
+                out.append(("/hooks/%s" % event, entry))
+            elif isinstance(entry, dict) and isinstance(entry.get("run"), str):
+                out.append(("/hooks/%s/run" % event, entry["run"]))
     harness = doc.get("harness")
     if isinstance(harness, dict):
         for harness_id, hints in harness.items():
@@ -1191,6 +1204,12 @@ def named_files(doc: "dict[str, Any]") -> "list[tuple[str, str]]":
 def _files(doc: "dict[str, Any]", files: "set[str]") -> "list[tuple[str, str]]":
     found = [("missing-file", at) for at, path in named_files(doc) if path not in files]
     found += _manifest_named(doc)
+    hooks = doc.get("hooks")
+    if isinstance(hooks, dict) and not default_hook(files, "", ())[1]:
+        # A table with no run runs hook.<ext>, which has to be there.
+        for event, entry in hooks.items():
+            if isinstance(entry, dict) and "run" not in entry:
+                found.append(("missing-file", "/hooks/%s" % event))
     env = doc.get("env")
     if isinstance(env, dict):
         added = {entry["variable"] for entry in default_paths(doc, files)}
@@ -1551,7 +1570,18 @@ def composition_order(
 # --------------------------------------------------------------------------------------------
 
 #: The keys of ``defaults``; each is true unless the manifest writes it false.
-DEFAULT_KEYS = ("bin", "lib", "env", "env_scripts", "setup", "deps", "context", "skills", "rules")
+DEFAULT_KEYS = (
+    "bin",
+    "lib",
+    "env",
+    "env_scripts",
+    "setup",
+    "deps",
+    "context",
+    "skills",
+    "rules",
+    "hooks",
+)
 #: Default path additions as ``(key, variable, directory)``, in the order they apply.
 DEFAULT_PATHS = (
     ("bin", "PATH", "bin"),
@@ -2604,6 +2634,15 @@ def compose(
         weakenings: "list[list[str]]" = []
         packages = facts.get("packages", {})
         try:
+            if "pre_env" in facts:
+                result["hook_reports"] = []
+                _apply_pre_env(
+                    env,
+                    active,
+                    facts["pre_env"],
+                    facts.get("hook_limits", {}),
+                    result["hook_reports"],
+                )
             for identity in active:
                 tree = files.get(identity, [])
                 # A mapping of path to text gives the text of the files read as env files.
@@ -2621,6 +2660,369 @@ def compose(
             result["env_error"] = {"error": refused.code, "subject": refused.subject}
         else:
             result["env"] = env.values
+    return result
+
+
+def _apply_pre_env(
+    env: Environment,
+    active: "list[str]",
+    runs: "dict[str, dict[str, Any]]",
+    limits: "dict[str, int]",
+    reports: "list[list[str]]",
+) -> None:
+    """The ``pre-env`` hooks' output, every overlay's in composition order, after the root
+    variables and before any overlay's declarations; their reports go to ``reports``."""
+    for identity in active:
+        if identity not in runs:
+            continue
+        fired = fire_event("pre-env", [dict(runs[identity], source=identity)], None, limits)
+        reports += fired["reports"]
+        if fired["decision"] == "refuse":
+            raise Refused("hook-refused", identity)
+        for name, value in fired["env"].items():
+            if value is None:
+                key = env._key(name)
+                if key is not None:
+                    del env.values[key]
+            else:
+                env.set(name, value)
+
+
+# --------------------------------------------------------------------------------------------
+# Hooks: what runs at a session's events, what it is told, and what of its output applies.
+# --------------------------------------------------------------------------------------------
+
+#: Each event: its class, whether ``hook.<ext>`` gets it by default, the outputs it takes, what a
+#: refusal is for it (``None``: it cannot be refused), and what ``match`` selects.
+HOOK_EVENTS: "dict[str, tuple[str, bool, tuple[str, ...], Optional[str], Optional[str]]]" = {
+    "pre-env": ("core", True, ("env",), "refuse", None),
+    "session-start": ("core", True, ("context", "env"), "refuse", "reason"),
+    "session-end": ("core", True, (), None, None),
+    "prompt": ("core", False, ("context", "block", "env"), "block", None),
+    "turn-end": ("core", True, (), None, None),
+    "cd": ("extended", True, ("env",), None, None),
+    "pre-compact": ("extended", True, ("context", "block"), "block", None),
+    "pre-tool": ("extended", False, ("context", "deny", "ask", "env"), "deny", "kind"),
+    "post-tool": ("extended", False, ("context",), None, "kind"),
+}
+SESSION_REASONS = ("new", "resume", "clear", "compact", "fork")
+TOOL_KINDS = (
+    "read",
+    "edit",
+    "delete",
+    "move",
+    "search",
+    "execute",
+    "think",
+    "fetch",
+    "switch_mode",
+    "other",
+)
+#: The payload's keys: these three for every event, then each event's own.
+PAYLOAD_COMMON = ("event", "harness", "cwd")
+PAYLOAD_KEYS = {
+    "pre-env": (),
+    "session-start": ("session", "reason"),
+    "session-end": ("session",),
+    "prompt": ("session", "prompt"),
+    "turn-end": ("session",),
+    "cd": ("session", "previous"),
+    "pre-compact": ("session", "trigger"),
+    "pre-tool": ("session", "tool"),
+    "post-tool": ("session", "tool", "status"),
+}
+TOOL_KEYS = ("kind", "name", "input")
+HOOK_OUTPUT_KEYS = ("context", "decision", "reason", "env")
+DEFAULT_HOOK_TIMEOUT = 30
+DEFAULT_HOOK_LIMITS = {"timeout": 60, "max_output": 64 * 1024, "max_payload": 1024 * 1024}
+#: Combined decisions, loosest first.
+_DECISION_RANK = {None: 0, "ask": 1, "deny": 2, "block": 2, "refuse": 2}
+
+
+class HookFailure(Exception):
+    """A run of a hook that failed; ``cause`` is the vectors' class."""
+
+    def __init__(self, cause: str):
+        super().__init__(cause)
+        self.cause = cause
+
+
+def default_hook(
+    files: "Iterable[str]", os_name: str, interpreters: "Iterable[str]"
+) -> "tuple[Optional[dict[str, str]], list[str]]":
+    """The ``hook.<ext>`` chosen by runtime, and every one present."""
+    members = set(_members(files))
+    present = [("hook" + ext) for ext, _i, _o in DEFAULT_SCRIPTS if "hook" + ext in members]
+    for ext, interpreter, names in DEFAULT_SCRIPTS:
+        path = "hook" + ext
+        entry = {"interpreter": interpreter, "path": path, "os": names}
+        if path in present and os_matches(entry, os_name) and interpreter in interpreters:
+            return {"path": path, "interpreter": interpreter}, present
+    return None, present
+
+
+def hooks_of(
+    manifest: "dict[str, Any]",
+    files: "Iterable[str]",
+    os_name: str,
+    interpreters: "Iterable[str]" = INTERPRETERS,
+) -> "tuple[list[dict[str, Any]], list[str]]":
+    """Every hook the overlay has, in event order, and the ``hook.<ext>`` files reported as
+    ``script-not-run`` because an entry needs one and none can run here.
+
+    An entry whose script cannot run here keeps ``path`` (``None`` for a ``hook.<ext>`` none of
+    which can) so that firing it fails, and an ``on_failure = "refuse"`` guard fails closed.
+    """
+    interpreters = list(interpreters)
+    declared = manifest.get("hooks")
+    declared = declared if isinstance(declared, dict) else {}
+    chosen, present = default_hook(files, os_name, interpreters)
+    entries: "list[dict[str, Any]]" = []
+    needs_default = False
+    for event, (_class, by_default, _outputs, _refusal, _match) in HOOK_EVENTS.items():
+        if event in declared:
+            value = declared[event]
+            if value is False:
+                continue
+            table = value if isinstance(value, dict) else {"run": value}
+        elif by_default and default_on(manifest, "hooks") and present:
+            table = {}
+        else:
+            continue
+        if "run" in table:
+            path: "Optional[str]" = table["run"]
+            interpreter: "Optional[str]" = SCRIPT_EXTENSIONS[
+                table["run"][table["run"].rindex(".") :]
+            ]
+        elif chosen is not None:
+            path, interpreter = chosen["path"], chosen["interpreter"]
+        else:
+            needs_default = True
+            if event not in declared:
+                # A default entry that cannot run: nothing runs, the files are reported.
+                continue
+            path = interpreter = None
+        entries.append(
+            {
+                "event": event,
+                "path": path,
+                "interpreter": interpreter,
+                "runs": interpreter is not None and interpreter in interpreters,
+                "match": table.get("match"),
+                "timeout": table.get("timeout", DEFAULT_HOOK_TIMEOUT),
+                "on_failure": table.get("on_failure", "report"),
+                "payload": list(PAYLOAD_COMMON + PAYLOAD_KEYS[event]),
+            }
+        )
+    return entries, (present if needs_default else [])
+
+
+def hook_plan(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str, Any]":
+    """What a consumer would do with an overlay's hooks, or a scope's own, on one harness.
+
+    ``facts``: ``os``, ``interpreters``, ``files``, ``scope`` (``overlay``, ``user`` or
+    ``project``), ``digest`` and ``allowed`` (the digests at which the user allowed them),
+    ``fires`` (the events the consumer can fire on this harness; absent, every one) and
+    ``limits`` (``timeout``, the consumer's bound on one run).
+    """
+    entries, not_run = hooks_of(
+        manifest,
+        facts.get("files", []),
+        facts["os"],
+        facts.get("interpreters", INTERPRETERS),
+    )
+    bound = dict(DEFAULT_HOOK_LIMITS, **facts.get("limits", {}))["timeout"]
+    for entry in entries:
+        entry["timeout"] = min(entry["timeout"], bound)
+    scope = facts.get("scope", "overlay")
+    allowed = facts.get("allowed", [])
+    digest = facts.get("digest")
+    on = scope == "user" or (
+        digest is not None and any(same_digest(digest, item) for item in allowed)
+    )
+    fires = facts.get("fires", list(HOOK_EVENTS))
+    weakenings = [["script-not-run", path] for path in not_run]
+    reports: "list[list[str]]" = []
+    if entries and not on:
+        reports.append(["hook-not-allowed", ""])
+    elif on:
+        for entry in entries:
+            if entry["event"] in fires:
+                weakenings.append(["hook", entry["event"]])
+            else:
+                reports.append(["hook-unsupported", entry["event"]])
+    return {
+        "hooks": entries,
+        "on": on and bool(entries),
+        "needs": sorted({entry["interpreter"] for entry in entries if entry["interpreter"]}),
+        "reports": sorted(reports),
+        "weakenings": sorted(weakenings),
+    }
+
+
+def hook_payload(event: str, facts: "dict[str, Any]") -> "dict[str, Any]":
+    """The payload a hook of ``event`` receives: the event's own keys and nothing else of what
+    the consumer knows."""
+    payload: "dict[str, Any]" = {"event": event}
+    for key in PAYLOAD_COMMON[1:] + PAYLOAD_KEYS[event]:
+        if key not in facts:
+            continue
+        value = facts[key]
+        if key == "tool" and isinstance(value, dict):
+            value = {field: value[field] for field in TOOL_KEYS if field in value}
+        payload[key] = value
+    return payload
+
+
+def _hook_text(value: Any) -> bool:
+    return isinstance(value, str) and "\0" not in value
+
+
+def read_hook_output(event: str, data: bytes) -> "dict[str, Any]":
+    """A successful run's standard output: what it asks for, or ``HookFailure``.
+
+    ``pre-env`` reads as an env script's output. Every other event reads one JSON object, whose
+    keys are those the event takes; a ``decision`` that is not one of the event's own is an
+    attempt to grant.
+    """
+    _class, _default, outputs, _refusal, _match = HOOK_EVENTS[event]
+    if event == "pre-env":
+        try:
+            return {"env": read_env_script_output(data)}
+        except ReadError:
+            raise HookFailure("output")
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HookFailure("output")
+    whole = text.strip(" \t\r\n")
+    if not whole:
+        return {}
+    try:
+        value = _read_json(whole)
+    except ReadError:
+        raise HookFailure("output")
+    if not isinstance(value, dict):
+        raise HookFailure("output")
+    if "decision" in value:
+        decisions = [kind for kind in outputs if kind in ("block", "deny", "ask")]
+        if value["decision"] not in decisions:
+            raise HookFailure("grant")
+    for key in value:
+        if key not in HOOK_OUTPUT_KEYS:
+            raise HookFailure("output")
+    out: "dict[str, Any]" = {}
+    if "decision" in value:
+        out["decision"] = value["decision"]
+    if "reason" in value:
+        if "decision" not in value or not _hook_text(value["reason"]):
+            raise HookFailure("output")
+        out["reason"] = value["reason"]
+    if "context" in value:
+        if "context" not in outputs or not _hook_text(value["context"]):
+            raise HookFailure("output")
+        out["context"] = value["context"]
+    if "env" in value:
+        env = value["env"]
+        if "env" not in outputs or not isinstance(env, dict):
+            raise HookFailure("output")
+        for name, item in env.items():
+            if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", name) or is_reserved_variable(name):
+                raise HookFailure("output")
+            if item is not None and not _hook_text(item):
+                raise HookFailure("output")
+        out["env"] = dict(env)
+    return out
+
+
+def _run_bytes(run: "dict[str, Any]") -> bytes:
+    if "stdout_base64" in run:
+        return base64.b64decode(run["stdout_base64"])
+    if "stdout_parts" in run:
+        return "".join(text * times for text, times in run["stdout_parts"]).encode("utf-8")
+    return run.get("stdout", "").encode("utf-8")
+
+
+def hook_result(event: str, run: "dict[str, Any]", limits: "dict[str, int]") -> "dict[str, Any]":
+    """One run, as the consumer saw it, checked in a fixed order: started, payload, time, size,
+    exit status, then the output itself."""
+    limits = dict(DEFAULT_HOOK_LIMITS, **limits)
+    if run.get("not_run"):
+        raise HookFailure("not-run")
+    if run.get("payload_size", 0) > limits["max_payload"]:
+        raise HookFailure("payload-too-large")
+    if run.get("timed_out"):
+        raise HookFailure("timeout")
+    data = _run_bytes(run)
+    if len(data) > limits["max_output"]:
+        raise HookFailure("too-large")
+    if run.get("exit", 0) != 0:
+        raise HookFailure("exit")
+    return read_hook_output(event, data)
+
+
+def fire_event(
+    event: str,
+    runs: "list[dict[str, Any]]",
+    applies: "Optional[Iterable[str]]" = None,
+    limits: "Optional[dict[str, int]]" = None,
+) -> "dict[str, Any]":
+    """Every hook of one event, in the order given, combined to the tightest result.
+
+    ``runs`` are what each hook did (``source``, ``on_failure`` and the run as
+    :func:`hook_result` reads it); ``applies`` the outputs the consumer can apply on this harness
+    (``context``, ``env``, ``block``, ``deny``, ``ask``, ``refuse``; absent, every one).
+    """
+    _class, _default, outputs, refusal, _match = HOOK_EVENTS[event]
+    can = set(applies) if applies is not None else set(outputs) | {"refuse"}
+    result: "dict[str, Any]" = {
+        "ran": [],
+        "decision": None,
+        "by": None,
+        "reason": None,
+        "context": [],
+        "env": {},
+        "reports": [],
+        "weakenings": [],
+    }
+    for run in runs:
+        source = run["source"]
+        result["ran"].append(source)
+        try:
+            out = hook_result(event, run, limits or {})
+        except HookFailure as failure:
+            result["reports"].append(["hook-failed", source, event, failure.cause])
+            if run.get("on_failure", "report") != "refuse" or refusal is None:
+                continue
+            out = {"decision": refusal}
+        decision = out.get("decision")
+        if decision == "ask" and "ask" not in can:
+            result["reports"].append(["hook-ask-denied", source, event])
+            decision = "deny"
+        if decision is not None and decision not in can:
+            result["reports"].append(["hook-not-applied", source, event, decision])
+            decision = None
+        if _DECISION_RANK[decision] > _DECISION_RANK[result["decision"]]:
+            result.update(decision=decision, by=source, reason=out.get("reason"))
+        if _DECISION_RANK[decision] == 2:
+            # The prompt, compaction, call or session does not happen: nothing else applies.
+            result["context"] = []
+            result["env"] = {}
+            break
+        if out.get("context"):
+            if "context" in can:
+                result["context"].append([source, out["context"]])
+            else:
+                result["reports"].append(["hook-not-applied", source, event, "context"])
+        if "env" in out and out["env"]:
+            if "env" not in can:
+                result["reports"].append(["hook-not-applied", source, event, "env"])
+                continue
+            for name, value in out["env"].items():
+                if is_sensitive(name):
+                    result["weakenings"].append(["env-sensitive", name])
+                result["env"][name] = value
+    result["weakenings"] = sorted({tuple(w) for w in result["weakenings"]})
     return result
 
 

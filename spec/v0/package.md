@@ -18,6 +18,7 @@ means something only when a field names it.
 | `rules/<name>.md`, `CONTEXT.md` | Always-on rules and initial context, by default |
 | `skills/<name>/SKILL.md` | A skill |
 | `env`, `env.<ext>`, `setup.<ext>` | The env file, the env script and setup, by default |
+| `hook.<ext>` | The overlay's [hook](hooks.md), at the events that carry no content, by default |
 | `kb/`, `flows/`, `references/` | Instructions and knowledge, named by `rules`, `routing` and `context` |
 | `cmds/`, `scripts/` | Executable assets, exposed only by a [`scripts`](commands.md) entry |
 | `setup/`, `env/`, `locks/` | Files named by `setup`, `env_files`, `env_scripts` and `runtime` |
@@ -48,6 +49,7 @@ manifest declares adds to the defaults.
 | `context` | the [body](manifest.md#overlaymd) of `OVERLAY.md` when it has one, otherwise `CONTEXT.md` at the root | [`context`](harness.md#context) | Optional Extension |
 | `skills` | every `skills/<name>/SKILL.md` whose `<name>` is a skill name | [`skills`](skills.md#declaring-skills) | Optional Extension |
 | `rules` | every `rules/<name>.md` directly in `rules/`, ordered by path bytes | [`rules`](composition.md#merging) | Core, **Proposed** |
+| `hooks` | one `hook.<ext>` at the root, chosen the same way, at `pre-env`, `session-start`, `session-end`, `turn-end`, `cd` and `pre-compact` | [`hooks`](hooks.md#hooks) | Optional Extension, **Proposed** |
 
 A path is **present** when the overlay holds a file there that is a member of its
 [tree digest](integrity.md#tree-digest): `bin/` is present when a file is under it at any depth,
@@ -94,6 +96,9 @@ match, that file or directory does not apply at all.
   entry's interpreter, arguments, timeout, `os` and (for setup) `network`, and runs only if it is
   chosen. Other declared env scripts run after the default one; other declared setup variants are
   tried before the default setup, which is the last variant.
+- `hooks`: an event the manifest names replaces that event's default entry, and the other events keep
+  theirs; `false` runs nothing for it. A table with no `run` runs `hook.<ext>`, which is how
+  `prompt`, `pre-tool` and `post-tool`, which have no default entry, reach it.
 - `runtime.python`, `runtime.node`: a selected variant that names a dependency file (`requirements`,
   `lock`, `package`) replaces that runtime's default file; one that names none keeps it, in the
   variant's `environment`.
@@ -115,16 +120,17 @@ A default is on until it is switched off, by its own key. Declaring adds, so an 
 directory keeps `bin/`, and an entry naming a default's file changes that default's settings without
 turning it off and without applying it twice. Each key is named for what it turns off: the directory
 or file of a default that is one entry of a shared field (`bin`, `lib`, `env`), the field itself
-where the default is all of it (`env_scripts`, `setup`, `context`, `skills`, `rules`), and `deps`
+where the default is all of it (`env_scripts`, `setup`, `context`, `skills`, `rules`, `hooks`), and `deps`
 for the dependency files of every runtime, so an overlay that turned them off stays that way when
 an edition adds a runtime, as with `lib`.
 
-**Defaults that run code.** The `env_scripts` and `setup` defaults run scripts, and the `deps`
-default runs a package manager. Running by default is never running silently: a consumer runs them only for an overlay it has activated, which is the
+**Defaults that run code.** The `env_scripts`, `setup` and `hooks` defaults run scripts, and the
+`deps` default runs a package manager. Running by default is never running silently: a consumer runs them only for an overlay it has activated, which is the
 [trust decision](security.md#execution-and-dependencies), and reports each run as a
 [weakening](security.md#weakenings): `env-script` for an env script, `setup-network` for a default
-setup, `deps-network` for each dependency file installed, and `script-not-run` for a default
-script present that cannot run.
+setup, `deps-network` for each dependency file installed, `hook` for each event a hook runs at, and
+`script-not-run` for a default script present that cannot run. A hook also stays off until the user
+allows it at the overlay's digest ([Hooks](hooks.md#off-until-allowed)).
 
 No other name has a default. A `requirements.txt` or `package.json` outside `lib/<runtime>/`,
 `pre.env`, `cmds/`, a bare `lib/` and any other file or directory mean nothing by their name, and a program in `bin/` is on `PATH`, not a

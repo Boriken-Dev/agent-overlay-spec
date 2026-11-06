@@ -41,8 +41,8 @@ reads these variables as `${<NAME>_OVERLAY_ROOT}`, or its own overlay's as `${AO
 
 **Reserved variables.** Names matching `AOS_*`, `*_OVERLAY_ROOT` or `*_OVERLAY_STATE`, compared
 without regard to ASCII case, belong to the consumer. An overlay MUST NOT set one through `env`, an
-env file, `paths`, an env script or an MCP server's `env`: a validator refuses the manifest, and a
-consumer refuses the env file or the script's output. Otherwise one overlay could point another's
+env file, `paths`, an env script, a [hook](hooks.md#output) or an MCP server's `env`: a validator
+refuses the manifest, and a consumer refuses the env file or the script's or hook's output. Otherwise one overlay could point another's
 routing lines at its own files.
 
 > **Status:** dotagents sets the root variable only when it is unset.
@@ -215,6 +215,7 @@ scripts, each in declaration order, and a `dotenv` file line by line. Each value
 environment as it stands after every earlier entry:
 
 - the base environment, and every active overlay's root and state variables;
+- what every active overlay's `pre-env` hook set, earlier and later overlays alike;
 - what every earlier overlay set: its values, its path additions and its env scripts' output;
 - this overlay's earlier entries: its earlier env files, and the earlier lines of the same `dotenv`
   file;
@@ -391,7 +392,10 @@ MUST give the same result for the same inputs:
 
 1. Set the root variable of every overlay in play, and its state variable when it has a state
    directory.
-2. For each overlay in [composition order](composition.md#deterministic-ordering), each field
+2. Apply the output of every overlay's [`pre-env` hook](hooks.md#events) that is allowed, in
+   composition order, each as that overlay's own, as an env script's output applies: nothing in it is
+   substituted.
+3. For each overlay in [composition order](composition.md#deterministic-ordering), each field
    with its [defaults](package.md#defaults) first:
     1. its `env_files` that apply to this OS, in order, a `dotenv` file line by line;
     2. its `env`;
@@ -408,7 +412,7 @@ earlier one's. So the overlay with the higher `priority` wins a conflict and is 
 search path.
 
 **Which environment.** The agent session gets the environment of every active overlay. A process
-that one overlay runs (its setup, its env scripts, its MCP servers, its commands) gets the base
+that one overlay runs (its setup, its env scripts, its hooks, its MCP servers, its commands) gets the base
 environment, every overlay's root variable, and that overlay's own declarations only, each with the
 value it was substituted to in the order of application, so a secret one overlay was granted never
 reaches another overlay's code. A value is substituted once; it is the same in the session and in

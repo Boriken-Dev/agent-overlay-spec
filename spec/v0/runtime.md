@@ -59,7 +59,8 @@ An interpreter that a selected setup variant, env script or script names is a re
 
 **Optional Extension.** Unless `[defaults]` turns it off, a consumer runs at most one script by
 [default](package.md#defaults) for `env_scripts` and one for `setup`: `env.<ext>`, or
-`setup.<ext>`, at the overlay root. It tries the extensions in this order and takes the first whose
+`setup.<ext>`, at the overlay root. [`hook.<ext>`](hooks.md#hookext) is chosen the same way, and is
+configured by `hooks` rather than by an entry naming it. It tries the extensions in this order and takes the first whose
 file is present, that applies on the current OS, and whose interpreter it can run (one it supports
 and finds on the base environment's `PATH`):
 
@@ -182,8 +183,9 @@ needs:
 
 - an OS in `runtime.os`, when it is given;
 - each command in `runtime.commands` that applies to the OS;
-- each interpreter named by the selected setup variant, by an env script that will run, and by a
-  `scripts` entry that applies to the OS (a string path's interpreter follows from its extension);
+- each interpreter named by the selected setup variant, by an env script that will run, by a
+  [hook](hooks.md) that is allowed, and by a `scripts` entry that applies to the OS (a string path's
+  interpreter follows from its extension);
   a default script needs only the interpreter of the one selected on that target;
 - `python` or `node`, at the selected variant's minimum version, when a variant applies;
 - for each [dependency file](#dependencies) that applies, its interpreter and package manager:
@@ -435,7 +437,7 @@ esac
 
 ## What a step receives
 
-A setup variant and an env script run with:
+A setup variant, an env script and a [hook](hooks.md#running-a-hook) run with:
 
 - the **working directory** set to the overlay root, which MAY be read-only;
 - the environment of that overlay's own processes
@@ -446,7 +448,8 @@ A setup variant and an env script run with:
       overlay's identity and OS, and to no other overlay, kept across syncs and digests as
       [Setup phases](#setup-phases) says. Setup writes what it produces here, never into the root,
       since a write in the root changes the [tree digest](integrity.md);
-    - for setup, `AOS_SETUP_PHASE`: `install`, `sync` or `remove`, as its first argument says.
+    - for setup, `AOS_SETUP_PHASE`: `install`, `sync` or `remove`, as its first argument says;
+    - for a hook, `AOS_HOOK_EVENT`: the event, as its first argument says.
 
 A consumer sets `<NAME>_OVERLAY_STATE` to the same directory for every process the overlay serves,
 so its tools find what setup produced. Inside the agent's sandbox the state directory is read-only:

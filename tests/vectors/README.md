@@ -13,9 +13,10 @@ rules and the classes they serve are in
 | `names.json` | Overlay identities, normalization, root variables |
 | `source.json` | `[git+]<location>[@<ref>][#<path>]` |
 | `digest.json` | The tree digest |
-| `compose.json` | `requires`, cycles, composition order, contributions, environment across overlays (values chained from one overlay to the next), and the defaults of `rules`, `context`, `skills` and `paths` |
+| `compose.json` | `requires`, cycles, composition order, contributions, environment across overlays (values chained from one overlay to the next, and `pre-env` hooks' output before every overlay's), and the defaults of `rules`, `context`, `skills` and `paths` |
 | `effective.json` | One overlay's environment, setup, setup phases, runtime, needs and weakenings on a given OS, with the defaults of `paths`, `env_files`, `env_scripts` and `setup` |
 | `catalog.json` | Catalogs in both forms, overlays and skills, sources resolved beside the catalog, refused entries and ignored fields, names several catalogs share, and icons |
+| `hooks.json` | Hooks: which run at each event and with what, `hook.<ext>` chosen by runtime, off until allowed at a digest, events a consumer cannot fire; each event's payload; a run's output, and every way it fails, an attempt to grant included; several hooks of one event combined, and what a consumer cannot apply on a harness |
 
 Error classes:
 
@@ -37,7 +38,10 @@ Error classes:
   `invalid-name`, `duplicate-name`, `invalid-entry`, `invalid-source`, `invalid-pin`,
   `ref-not-allowed`, `leaves-repository`, `local-source`, `source-credentials`; for several catalogs `invalid-label`,
   and for a requested name `ambiguous`, `not-found`;
-- icons: `icon-format`, `icon-too-large`, `icon-mismatch`, `icon-unreadable`, `icon-dimensions`.
+- icons: `icon-format`, `icon-too-large`, `icon-mismatch`, `icon-unreadable`, `icon-dimensions`;
+- hooks: a run fails with `not-run`, `payload-too-large`, `timeout`, `too-large`, `exit`, `grant` or
+  `output`; reports are `hook-not-allowed`, `hook-unsupported`, `hook-failed`, `hook-not-applied` and
+  `hook-ask-denied`, and the weakening `hook`; a `pre-env` refusal is `hook-refused` when applying.
 
 `python -m pytest tests/test_vectors.py tests/test_digest.py` runs them through this repository's
 reference reader.

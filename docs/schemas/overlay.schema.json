@@ -22,6 +22,7 @@
     "setup": { "description": "Variants tried before the setup default (one root setup.<ext>); an entry naming a root setup.<ext> configures that file in the default choice.", "type": "array", "items": { "$ref": "#/$defs/setupVariant" } },
     "scripts": { "$ref": "#/$defs/scripts" },
     "mcp": { "$ref": "#/$defs/mcp" },
+    "hooks": { "$ref": "#/$defs/hooks" },
     "harness": { "$ref": "#/$defs/harness" },
     "about": { "$ref": "#/$defs/about" }
   },
@@ -39,7 +40,8 @@
         "deps": { "type": "boolean" },
         "context": { "type": "boolean" },
         "skills": { "type": "boolean" },
-        "rules": { "type": "boolean" }
+        "rules": { "type": "boolean" },
+        "hooks": { "type": "boolean" }
       },
       "additionalProperties": false
     },
@@ -196,6 +198,123 @@
         "timeout": { "$ref": "#/$defs/timeout" },
         "network": { "type": "boolean" },
         "os": { "$ref": "#/$defs/osList" }
+      },
+      "additionalProperties": false
+    },
+    "hookRun": {
+      "description": "A script a hook runs; its interpreter follows from its extension, as a scripts path's does.",
+      "allOf": [
+        { "$ref": "#/$defs/scriptPath" },
+        { "pattern": "\\.(?:py|sh|bash|ps1|js|mjs|cjs)$" }
+      ]
+    },
+    "hookTimeout": { "type": "integer", "minimum": 1, "maximum": 3600 },
+    "hookReasons": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["new", "resume", "clear", "compact", "fork"] }
+    },
+    "toolKinds": {
+      "description": "Agent Client Protocol tool kinds.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["read", "edit", "delete", "move", "search", "execute", "think", "fetch", "switch_mode", "other"] }
+    },
+    "hookReport": {
+      "description": "An event no hook can refuse: a failure is reported, and the event goes on.",
+      "oneOf": [
+        { "const": false },
+        { "$ref": "#/$defs/hookRun" },
+        {
+          "type": "object",
+          "properties": {
+            "run": { "$ref": "#/$defs/hookRun" },
+            "timeout": { "$ref": "#/$defs/hookTimeout" },
+            "on_failure": { "const": "report" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "hookGuard": {
+      "description": "An event a hook can refuse: on_failure = refuse makes a failure refuse it.",
+      "oneOf": [
+        { "const": false },
+        { "$ref": "#/$defs/hookRun" },
+        {
+          "type": "object",
+          "properties": {
+            "run": { "$ref": "#/$defs/hookRun" },
+            "timeout": { "$ref": "#/$defs/hookTimeout" },
+            "on_failure": { "enum": ["report", "refuse"] }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "hookStart": {
+      "oneOf": [
+        { "const": false },
+        { "$ref": "#/$defs/hookRun" },
+        {
+          "type": "object",
+          "properties": {
+            "run": { "$ref": "#/$defs/hookRun" },
+            "match": { "$ref": "#/$defs/hookReasons" },
+            "timeout": { "$ref": "#/$defs/hookTimeout" },
+            "on_failure": { "enum": ["report", "refuse"] }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "hookBeforeTool": {
+      "oneOf": [
+        { "const": false },
+        { "$ref": "#/$defs/hookRun" },
+        {
+          "type": "object",
+          "properties": {
+            "run": { "$ref": "#/$defs/hookRun" },
+            "match": { "$ref": "#/$defs/toolKinds" },
+            "timeout": { "$ref": "#/$defs/hookTimeout" },
+            "on_failure": { "enum": ["report", "refuse"] }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "hookAfterTool": {
+      "oneOf": [
+        { "const": false },
+        { "$ref": "#/$defs/hookRun" },
+        {
+          "type": "object",
+          "properties": {
+            "run": { "$ref": "#/$defs/hookRun" },
+            "match": { "$ref": "#/$defs/toolKinds" },
+            "timeout": { "$ref": "#/$defs/hookTimeout" },
+            "on_failure": { "const": "report" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "hooks": {
+      "description": "What runs at each event: a script, a table (no run: hook.<ext>, chosen by runtime), or false for nothing. An event named here replaces its default entry.",
+      "type": "object",
+      "properties": {
+        "pre-env": { "$ref": "#/$defs/hookGuard" },
+        "session-start": { "$ref": "#/$defs/hookStart" },
+        "session-end": { "$ref": "#/$defs/hookReport" },
+        "prompt": { "$ref": "#/$defs/hookGuard" },
+        "turn-end": { "$ref": "#/$defs/hookReport" },
+        "cd": { "$ref": "#/$defs/hookReport" },
+        "pre-compact": { "$ref": "#/$defs/hookGuard" },
+        "pre-tool": { "$ref": "#/$defs/hookBeforeTool" },
+        "post-tool": { "$ref": "#/$defs/hookAfterTool" }
       },
       "additionalProperties": false
     },
