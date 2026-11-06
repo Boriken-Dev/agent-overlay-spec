@@ -5120,6 +5120,34 @@
       }
     },
     {
+      "id": "output-env-on-post-tool-declared",
+      "description": "Not even one a consumer was told the hook sets: the event takes none.",
+      "event": "post-tool",
+      "run": {
+        "stdout": "{\"env\": {\"A\": \"1\"}}",
+        "sets": [
+          "A"
+        ]
+      },
+      "expect": {
+        "failed": "output"
+      }
+    },
+    {
+      "id": "output-env-on-turn-end-declared",
+      "description": "Nor turn-end.",
+      "event": "turn-end",
+      "run": {
+        "stdout": "{\"env\": {\"A\": \"1\"}}",
+        "sets": [
+          "A"
+        ]
+      },
+      "expect": {
+        "failed": "output"
+      }
+    },
+    {
       "id": "output-env-on-pre-compact",
       "description": "Nor pre-compact.",
       "event": "pre-compact",

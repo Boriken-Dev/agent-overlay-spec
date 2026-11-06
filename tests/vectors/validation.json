@@ -3819,6 +3819,40 @@
       }
     },
     {
+      "id": "hooks-match-on-pre-compact",
+      "description": "pre-compact takes no match.",
+      "document": {
+        "hooks": {
+          "pre-compact": {
+            "match": [
+              "manual"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/pre-compact"
+      }
+    },
+    {
+      "id": "hooks-match-on-pre-env",
+      "description": "Nor pre-env.",
+      "document": {
+        "hooks": {
+          "pre-env": {
+            "match": [
+              "new"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "at": "/hooks/pre-env"
+      }
+    },
+    {
       "id": "hooks-match-on-session-end",
       "description": "Only session-start, pre-tool and post-tool take match.",
       "document": {
