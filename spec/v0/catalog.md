@@ -324,9 +324,11 @@ activating, never from catalog claims**:
   delivered;
 - the variables it sets or adds to, the secrets and host variables it asks for, its MCP servers and
   its commands;
-- its [hooks](hooks.md): each event, the script that would run, its `match`, timeout and `on_failure`,
-  what the event's payload tells it (the text of each prompt, a tool's input), each event the consumer
-  cannot fire on the harnesses it serves, and that they stay off until allowed at this digest;
+- its [hooks](hooks.md): each event, the script that would run, its `match`, timeout, `on_failure` and
+  the variables it `sets`, what the event's payload tells it (the text of each prompt, a tool's input),
+  each event the consumer cannot fire, or fires only in part, on the harnesses it serves, that a hook
+  runs with the user's access and can read what the harness stores, and that they stay off until allowed
+  at this digest;
 - every [weakening](security.md#weakenings) activating it would report, `unpinned` included.
 
 Nothing of the overlay runs to compute this: [reading is static](security.md#reading-is-safe-by-construction).

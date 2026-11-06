@@ -144,7 +144,14 @@ def test_compose(case):
     if "facts" in case:
         reduced = {"active": result["active"], "env": result.get("env", result.get("env_error"))}
         # Dependency environments and hook reports are checked where a case states them.
-        for key in ("environments", "conflicts", "blocked", "left", "hook_reports"):
+        for key in (
+            "environments",
+            "conflicts",
+            "blocked",
+            "left",
+            "hook_reports",
+            "hook_weakenings",
+        ):
             if key in case["expect"]:
                 reduced[key] = result[key]
         result = reduced
@@ -331,6 +338,14 @@ def test_hooks(case):
             got = {"output": aos.hook_result(case["event"], case["run"], case.get("limits", {}))}
         except aos.HookFailure as failure:
             got = {"failed": failure.cause}
+    elif kind == "match":
+        got = {"runs": aos.hook_matches(case["event"], case["match"], case["value"])}
     else:
-        got = aos.fire_event(case["event"], case["runs"], case.get("applies"), case.get("limits"))
+        got = aos.fire_event(
+            case["event"],
+            case["runs"],
+            case.get("applies"),
+            case.get("limits"),
+            case.get("os") == "windows",
+        )
     assert strict(json.loads(json.dumps(got))) == strict(case["expect"])

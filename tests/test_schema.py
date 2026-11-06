@@ -352,3 +352,5 @@ def test_the_example_hooks_table():
     assert by_event["pre-tool"]["on_failure"] == "refuse"
     assert by_event["post-tool"]["path"] == "hooks/after_edit.py"
     assert plan["on"] is False and plan["reports"] == [["hook-not-allowed", ""]]
+    # Its guard refuses on failure, so the overlay waits for the user's yes.
+    assert plan["activates"] is False

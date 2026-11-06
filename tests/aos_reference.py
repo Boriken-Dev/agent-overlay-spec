@@ -1865,7 +1865,7 @@ SENSITIVE_NAMES = frozenset(
     IFS EDITOR VISUAL PAGER LESSOPEN LESSCLOSE XDG_CONFIG_HOME XDG_DATA_HOME APPDATA LOCALAPPDATA
     TMPDIR TEMP TMP PSMODULEPATH CLASSPATH JAVA_TOOL_OPTIONS _JAVA_OPTIONS JDK_JAVA_OPTIONS
     PERL5OPT PERL5LIB RUBYOPT RUBYLIB RUSTFLAGS GOPROXY GONOSUMDB GONOSUMCHECK GOPRIVATE GOFLAGS
-    SSH_ASKPASS SSLKEYLOGFILE REQUESTS_CA_BUNDLE CURL_CA_BUNDLE""".split()
+    SSH_ASKPASS SSLKEYLOGFILE REQUESTS_CA_BUNDLE CURL_CA_BUNDLE CLAUDE_CONFIG_DIR CODEX_HOME""".split()
 )
 SENSITIVE_PREFIXES = (
     "LD_",
@@ -2636,13 +2636,8 @@ def compose(
         try:
             if "pre_env" in facts:
                 result["hook_reports"] = []
-                _apply_pre_env(
-                    env,
-                    active,
-                    facts["pre_env"],
-                    facts.get("hook_limits", {}),
-                    result["hook_reports"],
-                )
+                result["hook_weakenings"] = []
+                _apply_pre_env(env, active, facts["pre_env"], facts.get("hook_limits", {}), result)
             for identity in active:
                 tree = files.get(identity, [])
                 # A mapping of path to text gives the text of the files read as env files.
@@ -2668,15 +2663,18 @@ def _apply_pre_env(
     active: "list[str]",
     runs: "dict[str, dict[str, Any]]",
     limits: "dict[str, int]",
-    reports: "list[list[str]]",
+    result: "dict[str, Any]",
 ) -> None:
     """The ``pre-env`` hooks' output, every overlay's in composition order, after the root
-    variables and before any overlay's declarations; their reports go to ``reports``."""
+    variables and before any overlay's declarations; reports and weakenings go to ``result``."""
     for identity in active:
         if identity not in runs:
             continue
-        fired = fire_event("pre-env", [dict(runs[identity], source=identity)], None, limits)
-        reports += fired["reports"]
+        fired = fire_event(
+            "pre-env", [dict(runs[identity], source=identity)], None, limits, env.windows
+        )
+        result["hook_reports"] += fired["reports"]
+        result["hook_weakenings"] += fired["weakenings"]
         if fired["decision"] == "refuse":
             raise Refused("hook-refused", identity)
         for name, value in fired["env"].items():
@@ -2734,7 +2732,17 @@ PAYLOAD_KEYS = {
 TOOL_KEYS = ("kind", "name", "input")
 HOOK_OUTPUT_KEYS = ("context", "decision", "reason", "env")
 DEFAULT_HOOK_TIMEOUT = 30
-DEFAULT_HOOK_LIMITS = {"timeout": 60, "max_output": 64 * 1024, "max_payload": 1024 * 1024}
+DEFAULT_HOOK_LIMITS = {
+    "timeout": 60,
+    "event_timeout": 120,
+    "max_output": 64 * 1024,
+    "max_payload": 1024 * 1024,
+}
+#: The longest ``reason``, in code points: it is shown beside what it is about.
+MAX_HOOK_REASON = 1024
+#: Characters a hook's text may not hold: controls other than tab, line feed and carriage return,
+#: and the bidirectional overrides and isolates, which change how the text around them reads.
+_HOOK_TEXT_REFUSED = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f‪-‮⁦-⁩]")
 #: Combined decisions, loosest first.
 _DECISION_RANK = {None: 0, "ask": 1, "deny": 2, "block": 2, "refuse": 2}
 
@@ -2809,6 +2817,7 @@ def hooks_of(
                 "interpreter": interpreter,
                 "runs": interpreter is not None and interpreter in interpreters,
                 "match": table.get("match"),
+                "sets": table.get("sets", []),
                 "timeout": table.get("timeout", DEFAULT_HOOK_TIMEOUT),
                 "on_failure": table.get("on_failure", "report"),
                 "payload": list(PAYLOAD_COMMON + PAYLOAD_KEYS[event]),
@@ -2820,10 +2829,12 @@ def hooks_of(
 def hook_plan(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str, Any]":
     """What a consumer would do with an overlay's hooks, or a scope's own, on one harness.
 
-    ``facts``: ``os``, ``interpreters``, ``files``, ``scope`` (``overlay``, ``user`` or
-    ``project``), ``digest`` and ``allowed`` (the digests at which the user allowed them),
-    ``fires`` (the events the consumer can fire on this harness; absent, every one) and
-    ``limits`` (``timeout``, the consumer's bound on one run).
+    ``facts``: ``os``, ``interpreters``, ``files``, ``identity``, ``scope`` (``overlay``,
+    ``user`` or ``project``), ``digest`` and ``allowed`` (the one digest at which the user
+    allowed them); for a project, ``tree``, every file of the directory that holds its
+    configuration, whose digest is the one allowed; ``fires`` (the events the consumer can fire
+    on this harness; absent, every one), ``partial`` (those it fires for only some occurrences)
+    and ``limits`` (``timeout``, the consumer's bound on one run).
     """
     entries, not_run = hooks_of(
         manifest,
@@ -2835,29 +2846,58 @@ def hook_plan(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
     for entry in entries:
         entry["timeout"] = min(entry["timeout"], bound)
     scope = facts.get("scope", "overlay")
-    allowed = facts.get("allowed", [])
     digest = facts.get("digest")
+    if "tree" in facts:
+        # Every file of the directory, not only those the hooks name: a module beside a script
+        # is loaded by it.
+        tree = facts["tree"]
+        digest = digest_entries(
+            [
+                (tuple(p.encode("utf-8") for p in path.split("/")), "file", text.encode("utf-8"))
+                for path, text in tree.items()
+            ]
+        )[0]
+    allowed = facts.get("allowed")
     on = scope == "user" or (
-        digest is not None and any(same_digest(digest, item) for item in allowed)
+        digest is not None and allowed is not None and same_digest(digest, allowed)
     )
     fires = facts.get("fires", list(HOOK_EVENTS))
+    partial = facts.get("partial", [])
     weakenings = [["script-not-run", path] for path in not_run]
     reports: "list[list[str]]" = []
     if entries and not on:
-        reports.append(["hook-not-allowed", ""])
+        reports.append(["hook-not-allowed", facts.get("identity", "")])
     elif on:
         for entry in entries:
-            if entry["event"] in fires:
-                weakenings.append(["hook", entry["event"]])
-            else:
+            if entry["event"] not in fires:
                 reports.append(["hook-unsupported", entry["event"]])
+                continue
+            weakenings.append(["hook", entry["event"]])
+            if entry["event"] in partial:
+                reports.append(["hook-partial", entry["event"]])
+    guarded = any(entry["on_failure"] == "refuse" for entry in entries)
     return {
         "hooks": entries,
         "on": on and bool(entries),
+        # A guard that is off would fail open: the overlay waits for the user's yes.
+        "activates": on or not guarded,
         "needs": sorted({entry["interpreter"] for entry in entries if entry["interpreter"]}),
         "reports": sorted(reports),
         "weakenings": sorted(weakenings),
     }
+
+
+def hook_matches(event: str, match: "Optional[list[str]]", value: str) -> bool:
+    """Whether a hook whose ``match`` is ``match`` runs for this reason or tool kind.
+
+    A tool the consumer could not place (``other``) runs every ``pre-tool`` and ``post-tool``
+    hook, so a tool of an unknown kind never slips past a guard.
+    """
+    if match is None:
+        return True
+    if HOOK_EVENTS[event][4] == "kind" and value == "other":
+        return True
+    return value in match
 
 
 def hook_payload(event: str, facts: "dict[str, Any]") -> "dict[str, Any]":
@@ -2875,15 +2915,17 @@ def hook_payload(event: str, facts: "dict[str, Any]") -> "dict[str, Any]":
 
 
 def _hook_text(value: Any) -> bool:
-    return isinstance(value, str) and "\0" not in value
+    """Text a hook may give the agent or the user: no control but tab, line feed and carriage
+    return, and no bidirectional override."""
+    return isinstance(value, str) and not _HOOK_TEXT_REFUSED.search(value)
 
 
-def read_hook_output(event: str, data: bytes) -> "dict[str, Any]":
+def read_hook_output(event: str, data: bytes, sets: "Iterable[str]" = ()) -> "dict[str, Any]":
     """A successful run's standard output: what it asks for, or ``HookFailure``.
 
     ``pre-env`` reads as an env script's output. Every other event reads one JSON object, whose
     keys are those the event takes; a ``decision`` that is not one of the event's own is an
-    attempt to grant.
+    attempt to grant, and ``env`` may name only the variables the entry ``sets``.
     """
     _class, _default, outputs, _refusal, _match = HOOK_EVENTS[event]
     if event == "pre-env":
@@ -2915,9 +2957,10 @@ def read_hook_output(event: str, data: bytes) -> "dict[str, Any]":
     if "decision" in value:
         out["decision"] = value["decision"]
     if "reason" in value:
-        if "decision" not in value or not _hook_text(value["reason"]):
+        reason = value["reason"]
+        if "decision" not in value or not _hook_text(reason) or len(reason) > MAX_HOOK_REASON:
             raise HookFailure("output")
-        out["reason"] = value["reason"]
+        out["reason"] = reason
     if "context" in value:
         if "context" not in outputs or not _hook_text(value["context"]):
             raise HookFailure("output")
@@ -2926,10 +2969,15 @@ def read_hook_output(event: str, data: bytes) -> "dict[str, Any]":
         env = value["env"]
         if "env" not in outputs or not isinstance(env, dict):
             raise HookFailure("output")
+        declared = set(sets)
+        folded: "set[str]" = set()
         for name, item in env.items():
             if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", name) or is_reserved_variable(name):
                 raise HookFailure("output")
-            if item is not None and not _hook_text(item):
+            if name not in declared or name.upper() in folded:
+                raise HookFailure("output")
+            folded.add(name.upper())
+            if item is not None and not (isinstance(item, str) and "\0" not in item):
                 raise HookFailure("output")
         out["env"] = dict(env)
     return out
@@ -2958,7 +3006,7 @@ def hook_result(event: str, run: "dict[str, Any]", limits: "dict[str, int]") -> 
         raise HookFailure("too-large")
     if run.get("exit", 0) != 0:
         raise HookFailure("exit")
-    return read_hook_output(event, data)
+    return read_hook_output(event, data, run.get("sets", ()))
 
 
 def fire_event(
@@ -2966,15 +3014,19 @@ def fire_event(
     runs: "list[dict[str, Any]]",
     applies: "Optional[Iterable[str]]" = None,
     limits: "Optional[dict[str, int]]" = None,
+    windows: bool = False,
 ) -> "dict[str, Any]":
     """Every hook of one event, in the order given, combined to the tightest result.
 
-    ``runs`` are what each hook did (``source``, ``on_failure`` and the run as
-    :func:`hook_result` reads it); ``applies`` the outputs the consumer can apply on this harness
-    (``context``, ``env``, ``block``, ``deny``, ``ask``, ``refuse``; absent, every one).
+    ``runs`` are what each hook did (``source``, ``on_failure``, the ``seconds`` it took, and the
+    run as :func:`hook_result` reads it); ``applies`` the outputs the consumer can apply on this
+    harness (``context``, ``env``, ``block``, ``deny``, ``ask``, ``refuse``; absent, every one).
+    A hook that would start after the event's own bound has passed fails as ``event-timeout``.
     """
     _class, _default, outputs, refusal, _match = HOOK_EVENTS[event]
     can = set(applies) if applies is not None else set(outputs) | {"refuse"}
+    bound = dict(DEFAULT_HOOK_LIMITS, **(limits or {}))["event_timeout"]
+    spent = 0
     result: "dict[str, Any]" = {
         "ran": [],
         "decision": None,
@@ -2987,8 +3039,11 @@ def fire_event(
     }
     for run in runs:
         source = run["source"]
-        result["ran"].append(source)
         try:
+            if spent >= bound:
+                raise HookFailure("event-timeout")
+            result["ran"].append(source)
+            spent += run.get("seconds", 0)
             out = hook_result(event, run, limits or {})
         except HookFailure as failure:
             result["reports"].append(["hook-failed", source, event, failure.cause])
@@ -3019,10 +3074,12 @@ def fire_event(
                 result["reports"].append(["hook-not-applied", source, event, "env"])
                 continue
             for name, value in out["env"].items():
-                if is_sensitive(name):
-                    result["weakenings"].append(["env-sensitive", name])
-                result["env"][name] = value
-    result["weakenings"] = sorted({tuple(w) for w in result["weakenings"]})
+                # On Windows a name set under another case keeps the spelling it has.
+                key = next(
+                    (k for k in result["env"] if windows and k.upper() == name.upper()), name
+                )
+                result["env"][key] = value
+    result["weakenings"] = sorted(["env-sensitive", n] for n in result["env"] if is_sensitive(n))
     return result
 
 

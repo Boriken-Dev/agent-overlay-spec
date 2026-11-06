@@ -1,5 +1,5 @@
 {
-  "description": "Hooks. A 'plan-' case gives a 'manifest' (or, with none, an overlay's 'files' by path and text, its manifest read from them) and the consumer's 'facts': os, files, interpreters (absent, all five), scope ('overlay', the default, 'user' or 'project'), digest (the overlay's, or its hook files'; absent, unknown), allowed (the digests at which the user allowed its hooks), fires (the events the consumer can fire on this harness; absent, every one) and limits ('timeout', the consumer's bound on a run, in seconds); 'expect' gives each hook in event order (event, path and interpreter, or null for a hook.<ext> none of which can run here; whether it 'runs' here; match, timeout after the bound, on_failure, and the payload's keys), whether they are 'on', the interpreters a probe 'needs', the 'reports' ([id, subject]) and 'weakenings' ([id, subject]), and the manifest's 'issues' (pointers). A 'payload-' case gives an 'event' and what the consumer knows ('known'); 'expect' is the payload. An 'output-' case gives an 'event', one 'run' ('stdout', or 'stdout_base64', or 'stdout_parts' as [text, times]; 'exit', default 0; 'timed_out'; 'not_run'; 'payload_size') and optional 'limits' ('max_output', 'max_payload'); 'expect' is the 'output' that applies, or the cause it 'failed' with. An 'event-' case gives an 'event', its 'runs' in order (each with its 'source' and 'on_failure', default 'report'), what the consumer 'applies' on this harness ('context', 'env', 'block', 'deny', 'ask', 'refuse'; absent, all the event takes, and refuse) and 'limits'; 'expect' gives the sources that 'ran', the 'decision' ('block', 'deny', 'ask', 'refuse' or null), the source it was 'by' and its 'reason', the 'context' as [source, text], the 'env' (null unsets), the 'reports' and the 'weakenings'.",
+  "description": "Hooks. A 'plan-' case gives a 'manifest' (or, with none, an overlay's 'files' by path and text, its manifest read from them) and the consumer's 'facts': os, files, interpreters (absent, all five), identity, scope ('overlay', the default, 'user' or 'project'), digest (the overlay's; absent, unknown), tree (for a project, every file of the directory holding its configuration, by path and text, whose tree digest is the digest), allowed (the one digest at which the user allowed its hooks), fires (the events the consumer can fire on this harness; absent, every one), partial (those it fires for only some occurrences) and limits ('timeout', the consumer's bound on a run, in seconds); 'expect' gives each hook in event order (event, path and interpreter, or null for a hook.<ext> none of which can run here; whether it 'runs' here; match, sets, timeout after the bound, on_failure, and the payload's keys), whether they are 'on', whether the overlay 'activates', the interpreters a probe 'needs', the 'reports' ([id, subject]) and 'weakenings' ([id, subject]), and the manifest's 'issues' (pointers). A 'payload-' case gives an 'event' and what the consumer knows ('known'); 'expect' is the payload. An 'output-' case gives an 'event', one 'run' ('stdout', or 'stdout_base64', or 'stdout_parts' as [text, times]; 'exit', default 0; 'timed_out'; 'not_run'; 'payload_size'; 'sets', the variables its entry declares) and optional 'limits' ('max_output', 'max_payload'); 'expect' is the 'output' that applies, or the cause it 'failed' with. An 'event-' case gives an 'event', its 'runs' in order (each with its 'source', 'on_failure', default 'report', and the 'seconds' it took), what the consumer 'applies' on this harness ('context', 'env', 'block', 'deny', 'ask', 'refuse'; absent, all the event takes, and refuse), 'limits' (also 'event_timeout') and 'os'; 'expect' gives the sources that 'ran', the 'decision' ('block', 'deny', 'ask', 'refuse' or null), the source it was 'by' and the hook's own 'reason' (null for a refusal by failure), the 'context' as [source, text], the 'env' (null unsets), the 'reports' and the 'weakenings'. A 'match-' case gives an 'event', a 'match' (or null) and the reason or tool kind ('value'); 'expect' says whether the hook 'runs'.",
   "spec": "spec/v0/hooks.md",
   "cases": [
     {
@@ -8,6 +8,7 @@
       "manifest": {},
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "files": [
           "hook.py"
         ],
@@ -21,6 +22,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -35,6 +37,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -51,6 +54,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -66,6 +70,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -81,6 +86,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -97,6 +103,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -109,13 +116,14 @@
           }
         ],
         "on": false,
+        "activates": true,
         "needs": [
           "python"
         ],
         "reports": [
           [
             "hook-not-allowed",
-            ""
+            "shell-guard"
           ]
         ],
         "weakenings": [],
@@ -128,10 +136,9 @@
       "manifest": {},
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": [
           "hook.py"
         ]
@@ -144,6 +151,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -158,6 +166,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -174,6 +183,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -189,6 +199,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -204,6 +215,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -220,6 +232,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -232,6 +245,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [
           "python"
         ],
@@ -274,10 +288,9 @@
         "files": [
           "hook.py"
         ],
+        "identity": "shell-guard",
         "digest": "sha256:2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ]
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
       },
       "expect": {
         "hooks": [
@@ -287,6 +300,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -301,6 +315,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -317,6 +332,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -332,6 +348,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -347,6 +364,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -363,6 +381,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -375,13 +394,14 @@
           }
         ],
         "on": false,
+        "activates": true,
         "needs": [
           "python"
         ],
         "reports": [
           [
             "hook-not-allowed",
-            ""
+            "shell-guard"
           ]
         ],
         "weakenings": [],
@@ -398,9 +418,7 @@
           "hook.py"
         ],
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A"
-        ]
+        "allowed": "sha256:1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A"
       },
       "expect": {
         "hooks": [
@@ -410,6 +428,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -424,6 +443,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -440,6 +460,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -455,6 +476,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -470,6 +492,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -486,6 +509,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -498,6 +522,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [
           "python"
         ],
@@ -532,19 +557,17 @@
       }
     },
     {
-      "id": "plan-allowed-one-of-several",
-      "description": "The consumer may keep more than one allowed digest; this one is among them.",
+      "id": "plan-allowance-replaced",
+      "description": "One allowance per identity: going back to a digest the user allowed before needs a new yes.",
       "manifest": {},
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "files": [
           "hook.py"
         ],
-        "digest": "sha256:2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-          "sha256:2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b"
-        ]
+        "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
+        "allowed": "sha256:2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b"
       },
       "expect": {
         "hooks": [
@@ -554,6 +577,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -568,6 +592,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -584,6 +609,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -599,6 +625,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -614,6 +641,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -630,148 +658,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
-            "timeout": 30,
-            "on_failure": "report",
-            "payload": [
-              "event",
-              "harness",
-              "cwd",
-              "session",
-              "trigger"
-            ]
-          }
-        ],
-        "on": true,
-        "needs": [
-          "python"
-        ],
-        "reports": [],
-        "weakenings": [
-          [
-            "hook",
-            "cd"
-          ],
-          [
-            "hook",
-            "pre-compact"
-          ],
-          [
-            "hook",
-            "pre-env"
-          ],
-          [
-            "hook",
-            "session-end"
-          ],
-          [
-            "hook",
-            "session-start"
-          ],
-          [
-            "hook",
-            "turn-end"
-          ]
-        ],
-        "issues": []
-      }
-    },
-    {
-      "id": "plan-digest-unknown",
-      "description": "A consumer that has not computed the overlay's digest allows nothing.",
-      "manifest": {},
-      "facts": {
-        "os": "linux",
-        "files": [
-          "hook.py"
-        ],
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ]
-      },
-      "expect": {
-        "hooks": [
-          {
-            "event": "pre-env",
-            "path": "hook.py",
-            "interpreter": "python",
-            "runs": true,
-            "match": null,
-            "timeout": 30,
-            "on_failure": "report",
-            "payload": [
-              "event",
-              "harness",
-              "cwd"
-            ]
-          },
-          {
-            "event": "session-start",
-            "path": "hook.py",
-            "interpreter": "python",
-            "runs": true,
-            "match": null,
-            "timeout": 30,
-            "on_failure": "report",
-            "payload": [
-              "event",
-              "harness",
-              "cwd",
-              "session",
-              "reason"
-            ]
-          },
-          {
-            "event": "session-end",
-            "path": "hook.py",
-            "interpreter": "python",
-            "runs": true,
-            "match": null,
-            "timeout": 30,
-            "on_failure": "report",
-            "payload": [
-              "event",
-              "harness",
-              "cwd",
-              "session"
-            ]
-          },
-          {
-            "event": "turn-end",
-            "path": "hook.py",
-            "interpreter": "python",
-            "runs": true,
-            "match": null,
-            "timeout": 30,
-            "on_failure": "report",
-            "payload": [
-              "event",
-              "harness",
-              "cwd",
-              "session"
-            ]
-          },
-          {
-            "event": "cd",
-            "path": "hook.py",
-            "interpreter": "python",
-            "runs": true,
-            "match": null,
-            "timeout": 30,
-            "on_failure": "report",
-            "payload": [
-              "event",
-              "harness",
-              "cwd",
-              "session",
-              "previous"
-            ]
-          },
-          {
-            "event": "pre-compact",
-            "path": "hook.py",
-            "interpreter": "python",
-            "runs": true,
-            "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -784,13 +671,142 @@
           }
         ],
         "on": false,
+        "activates": true,
         "needs": [
           "python"
         ],
         "reports": [
           [
             "hook-not-allowed",
-            ""
+            "shell-guard"
+          ]
+        ],
+        "weakenings": [],
+        "issues": []
+      }
+    },
+    {
+      "id": "plan-digest-unknown",
+      "description": "A consumer that has not computed the overlay's digest allows nothing.",
+      "manifest": {},
+      "facts": {
+        "os": "linux",
+        "identity": "shell-guard",
+        "files": [
+          "hook.py"
+        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
+      },
+      "expect": {
+        "hooks": [
+          {
+            "event": "pre-env",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd"
+            ]
+          },
+          {
+            "event": "session-start",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session",
+              "reason"
+            ]
+          },
+          {
+            "event": "session-end",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session"
+            ]
+          },
+          {
+            "event": "turn-end",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session"
+            ]
+          },
+          {
+            "event": "cd",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session",
+              "previous"
+            ]
+          },
+          {
+            "event": "pre-compact",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session",
+              "trigger"
+            ]
+          }
+        ],
+        "on": false,
+        "activates": true,
+        "needs": [
+          "python"
+        ],
+        "reports": [
+          [
+            "hook-not-allowed",
+            "shell-guard"
           ]
         ],
         "weakenings": [],
@@ -820,6 +836,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -832,6 +849,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [
           "python"
         ],
@@ -859,7 +877,10 @@
           "hooks/start.py"
         ],
         "scope": "project",
-        "digest": "sha256:2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b"
+        "tree": {
+          ".agents/hooks.toml": "[hooks]\nsession-start = \"hooks/start.py\"\n",
+          "hooks/start.py": "import json\n"
+        }
       },
       "expect": {
         "hooks": [
@@ -869,6 +890,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -881,6 +903,7 @@
           }
         ],
         "on": false,
+        "activates": true,
         "needs": [
           "python"
         ],
@@ -896,7 +919,7 @@
     },
     {
       "id": "plan-project-scope-allowed",
-      "description": "Allowed at the digest of its hook files.",
+      "description": "Allowed at the digest of every file in the directory that holds its configuration.",
       "manifest": {
         "hooks": {
           "session-start": "hooks/start.py"
@@ -908,10 +931,11 @@
           "hooks/start.py"
         ],
         "scope": "project",
-        "digest": "sha256:2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b",
-        "allowed": [
-          "sha256:2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b"
-        ]
+        "tree": {
+          ".agents/hooks.toml": "[hooks]\nsession-start = \"hooks/start.py\"\n",
+          "hooks/start.py": "import json\n"
+        },
+        "allowed": "sha256:27511ac535d172617408409a88c8a55a90c36743fb716ac6017eabcf9ed7d918"
       },
       "expect": {
         "hooks": [
@@ -921,6 +945,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -933,6 +958,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [
           "python"
         ],
@@ -947,18 +973,82 @@
       }
     },
     {
-      "id": "plan-content-declared-only",
-      "description": "prompt, pre-tool and post-tool carry the user's words or a tool's input: hook.<ext> never gets them by default.",
-      "manifest": {},
+      "id": "plan-project-scope-planted-module",
+      "description": "A file added beside an allowed script (a json.py its import would load) changes the digest: off until allowed again.",
+      "manifest": {
+        "hooks": {
+          "session-start": "hooks/start.py"
+        }
+      },
       "facts": {
         "os": "linux",
-        "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
+        "files": [
+          "hooks/start.py"
         ],
+        "scope": "project",
+        "tree": {
+          ".agents/hooks.toml": "[hooks]\nsession-start = \"hooks/start.py\"\n",
+          "hooks/start.py": "import json\n",
+          "hooks/json.py": "import os\n"
+        },
+        "allowed": "sha256:27511ac535d172617408409a88c8a55a90c36743fb716ac6017eabcf9ed7d918"
+      },
+      "expect": {
+        "hooks": [
+          {
+            "event": "session-start",
+            "path": "hooks/start.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session",
+              "reason"
+            ]
+          }
+        ],
+        "on": false,
+        "activates": true,
+        "needs": [
+          "python"
+        ],
+        "reports": [
+          [
+            "hook-not-allowed",
+            ""
+          ]
+        ],
+        "weakenings": [],
+        "issues": []
+      }
+    },
+    {
+      "id": "plan-guard-off-not-activated",
+      "description": "A guard that is off would fail open, so an overlay with one is not activated until the user allows its hooks.",
+      "manifest": {
+        "hooks": {
+          "pre-tool": {
+            "match": [
+              "execute"
+            ],
+            "on_failure": "refuse"
+          }
+        }
+      },
+      "facts": {
+        "os": "linux",
+        "identity": "shell-guard",
         "files": [
           "hook.py"
-        ]
+        ],
+        "digest": "sha256:2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b",
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
       },
       "expect": {
         "hooks": [
@@ -968,6 +1058,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -982,6 +1073,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -998,6 +1090,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1013,6 +1106,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1028,6 +1122,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1044,6 +1139,538 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session",
+              "trigger"
+            ]
+          },
+          {
+            "event": "pre-tool",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": [
+              "execute"
+            ],
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "refuse",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session",
+              "tool"
+            ]
+          }
+        ],
+        "on": false,
+        "activates": false,
+        "needs": [
+          "python"
+        ],
+        "reports": [
+          [
+            "hook-not-allowed",
+            "shell-guard"
+          ]
+        ],
+        "weakenings": [],
+        "issues": []
+      }
+    },
+    {
+      "id": "plan-partial-event",
+      "description": "An event the consumer fires for only some occurrences (the calls the harness asks about) is reported as partial.",
+      "manifest": {
+        "hooks": {
+          "pre-tool": {
+            "match": [
+              "execute"
+            ],
+            "on_failure": "refuse"
+          }
+        }
+      },
+      "facts": {
+        "os": "linux",
+        "identity": "shell-guard",
+        "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
+        "files": [
+          "hook.py"
+        ],
+        "partial": [
+          "pre-tool"
+        ]
+      },
+      "expect": {
+        "hooks": [
+          {
+            "event": "pre-env",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd"
+            ]
+          },
+          {
+            "event": "session-start",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session",
+              "reason"
+            ]
+          },
+          {
+            "event": "session-end",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session"
+            ]
+          },
+          {
+            "event": "turn-end",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session"
+            ]
+          },
+          {
+            "event": "cd",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session",
+              "previous"
+            ]
+          },
+          {
+            "event": "pre-compact",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session",
+              "trigger"
+            ]
+          },
+          {
+            "event": "pre-tool",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": [
+              "execute"
+            ],
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "refuse",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session",
+              "tool"
+            ]
+          }
+        ],
+        "on": true,
+        "activates": true,
+        "needs": [
+          "python"
+        ],
+        "reports": [
+          [
+            "hook-partial",
+            "pre-tool"
+          ]
+        ],
+        "weakenings": [
+          [
+            "hook",
+            "cd"
+          ],
+          [
+            "hook",
+            "pre-compact"
+          ],
+          [
+            "hook",
+            "pre-env"
+          ],
+          [
+            "hook",
+            "pre-tool"
+          ],
+          [
+            "hook",
+            "session-end"
+          ],
+          [
+            "hook",
+            "session-start"
+          ],
+          [
+            "hook",
+            "turn-end"
+          ]
+        ],
+        "issues": []
+      }
+    },
+    {
+      "id": "plan-sets",
+      "description": "A table's sets lists the variables its env output may set.",
+      "manifest": {
+        "hooks": {
+          "session-start": {
+            "sets": [
+              "TOOL_MODE"
+            ]
+          },
+          "pre-tool": {
+            "match": [
+              "execute"
+            ],
+            "sets": [
+              "TOOL_MODE",
+              "TICKET"
+            ]
+          }
+        }
+      },
+      "facts": {
+        "os": "linux",
+        "identity": "shell-guard",
+        "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
+        "files": [
+          "hook.py"
+        ]
+      },
+      "expect": {
+        "hooks": [
+          {
+            "event": "pre-env",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd"
+            ]
+          },
+          {
+            "event": "session-start",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [
+              "TOOL_MODE"
+            ],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session",
+              "reason"
+            ]
+          },
+          {
+            "event": "session-end",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session"
+            ]
+          },
+          {
+            "event": "turn-end",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session"
+            ]
+          },
+          {
+            "event": "cd",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session",
+              "previous"
+            ]
+          },
+          {
+            "event": "pre-compact",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session",
+              "trigger"
+            ]
+          },
+          {
+            "event": "pre-tool",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": [
+              "execute"
+            ],
+            "sets": [
+              "TOOL_MODE",
+              "TICKET"
+            ],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session",
+              "tool"
+            ]
+          }
+        ],
+        "on": true,
+        "activates": true,
+        "needs": [
+          "python"
+        ],
+        "reports": [],
+        "weakenings": [
+          [
+            "hook",
+            "cd"
+          ],
+          [
+            "hook",
+            "pre-compact"
+          ],
+          [
+            "hook",
+            "pre-env"
+          ],
+          [
+            "hook",
+            "pre-tool"
+          ],
+          [
+            "hook",
+            "session-end"
+          ],
+          [
+            "hook",
+            "session-start"
+          ],
+          [
+            "hook",
+            "turn-end"
+          ]
+        ],
+        "issues": []
+      }
+    },
+    {
+      "id": "plan-content-declared-only",
+      "description": "prompt, pre-tool and post-tool carry the user's words or a tool's input: hook.<ext> never gets them by default.",
+      "manifest": {},
+      "facts": {
+        "os": "linux",
+        "identity": "shell-guard",
+        "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
+        "files": [
+          "hook.py"
+        ]
+      },
+      "expect": {
+        "hooks": [
+          {
+            "event": "pre-env",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd"
+            ]
+          },
+          {
+            "event": "session-start",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session",
+              "reason"
+            ]
+          },
+          {
+            "event": "session-end",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session"
+            ]
+          },
+          {
+            "event": "turn-end",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session"
+            ]
+          },
+          {
+            "event": "cd",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
+            "timeout": 30,
+            "on_failure": "report",
+            "payload": [
+              "event",
+              "harness",
+              "cwd",
+              "session",
+              "previous"
+            ]
+          },
+          {
+            "event": "pre-compact",
+            "path": "hook.py",
+            "interpreter": "python",
+            "runs": true,
+            "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1056,6 +1683,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [
           "python"
         ],
@@ -1110,10 +1738,9 @@
       },
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": [
           "hook.py"
         ]
@@ -1126,6 +1753,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1140,6 +1768,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1156,6 +1785,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1171,6 +1801,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1187,6 +1818,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1202,6 +1834,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1218,6 +1851,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1237,6 +1871,7 @@
               "execute",
               "edit"
             ],
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1255,6 +1890,7 @@
             "match": [
               "edit"
             ],
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1268,6 +1904,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [
           "python"
         ],
@@ -1323,10 +1960,9 @@
       },
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": [
           "hook.py",
           "hooks/start.sh"
@@ -1340,6 +1976,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1354,6 +1991,7 @@
             "interpreter": "sh",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1370,6 +2008,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1385,6 +2024,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1400,6 +2040,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1416,6 +2057,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1428,6 +2070,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [
           "python",
           "sh"
@@ -1474,10 +2117,9 @@
       },
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": [
           "hook.py"
         ]
@@ -1490,6 +2132,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1504,6 +2147,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1520,6 +2164,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1535,6 +2180,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1547,6 +2193,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [
           "python"
         ],
@@ -1582,10 +2229,9 @@
       },
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": [
           "hook.py"
         ]
@@ -1593,6 +2239,7 @@
       "expect": {
         "hooks": [],
         "on": false,
+        "activates": true,
         "needs": [],
         "reports": [],
         "weakenings": [],
@@ -1617,10 +2264,9 @@
       },
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": [
           "hook.py"
         ]
@@ -1635,6 +2281,7 @@
             "match": [
               "execute"
             ],
+            "sets": [],
             "timeout": 30,
             "on_failure": "refuse",
             "payload": [
@@ -1647,6 +2294,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [
           "python"
         ],
@@ -1681,10 +2329,9 @@
       },
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": [
           "hook.py",
           "hooks/guard.py",
@@ -1699,6 +2346,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1716,6 +2364,7 @@
               "new",
               "resume"
             ],
+            "sets": [],
             "timeout": 5,
             "on_failure": "report",
             "payload": [
@@ -1732,6 +2381,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1747,6 +2397,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1762,6 +2413,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1778,6 +2430,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1794,6 +2447,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "refuse",
             "payload": [
@@ -1810,6 +2464,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1823,6 +2478,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [
           "python"
         ],
@@ -1881,10 +2537,9 @@
       },
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": [
           "hooks/guard.py",
           "hooks/prompt.py"
@@ -1901,6 +2556,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 5,
             "on_failure": "report",
             "payload": [
@@ -1917,6 +2573,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 60,
             "on_failure": "report",
             "payload": [
@@ -1929,6 +2586,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [
           "python"
         ],
@@ -1952,10 +2610,9 @@
       "manifest": {},
       "facts": {
         "os": "windows",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": [
           "hook.py",
           "hook.ps1",
@@ -1974,6 +2631,7 @@
             "interpreter": "powershell",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -1988,6 +2646,7 @@
             "interpreter": "powershell",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2004,6 +2663,7 @@
             "interpreter": "powershell",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2019,6 +2679,7 @@
             "interpreter": "powershell",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2034,6 +2695,7 @@
             "interpreter": "powershell",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2050,6 +2712,7 @@
             "interpreter": "powershell",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2062,6 +2725,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [
           "powershell"
         ],
@@ -2101,10 +2765,9 @@
       "manifest": {},
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": [
           "hook.ps1",
           "hook.sh"
@@ -2118,6 +2781,7 @@
             "interpreter": "sh",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2132,6 +2796,7 @@
             "interpreter": "sh",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2148,6 +2813,7 @@
             "interpreter": "sh",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2163,6 +2829,7 @@
             "interpreter": "sh",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2178,6 +2845,7 @@
             "interpreter": "sh",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2194,6 +2862,7 @@
             "interpreter": "sh",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2206,6 +2875,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [
           "sh"
         ],
@@ -2245,10 +2915,9 @@
       "manifest": {},
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": [
           "hook.sh",
           "hook.js",
@@ -2263,6 +2932,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2277,6 +2947,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2293,6 +2964,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2308,6 +2980,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2323,6 +2996,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2339,6 +3013,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2351,6 +3026,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [
           "python"
         ],
@@ -2390,10 +3066,9 @@
       "manifest": {},
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": [
           "hook.ps1"
         ]
@@ -2401,6 +3076,7 @@
       "expect": {
         "hooks": [],
         "on": false,
+        "activates": true,
         "needs": [],
         "reports": [],
         "weakenings": [
@@ -2427,10 +3103,9 @@
       },
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": [
           "hook.ps1"
         ]
@@ -2445,6 +3120,7 @@
             "match": [
               "execute"
             ],
+            "sets": [],
             "timeout": 30,
             "on_failure": "refuse",
             "payload": [
@@ -2457,6 +3133,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [],
         "reports": [],
         "weakenings": [
@@ -2474,7 +3151,7 @@
     },
     {
       "id": "plan-run-interpreter-missing",
-      "description": "A declared script whose interpreter the consumer lacks: listed, not runnable, and needed.",
+      "description": "A declared script whose interpreter the consumer lacks: listed, not runnable, and needed, so a probe passes this target over.",
       "manifest": {
         "hooks": {
           "pre-tool": "hooks/guard.sh"
@@ -2482,10 +3159,9 @@
       },
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": [
           "hooks/guard.sh"
         ],
@@ -2501,6 +3177,7 @@
             "interpreter": "sh",
             "runs": false,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2513,6 +3190,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [
           "sh"
         ],
@@ -2532,10 +3210,9 @@
       "manifest": {},
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": [
           "hook.cfg",
           "Hook.py",
@@ -2547,6 +3224,7 @@
       "expect": {
         "hooks": [],
         "on": false,
+        "activates": true,
         "needs": [],
         "reports": [],
         "weakenings": [],
@@ -2559,10 +3237,9 @@
       "manifest": {},
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": [
           "CONTEXT.md"
         ]
@@ -2570,6 +3247,7 @@
       "expect": {
         "hooks": [],
         "on": false,
+        "activates": true,
         "needs": [],
         "reports": [],
         "weakenings": [],
@@ -2587,10 +3265,9 @@
       },
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": [
           "hook.py"
         ],
@@ -2610,6 +3287,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2624,6 +3302,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2640,6 +3319,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2655,6 +3335,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2671,6 +3352,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2686,6 +3368,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2702,6 +3385,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2718,6 +3402,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2730,6 +3415,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [
           "python"
         ],
@@ -2778,10 +3464,9 @@
       "manifest": {},
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": [
           "hook.py"
         ],
@@ -2795,6 +3480,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2809,6 +3495,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2825,6 +3512,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2840,6 +3528,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2855,6 +3544,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2871,6 +3561,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2883,6 +3574,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [
           "python"
         ],
@@ -2940,10 +3632,9 @@
       },
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": [
           "x.sh"
         ]
@@ -2951,6 +3642,7 @@
       "expect": {
         "hooks": [],
         "on": false,
+        "activates": true,
         "needs": [],
         "reports": [],
         "weakenings": [],
@@ -2962,10 +3654,9 @@
       "description": "In OVERLAY.md the front matter holds hooks, as overlay.cfg would.",
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": {
           "OVERLAY.md": "---\nname: shell-guard\nhooks:\n  pre-tool:\n    match: [execute]\n    on_failure: refuse\n  turn-end: false\n---\nForce pushes are refused.\n",
           "hook.py": ""
@@ -2979,6 +3670,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -2993,6 +3685,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -3009,6 +3702,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -3024,6 +3718,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -3040,6 +3735,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -3058,6 +3754,7 @@
             "match": [
               "execute"
             ],
+            "sets": [],
             "timeout": 30,
             "on_failure": "refuse",
             "payload": [
@@ -3070,6 +3767,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [
           "python"
         ],
@@ -3108,10 +3806,9 @@
       "description": "And in a #!toml front matter.",
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": {
           "OVERLAY.md": "---\n#!toml\n[hooks]\npre-tool = { match = [\"execute\"], on_failure = \"refuse\" }\nturn-end = false\n---\nForce pushes are refused.\n",
           "hook.py": ""
@@ -3125,6 +3822,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -3139,6 +3837,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -3155,6 +3854,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -3170,6 +3870,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -3186,6 +3887,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -3204,6 +3906,7 @@
             "match": [
               "execute"
             ],
+            "sets": [],
             "timeout": 30,
             "on_failure": "refuse",
             "payload": [
@@ -3216,6 +3919,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [
           "python"
         ],
@@ -3254,10 +3958,9 @@
       "description": "And in overlay.cfg.",
       "facts": {
         "os": "linux",
+        "identity": "shell-guard",
         "digest": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
-        "allowed": [
-          "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-        ],
+        "allowed": "sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
         "files": {
           "overlay.cfg": "[hooks]\npre-tool = { match = [\"execute\"], on_failure = \"refuse\" }\nturn-end = false\n",
           "hook.py": ""
@@ -3271,6 +3974,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -3285,6 +3989,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -3301,6 +4006,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -3316,6 +4022,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -3332,6 +4039,7 @@
             "interpreter": "python",
             "runs": true,
             "match": null,
+            "sets": [],
             "timeout": 30,
             "on_failure": "report",
             "payload": [
@@ -3350,6 +4058,7 @@
             "match": [
               "execute"
             ],
+            "sets": [],
             "timeout": 30,
             "on_failure": "refuse",
             "payload": [
@@ -3362,6 +4071,7 @@
           }
         ],
         "on": true,
+        "activates": true,
         "needs": [
           "python"
         ],
@@ -3424,7 +4134,9 @@
           "deploy": "s3cret"
         },
         "transcript": "/home/u/.claude/projects/x.jsonl",
-        "model": "example-model"
+        "model": "example-model",
+        "harness_session": "0b9a2f1e-harness-own-id",
+        "transcript_path": "/home/u/.claude/projects/app/0b9a2f1e.jsonl"
       },
       "expect": {
         "event": "pre-env",
@@ -3461,7 +4173,9 @@
           "deploy": "s3cret"
         },
         "transcript": "/home/u/.claude/projects/x.jsonl",
-        "model": "example-model"
+        "model": "example-model",
+        "harness_session": "0b9a2f1e-harness-own-id",
+        "transcript_path": "/home/u/.claude/projects/app/0b9a2f1e.jsonl"
       },
       "expect": {
         "event": "session-start",
@@ -3500,7 +4214,9 @@
           "deploy": "s3cret"
         },
         "transcript": "/home/u/.claude/projects/x.jsonl",
-        "model": "example-model"
+        "model": "example-model",
+        "harness_session": "0b9a2f1e-harness-own-id",
+        "transcript_path": "/home/u/.claude/projects/app/0b9a2f1e.jsonl"
       },
       "expect": {
         "event": "session-end",
@@ -3538,7 +4254,9 @@
           "deploy": "s3cret"
         },
         "transcript": "/home/u/.claude/projects/x.jsonl",
-        "model": "example-model"
+        "model": "example-model",
+        "harness_session": "0b9a2f1e-harness-own-id",
+        "transcript_path": "/home/u/.claude/projects/app/0b9a2f1e.jsonl"
       },
       "expect": {
         "event": "prompt",
@@ -3577,7 +4295,9 @@
           "deploy": "s3cret"
         },
         "transcript": "/home/u/.claude/projects/x.jsonl",
-        "model": "example-model"
+        "model": "example-model",
+        "harness_session": "0b9a2f1e-harness-own-id",
+        "transcript_path": "/home/u/.claude/projects/app/0b9a2f1e.jsonl"
       },
       "expect": {
         "event": "turn-end",
@@ -3615,7 +4335,9 @@
           "deploy": "s3cret"
         },
         "transcript": "/home/u/.claude/projects/x.jsonl",
-        "model": "example-model"
+        "model": "example-model",
+        "harness_session": "0b9a2f1e-harness-own-id",
+        "transcript_path": "/home/u/.claude/projects/app/0b9a2f1e.jsonl"
       },
       "expect": {
         "event": "cd",
@@ -3654,7 +4376,9 @@
           "deploy": "s3cret"
         },
         "transcript": "/home/u/.claude/projects/x.jsonl",
-        "model": "example-model"
+        "model": "example-model",
+        "harness_session": "0b9a2f1e-harness-own-id",
+        "transcript_path": "/home/u/.claude/projects/app/0b9a2f1e.jsonl"
       },
       "expect": {
         "event": "pre-compact",
@@ -3693,7 +4417,9 @@
           "deploy": "s3cret"
         },
         "transcript": "/home/u/.claude/projects/x.jsonl",
-        "model": "example-model"
+        "model": "example-model",
+        "harness_session": "0b9a2f1e-harness-own-id",
+        "transcript_path": "/home/u/.claude/projects/app/0b9a2f1e.jsonl"
       },
       "expect": {
         "event": "pre-tool",
@@ -3738,7 +4464,9 @@
           "deploy": "s3cret"
         },
         "transcript": "/home/u/.claude/projects/x.jsonl",
-        "model": "example-model"
+        "model": "example-model",
+        "harness_session": "0b9a2f1e-harness-own-id",
+        "transcript_path": "/home/u/.claude/projects/app/0b9a2f1e.jsonl"
       },
       "expect": {
         "event": "post-tool",
@@ -4176,7 +4904,16 @@
       "description": "Variables, null unsetting one.",
       "event": "session-start",
       "run": {
-        "stdout": "{\"env\": {\"TOOL_MODE\": \"strict\", \"OLD_MODE\": null}}"
+        "stdout": "{\"env\": {\"TOOL_MODE\": \"strict\", \"OLD_MODE\": null}}",
+        "sets": [
+          "TOOL_MODE",
+          "OLD_MODE",
+          "TICKET",
+          "A",
+          "A-B",
+          "DOCS_OVERLAY_ROOT",
+          "aos_hook_event"
+        ]
       },
       "expect": {
         "output": {
@@ -4192,7 +4929,16 @@
       "description": "prompt takes variables where the consumer can.",
       "event": "prompt",
       "run": {
-        "stdout": "{\"env\": {\"TICKET\": \"AOS-12\"}}"
+        "stdout": "{\"env\": {\"TICKET\": \"AOS-12\"}}",
+        "sets": [
+          "TOOL_MODE",
+          "OLD_MODE",
+          "TICKET",
+          "A",
+          "A-B",
+          "DOCS_OVERLAY_ROOT",
+          "aos_hook_event"
+        ]
       },
       "expect": {
         "output": {
@@ -4207,7 +4953,16 @@
       "description": "And pre-tool, for an execute call.",
       "event": "pre-tool",
       "run": {
-        "stdout": "{\"env\": {\"TOOL_MODE\": \"strict\"}, \"context\": \"c\"}"
+        "stdout": "{\"env\": {\"TOOL_MODE\": \"strict\"}, \"context\": \"c\"}",
+        "sets": [
+          "TOOL_MODE",
+          "OLD_MODE",
+          "TICKET",
+          "A",
+          "A-B",
+          "DOCS_OVERLAY_ROOT",
+          "aos_hook_event"
+        ]
       },
       "expect": {
         "output": {
@@ -4215,6 +4970,141 @@
           "env": {
             "TOOL_MODE": "strict"
           }
+        }
+      }
+    },
+    {
+      "id": "output-env-undeclared",
+      "description": "A variable the entry does not list in sets is a failure: what a hook may set is in the manifest.",
+      "event": "session-start",
+      "run": {
+        "stdout": "{\"env\": {\"TOOL_MODE\": \"a\", \"LD_PRELOAD\": \"/x.so\"}}",
+        "sets": [
+          "TOOL_MODE"
+        ]
+      },
+      "expect": {
+        "failed": "output"
+      }
+    },
+    {
+      "id": "output-env-none-declared",
+      "description": "With no sets, no variable.",
+      "event": "prompt",
+      "run": {
+        "stdout": "{\"env\": {\"TICKET\": \"1\"}}"
+      },
+      "expect": {
+        "failed": "output"
+      }
+    },
+    {
+      "id": "output-env-case-twice",
+      "description": "Two names equal without regard to ASCII case, which Windows holds as one.",
+      "event": "session-start",
+      "run": {
+        "stdout": "{\"env\": {\"PATH\": \"a\", \"Path\": \"b\"}}",
+        "sets": [
+          "PATH",
+          "Path"
+        ]
+      },
+      "expect": {
+        "failed": "output"
+      }
+    },
+    {
+      "id": "output-env-empty",
+      "description": "An empty env sets nothing, and needs no sets.",
+      "event": "cd",
+      "run": {
+        "stdout": "{\"env\": {}}"
+      },
+      "expect": {
+        "output": {
+          "env": {}
+        }
+      }
+    },
+    {
+      "id": "output-reason-escape",
+      "description": "A terminal escape in a reason could repaint the approval it is shown beside.",
+      "event": "pre-tool",
+      "run": {
+        "stdout": "{\"decision\": \"ask\", \"reason\": \"fine\\u001b[2K\\u001b[1Aallow\"}"
+      },
+      "expect": {
+        "failed": "output"
+      }
+    },
+    {
+      "id": "output-reason-bidi",
+      "description": "Nor a bidirectional override.",
+      "event": "pre-tool",
+      "run": {
+        "stdout": "{\"decision\": \"ask\", \"reason\": \"rm \\u202eflog.txt\"}"
+      },
+      "expect": {
+        "failed": "output"
+      }
+    },
+    {
+      "id": "output-context-c1",
+      "description": "Nor a C1 control in context.",
+      "event": "session-start",
+      "run": {
+        "stdout": "{\"context\": \"a\\u009bb\"}"
+      },
+      "expect": {
+        "failed": "output"
+      }
+    },
+    {
+      "id": "output-context-isolate",
+      "description": "Nor a bidirectional isolate.",
+      "event": "post-tool",
+      "run": {
+        "stdout": "{\"context\": \"x\\u2066y\"}"
+      },
+      "expect": {
+        "failed": "output"
+      }
+    },
+    {
+      "id": "output-context-lines",
+      "description": "Tabs, line feeds and carriage returns are text.",
+      "event": "session-start",
+      "run": {
+        "stdout": "{\"context\": \"a\\tb\\r\\nc\"}"
+      },
+      "expect": {
+        "output": {
+          "context": "a\tb\r\nc"
+        }
+      }
+    },
+    {
+      "id": "output-reason-too-long",
+      "description": "A reason is at most 1024 code points.",
+      "event": "pre-tool",
+      "run": {
+        "stdout": "{\"decision\": \"deny\", \"reason\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}"
+      },
+      "expect": {
+        "failed": "output"
+      }
+    },
+    {
+      "id": "output-reason-at-limit",
+      "description": "1024 is allowed, counted in code points.",
+      "event": "pre-tool",
+      "run": {
+        "stdout": "{\"decision\": \"deny\", \"reason\": \"éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé\"}"
+      },
+      "expect": {
+        "output": {
+          "decision": "deny",
+          "reason": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
         }
       }
     },
@@ -4245,7 +5135,16 @@
       "description": "No reserved variable: another overlay's root.",
       "event": "session-start",
       "run": {
-        "stdout": "{\"env\": {\"DOCS_OVERLAY_ROOT\": \"/tmp/x\"}}"
+        "stdout": "{\"env\": {\"DOCS_OVERLAY_ROOT\": \"/tmp/x\"}}",
+        "sets": [
+          "TOOL_MODE",
+          "OLD_MODE",
+          "TICKET",
+          "A",
+          "A-B",
+          "DOCS_OVERLAY_ROOT",
+          "aos_hook_event"
+        ]
       },
       "expect": {
         "failed": "output"
@@ -4256,7 +5155,16 @@
       "description": "Nor AOS_*, in any case.",
       "event": "cd",
       "run": {
-        "stdout": "{\"env\": {\"aos_hook_event\": \"x\"}}"
+        "stdout": "{\"env\": {\"aos_hook_event\": \"x\"}}",
+        "sets": [
+          "TOOL_MODE",
+          "OLD_MODE",
+          "TICKET",
+          "A",
+          "A-B",
+          "DOCS_OVERLAY_ROOT",
+          "aos_hook_event"
+        ]
       },
       "expect": {
         "failed": "output"
@@ -4267,7 +5175,16 @@
       "description": "A variable name.",
       "event": "session-start",
       "run": {
-        "stdout": "{\"env\": {\"A-B\": \"1\"}}"
+        "stdout": "{\"env\": {\"A-B\": \"1\"}}",
+        "sets": [
+          "TOOL_MODE",
+          "OLD_MODE",
+          "TICKET",
+          "A",
+          "A-B",
+          "DOCS_OVERLAY_ROOT",
+          "aos_hook_event"
+        ]
       },
       "expect": {
         "failed": "output"
@@ -4278,7 +5195,16 @@
       "description": "A value is a string or null.",
       "event": "session-start",
       "run": {
-        "stdout": "{\"env\": {\"A\": 1}}"
+        "stdout": "{\"env\": {\"A\": 1}}",
+        "sets": [
+          "TOOL_MODE",
+          "OLD_MODE",
+          "TICKET",
+          "A",
+          "A-B",
+          "DOCS_OVERLAY_ROOT",
+          "aos_hook_event"
+        ]
       },
       "expect": {
         "failed": "output"
@@ -4289,7 +5215,16 @@
       "description": "Without a zero byte.",
       "event": "session-start",
       "run": {
-        "stdout": "{\"env\": {\"A\": \"a\\u0000\"}}"
+        "stdout": "{\"env\": {\"A\": \"a\\u0000\"}}",
+        "sets": [
+          "TOOL_MODE",
+          "OLD_MODE",
+          "TICKET",
+          "A",
+          "A-B",
+          "DOCS_OVERLAY_ROOT",
+          "aos_hook_event"
+        ]
       },
       "expect": {
         "failed": "output"
@@ -5139,10 +6074,18 @@
       "event": "session-start",
       "runs": [
         {
+          "sets": [
+            "X",
+            "Y"
+          ],
           "source": "a",
           "stdout": "{\"env\": {\"X\": \"1\", \"Y\": \"1\"}}"
         },
         {
+          "sets": [
+            "X",
+            "Y"
+          ],
           "source": "b",
           "stdout": "{\"env\": {\"X\": \"2\", \"Y\": null}}"
         }
@@ -5165,13 +6108,223 @@
       }
     },
     {
-      "id": "event-env-sensitive",
-      "description": "A sensitive variable is reported as env-sensitive.",
+      "id": "event-env-windows-case",
+      "description": "On Windows a later hook's Path sets the PATH an earlier one set, keeping its spelling.",
       "event": "session-start",
       "runs": [
         {
+          "sets": [
+            "PATH"
+          ],
           "source": "a",
-          "stdout": "{\"env\": {\"PATH\": \"/opt/bin\", \"LD_PRELOAD\": \"/x.so\", \"MODE\": \"m\"}}"
+          "stdout": "{\"env\": {\"PATH\": \"/a\"}}"
+        },
+        {
+          "sets": [
+            "Path"
+          ],
+          "source": "b",
+          "stdout": "{\"env\": {\"Path\": \"/b\"}}"
+        }
+      ],
+      "os": "windows",
+      "expect": {
+        "ran": [
+          "a",
+          "b"
+        ],
+        "decision": null,
+        "by": null,
+        "reason": null,
+        "context": [],
+        "env": {
+          "PATH": "/b"
+        },
+        "reports": [],
+        "weakenings": [
+          [
+            "env-sensitive",
+            "PATH"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "event-env-linux-case",
+      "description": "Elsewhere they are two variables.",
+      "event": "session-start",
+      "runs": [
+        {
+          "sets": [
+            "PATH"
+          ],
+          "source": "a",
+          "stdout": "{\"env\": {\"PATH\": \"/a\"}}"
+        },
+        {
+          "sets": [
+            "Path"
+          ],
+          "source": "b",
+          "stdout": "{\"env\": {\"Path\": \"/b\"}}"
+        }
+      ],
+      "expect": {
+        "ran": [
+          "a",
+          "b"
+        ],
+        "decision": null,
+        "by": null,
+        "reason": null,
+        "context": [],
+        "env": {
+          "PATH": "/a",
+          "Path": "/b"
+        },
+        "reports": [],
+        "weakenings": [
+          [
+            "env-sensitive",
+            "PATH"
+          ],
+          [
+            "env-sensitive",
+            "Path"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "event-sensitive-dropped-by-deny",
+      "description": "A variable a deny dropped is not reported: it was never set.",
+      "event": "pre-tool",
+      "runs": [
+        {
+          "sets": [
+            "LD_PRELOAD"
+          ],
+          "source": "a",
+          "stdout": "{\"env\": {\"LD_PRELOAD\": \"/x.so\"}}"
+        },
+        {
+          "source": "b",
+          "stdout": "{\"decision\": \"deny\", \"reason\": \"no\"}"
+        }
+      ],
+      "expect": {
+        "ran": [
+          "a",
+          "b"
+        ],
+        "decision": "deny",
+        "by": "b",
+        "reason": "no",
+        "context": [],
+        "env": {},
+        "reports": [],
+        "weakenings": []
+      }
+    },
+    {
+      "id": "event-event-bound",
+      "description": "The event has a bound of its own: a hook that would start after it has passed fails, and a guard among them refuses.",
+      "event": "pre-tool",
+      "runs": [
+        {
+          "seconds": 100,
+          "source": "a",
+          "stdout": "{\"context\": \"slow\"}"
+        },
+        {
+          "seconds": 30,
+          "source": "b",
+          "stdout": "{\"context\": \"slower\"}"
+        },
+        {
+          "on_failure": "refuse",
+          "source": "c",
+          "stdout": ""
+        }
+      ],
+      "expect": {
+        "ran": [
+          "a",
+          "b"
+        ],
+        "decision": "deny",
+        "by": "c",
+        "reason": null,
+        "context": [],
+        "env": {},
+        "reports": [
+          [
+            "hook-failed",
+            "c",
+            "pre-tool",
+            "event-timeout"
+          ]
+        ],
+        "weakenings": []
+      }
+    },
+    {
+      "id": "event-event-bound-setting",
+      "description": "That bound is a setting.",
+      "event": "prompt",
+      "runs": [
+        {
+          "seconds": 5,
+          "source": "a",
+          "stdout": "{\"context\": \"one\"}"
+        },
+        {
+          "source": "b",
+          "stdout": "{\"context\": \"two\"}"
+        }
+      ],
+      "limits": {
+        "event_timeout": 5
+      },
+      "expect": {
+        "ran": [
+          "a"
+        ],
+        "decision": null,
+        "by": null,
+        "reason": null,
+        "context": [
+          [
+            "a",
+            "one"
+          ]
+        ],
+        "env": {},
+        "reports": [
+          [
+            "hook-failed",
+            "b",
+            "prompt",
+            "event-timeout"
+          ]
+        ],
+        "weakenings": []
+      }
+    },
+    {
+      "id": "event-env-sensitive",
+      "description": "A sensitive variable is reported as env-sensitive, a harness's configuration directory included.",
+      "event": "session-start",
+      "runs": [
+        {
+          "sets": [
+            "PATH",
+            "LD_PRELOAD",
+            "MODE",
+            "CLAUDE_CONFIG_DIR"
+          ],
+          "source": "a",
+          "stdout": "{\"env\": {\"PATH\": \"/opt/bin\", \"LD_PRELOAD\": \"/x.so\", \"MODE\": \"m\", \"CLAUDE_CONFIG_DIR\": \"/tmp/c\"}}"
         }
       ],
       "expect": {
@@ -5185,10 +6338,15 @@
         "env": {
           "PATH": "/opt/bin",
           "LD_PRELOAD": "/x.so",
-          "MODE": "m"
+          "MODE": "m",
+          "CLAUDE_CONFIG_DIR": "/tmp/c"
         },
         "reports": [],
         "weakenings": [
+          [
+            "env-sensitive",
+            "CLAUDE_CONFIG_DIR"
+          ],
           [
             "env-sensitive",
             "LD_PRELOAD"
@@ -5206,6 +6364,9 @@
       "event": "session-start",
       "runs": [
         {
+          "sets": [
+            "X"
+          ],
           "source": "a",
           "stdout": "{\"env\": {\"X\": \"1\"}, \"context\": \"c\"}"
         }
@@ -5313,6 +6474,9 @@
       "event": "pre-tool",
       "runs": [
         {
+          "sets": [
+            "X"
+          ],
           "source": "a",
           "stdout": "{\"env\": {\"X\": \"1\"}}"
         },
@@ -5516,6 +6680,89 @@
           ]
         ],
         "weakenings": []
+      }
+    },
+    {
+      "id": "match-kind",
+      "description": "A tool kind in match runs the hook.",
+      "event": "pre-tool",
+      "match": [
+        "execute"
+      ],
+      "value": "execute",
+      "expect": {
+        "runs": true
+      }
+    },
+    {
+      "id": "match-other-kind",
+      "description": "Another kind does not.",
+      "event": "pre-tool",
+      "match": [
+        "execute"
+      ],
+      "value": "read",
+      "expect": {
+        "runs": false
+      }
+    },
+    {
+      "id": "match-unplaced-tool",
+      "description": "A tool the consumer could not place (other) runs every pre-tool hook, so no tool slips past a guard by its kind.",
+      "event": "pre-tool",
+      "match": [
+        "execute"
+      ],
+      "value": "other",
+      "expect": {
+        "runs": true
+      }
+    },
+    {
+      "id": "match-unplaced-tool-after",
+      "description": "And every post-tool hook.",
+      "event": "post-tool",
+      "match": [
+        "edit"
+      ],
+      "value": "other",
+      "expect": {
+        "runs": true
+      }
+    },
+    {
+      "id": "match-no-match",
+      "description": "No match: every call.",
+      "event": "pre-tool",
+      "match": null,
+      "value": "think",
+      "expect": {
+        "runs": true
+      }
+    },
+    {
+      "id": "match-reason",
+      "description": "A session reason in match.",
+      "event": "session-start",
+      "match": [
+        "new",
+        "resume"
+      ],
+      "value": "resume",
+      "expect": {
+        "runs": true
+      }
+    },
+    {
+      "id": "match-other-reason",
+      "description": "Another reason does not; other is no reason.",
+      "event": "session-start",
+      "match": [
+        "new"
+      ],
+      "value": "clear",
+      "expect": {
+        "runs": false
       }
     }
   ]

@@ -2265,7 +2265,8 @@
           "FROM_HIGH": "yes",
           "SEEN": "yes"
         },
-        "hook_reports": []
+        "hook_reports": [],
+        "hook_weakenings": []
       }
     },
     {
@@ -2309,7 +2310,8 @@
           "HIGH_OVERLAY_ROOT": "/ov/high",
           "MODE": "high"
         },
-        "hook_reports": []
+        "hook_reports": [],
+        "hook_weakenings": []
       }
     },
     {
@@ -2353,7 +2355,8 @@
           "HIGH_OVERLAY_ROOT": "/ov/high",
           "MODE": "declared"
         },
-        "hook_reports": []
+        "hook_reports": [],
+        "hook_weakenings": []
       }
     },
     {
@@ -2387,7 +2390,8 @@
           "LOW_OVERLAY_ROOT": "/ov/low",
           "RAW": "${LOW_OVERLAY_ROOT}"
         },
-        "hook_reports": []
+        "hook_reports": [],
+        "hook_weakenings": []
       }
     },
     {
@@ -2425,7 +2429,8 @@
           "LOW_OVERLAY_ROOT": "/ov/low",
           "A": "1"
         },
-        "hook_reports": []
+        "hook_reports": [],
+        "hook_weakenings": []
       }
     },
     {
@@ -2470,7 +2475,8 @@
             "pre-env",
             "exit"
           ]
-        ]
+        ],
+        "hook_weakenings": []
       }
     },
     {
@@ -2517,7 +2523,8 @@
             "pre-env",
             "output"
           ]
-        ]
+        ],
+        "hook_weakenings": []
       }
     },
     {
@@ -2560,6 +2567,54 @@
             "pre-env",
             "timeout"
           ]
+        ],
+        "hook_weakenings": []
+      }
+    },
+    {
+      "id": "env-pre-env-sensitive",
+      "description": "A sensitive variable a pre-env hook sets is reported as env-sensitive.",
+      "overlays": {
+        "low": {
+          "priority": 100
+        }
+      },
+      "requested": [
+        "low"
+      ],
+      "facts": {
+        "os": "linux",
+        "base_env": {
+          "PATH": "/usr/bin"
+        },
+        "roots": {
+          "low": "/ov/low"
+        },
+        "pre_env": {
+          "low": {
+            "stdout": "{\"PATH\": \"/opt/low/bin:/usr/bin\", \"CODEX_HOME\": \"/ov/low/codex\"}"
+          }
+        }
+      },
+      "expect": {
+        "active": [
+          "low"
+        ],
+        "env": {
+          "PATH": "/opt/low/bin:/usr/bin",
+          "LOW_OVERLAY_ROOT": "/ov/low",
+          "CODEX_HOME": "/ov/low/codex"
+        },
+        "hook_reports": [],
+        "hook_weakenings": [
+          [
+            "env-sensitive",
+            "CODEX_HOME"
+          ],
+          [
+            "env-sensitive",
+            "PATH"
+          ]
         ]
       }
     },
@@ -2594,7 +2649,8 @@
           "LOW_OVERLAY_ROOT": "/ov/low",
           "decision": "allow"
         },
-        "hook_reports": []
+        "hook_reports": [],
+        "hook_weakenings": []
       }
     }
   ]

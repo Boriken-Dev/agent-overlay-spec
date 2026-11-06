@@ -222,8 +222,14 @@
       "uniqueItems": true,
       "items": { "enum": ["read", "edit", "delete", "move", "search", "execute", "think", "fetch", "switch_mode", "other"] }
     },
+    "hookSets": {
+      "description": "The variables a hook's env output may set at this event; any other is a failure.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/variable" }
+    },
     "hookReport": {
-      "description": "An event no hook can refuse: a failure is reported, and the event goes on.",
       "oneOf": [
         { "const": false },
         { "$ref": "#/$defs/hookRun" },
@@ -236,10 +242,10 @@
           },
           "additionalProperties": false
         }
-      ]
+      ],
+      "description": "An event no hook can refuse and that takes no variables."
     },
     "hookGuard": {
-      "description": "An event a hook can refuse: on_failure = refuse makes a failure refuse it.",
       "oneOf": [
         { "const": false },
         { "$ref": "#/$defs/hookRun" },
@@ -252,7 +258,8 @@
           },
           "additionalProperties": false
         }
-      ]
+      ],
+      "description": "An event a hook can refuse: on_failure = refuse makes a failure refuse it."
     },
     "hookStart": {
       "oneOf": [
@@ -263,8 +270,41 @@
           "properties": {
             "run": { "$ref": "#/$defs/hookRun" },
             "match": { "$ref": "#/$defs/hookReasons" },
+            "sets": { "$ref": "#/$defs/hookSets" },
             "timeout": { "$ref": "#/$defs/hookTimeout" },
             "on_failure": { "enum": ["report", "refuse"] }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "hookPrompt": {
+      "oneOf": [
+        { "const": false },
+        { "$ref": "#/$defs/hookRun" },
+        {
+          "type": "object",
+          "properties": {
+            "run": { "$ref": "#/$defs/hookRun" },
+            "sets": { "$ref": "#/$defs/hookSets" },
+            "timeout": { "$ref": "#/$defs/hookTimeout" },
+            "on_failure": { "enum": ["report", "refuse"] }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "hookCd": {
+      "oneOf": [
+        { "const": false },
+        { "$ref": "#/$defs/hookRun" },
+        {
+          "type": "object",
+          "properties": {
+            "run": { "$ref": "#/$defs/hookRun" },
+            "sets": { "$ref": "#/$defs/hookSets" },
+            "timeout": { "$ref": "#/$defs/hookTimeout" },
+            "on_failure": { "const": "report" }
           },
           "additionalProperties": false
         }
@@ -279,6 +319,7 @@
           "properties": {
             "run": { "$ref": "#/$defs/hookRun" },
             "match": { "$ref": "#/$defs/toolKinds" },
+            "sets": { "$ref": "#/$defs/hookSets" },
             "timeout": { "$ref": "#/$defs/hookTimeout" },
             "on_failure": { "enum": ["report", "refuse"] }
           },
@@ -309,9 +350,9 @@
         "pre-env": { "$ref": "#/$defs/hookGuard" },
         "session-start": { "$ref": "#/$defs/hookStart" },
         "session-end": { "$ref": "#/$defs/hookReport" },
-        "prompt": { "$ref": "#/$defs/hookGuard" },
+        "prompt": { "$ref": "#/$defs/hookPrompt" },
         "turn-end": { "$ref": "#/$defs/hookReport" },
-        "cd": { "$ref": "#/$defs/hookReport" },
+        "cd": { "$ref": "#/$defs/hookCd" },
         "pre-compact": { "$ref": "#/$defs/hookGuard" },
         "pre-tool": { "$ref": "#/$defs/hookBeforeTool" },
         "post-tool": { "$ref": "#/$defs/hookAfterTool" }

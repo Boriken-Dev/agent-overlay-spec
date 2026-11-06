@@ -88,7 +88,9 @@ own API calls go. Names compare without regard to ASCII case. A name is sensitiv
   `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `APPDATA`, `LOCALAPPDATA`, `TMPDIR`, `TEMP`, `TMP`,
   `PSMODULEPATH`, `CLASSPATH`, `JAVA_TOOL_OPTIONS`, `_JAVA_OPTIONS`, `JDK_JAVA_OPTIONS`,
   `PERL5OPT`, `PERL5LIB`, `RUBYOPT`, `RUBYLIB`, `RUSTFLAGS`, `GOPROXY`, `GONOSUMDB`, `GONOSUMCHECK`,
-  `GOPRIVATE`, `GOFLAGS`, `SSH_ASKPASS`, `SSLKEYLOGFILE`, `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE`;
+  `GOPRIVATE`, `GOFLAGS`, `SSH_ASKPASS`, `SSLKEYLOGFILE`, `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE`, and
+  `CLAUDE_CONFIG_DIR` and `CODEX_HOME`, which point a harness at another configuration, with its own
+  permissions and hooks;
 - starts with `LD_`, `DYLD_`, `GIT_`, `PYTHON`, `NODE_`, `NPM_CONFIG_`, `PIP_`, `UV_`, `CARGO_`,
   `RUSTC_`, `DOTNET_`, `COR_`, `CORECLR_` or `SSL_`;
 - ends with `_PROXY` or `_BASE_URL`.
@@ -129,10 +131,15 @@ A [hook](hooks.md) is the overlay's code running at every session, outside the s
 tell it what the user typed or what a tool is about to do. Activating an overlay is therefore not enough
 to run one:
 
-- **Off until allowed at a digest.** Hooks run only while the overlay's tree digest is one at which the
-  user allowed them. Any change of a file turns them off again, so an update cannot start running new
-  code at the next session. Nothing an overlay, a catalog or a project holds allows them; the user's own
-  configuration needs no allowance.
+- **Off until allowed at a digest.** Hooks run only while the overlay's tree digest is the one at which
+  the user allowed them. Any change of a file turns them off again, so an update cannot start running a
+  changed hook at the next session; an overlay with a guard that fails closed is not activated meanwhile.
+  Nothing an overlay, a catalog or a project holds allows them; the user's own configuration needs no
+  allowance. The allowance covers hooks alone: an update that adds an env script or a setup runs under
+  the decision to activate the overlay, which is why every run of either is reported.
+- **Reach is the user's.** A hook runs outside the sandbox with the user's access and the network, so it
+  can read what a harness keeps on disk, transcripts included, whatever its payload says. Its listing
+  says so; a hook is code the user trusts, and the payload rules bound only what it is handed.
 - **Declared statically, shown first.** Every event, its script, its `match`, timeout and
   `on_failure`, and what its payload holds is in the manifest and the list of files, and
   [listed before installing](catalog.md#before-installing).
@@ -142,10 +149,15 @@ to run one:
   overlay's environment, not the session's.
 - **Tightens, never grants.** A hook adds context, blocks, denies or asks. There is no output that
   approves, any other decision is refused as `grant`, and a consumer never hands a harness the hook's own
-  output or exit status, so a harness's own approval vocabulary cannot pass through it. Variables reach a
-  shell through a loader, with no decision attached, never in the command's text.
-- **Bounded.** Time, output and payload are bounded by settings with defaults; a run is stopped, and
-  everything it started ended, when its time runs out.
+  output or exit status, so a harness's own approval vocabulary cannot pass through it. Variables are
+  only those the manifest's `sets` names, and reach a shell through a loader, with no decision attached,
+  never in the command's text. Text a hook shows holds no control or reordering character, and a tool of
+  a kind the consumer cannot place runs every guard.
+- **Project hooks run from a copy.** A project's hooks are allowed at the digest of every file beside
+  their configuration and run from the consumer's copy of those bytes, since the agent can write into
+  the project between two events.
+- **Bounded.** Time, for each run and for each event, output and payload are bounded by settings with
+  defaults; a run is stopped, and everything it started ended, when its time runs out.
 - **Fails visibly.** A failure is reported with its cause and never quoted. It refuses the event only
   when the author asked for that (`on_failure = "refuse"`), so a guard fails closed, and an output a
   consumer cannot apply on a harness is reported, never dropped.

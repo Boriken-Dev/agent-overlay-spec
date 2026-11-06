@@ -3,6 +3,50 @@
   "spec": "spec/v0/environment.md#order-of-application",
   "cases": [
     {
+      "id": "env-harness-config",
+      "description": "CLAUDE_CONFIG_DIR and CODEX_HOME point a harness at another configuration: sensitive.",
+      "manifest": {
+        "env": {
+          "CLAUDE_CONFIG_DIR": "/ov/claude",
+          "CODEX_HOME": "/ov/codex"
+        }
+      },
+      "facts": {
+        "os": "linux",
+        "root": "/srv/ov/docs-tools",
+        "identity": "docs-tools",
+        "pinned": true
+      },
+      "expect": {
+        "ungranted": [],
+        "supported": true,
+        "env": {
+          "DOCS_TOOLS_OVERLAY_ROOT": "/srv/ov/docs-tools",
+          "CLAUDE_CONFIG_DIR": "/ov/claude",
+          "CODEX_HOME": "/ov/codex"
+        },
+        "env_scripts": [],
+        "setup": null,
+        "python": null,
+        "node": null,
+        "dependencies": [],
+        "needs": {
+          "interpreters": [],
+          "commands": []
+        },
+        "weakenings": [
+          [
+            "env-sensitive",
+            "CLAUDE_CONFIG_DIR"
+          ],
+          [
+            "env-sensitive",
+            "CODEX_HOME"
+          ]
+        ]
+      }
+    },
+    {
       "id": "bare",
       "description": "No manifest: only the root variable; unpinned is reported.",
       "manifest": {},
