@@ -878,7 +878,7 @@
         ],
         "scope": "project",
         "tree": {
-          ".agents/hooks.toml": "[hooks]\nsession-start = \"hooks/start.py\"\n",
+          "project-hooks.toml": "[hooks]\nsession-start = \"hooks/start.py\"\n",
           "hooks/start.py": "import json\n"
         }
       },
@@ -932,10 +932,10 @@
         ],
         "scope": "project",
         "tree": {
-          ".agents/hooks.toml": "[hooks]\nsession-start = \"hooks/start.py\"\n",
+          "project-hooks.toml": "[hooks]\nsession-start = \"hooks/start.py\"\n",
           "hooks/start.py": "import json\n"
         },
-        "allowed": "sha256:27511ac535d172617408409a88c8a55a90c36743fb716ac6017eabcf9ed7d918"
+        "allowed": "sha256:1f25a9132cecf5a5fc5a3e6adc9af4b2c47dbd3a6fc6758e62f8d95c1131b3c1"
       },
       "expect": {
         "hooks": [
@@ -987,11 +987,11 @@
         ],
         "scope": "project",
         "tree": {
-          ".agents/hooks.toml": "[hooks]\nsession-start = \"hooks/start.py\"\n",
+          "project-hooks.toml": "[hooks]\nsession-start = \"hooks/start.py\"\n",
           "hooks/start.py": "import json\n",
           "hooks/json.py": "import os\n"
         },
-        "allowed": "sha256:27511ac535d172617408409a88c8a55a90c36743fb716ac6017eabcf9ed7d918"
+        "allowed": "sha256:1f25a9132cecf5a5fc5a3e6adc9af4b2c47dbd3a6fc6758e62f8d95c1131b3c1"
       },
       "expect": {
         "hooks": [
