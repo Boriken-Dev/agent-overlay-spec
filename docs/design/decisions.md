@@ -464,6 +464,6 @@ text, nesting included, and no field names a manifest.
 as one host and fetched from another, a catalog entry whose query hid the real host and suppressed a
 collision, an overlay with a high `priority` replacing a trusted skill, a manifest dropped in silence by a
 space before its fence, and a Dart YAML parser whose cost grows with the square of the nesting. Each rule
-closes one of them, and each has vectors that the previous text's reference passed.
+closes one of them, with vectors that fail on the reference before it.
 
 **Status:** adopted; Proposed until an implementation reads it.

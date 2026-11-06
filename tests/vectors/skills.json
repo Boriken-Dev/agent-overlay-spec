@@ -966,7 +966,7 @@
       "catalogs": [
         {
           "name": "catalog.toml",
-          "text": "[skills]\npdf = \"https://github.com/acme/pdf.git?x=other\"\n",
+          "text": "[skills.pdf]\nsource = \"https://github.com/acme/pdf.git?x=other\"\npin = \"sha256:abababababababababababababababababababababababababababababababab\"\n",
           "base": "/srv/team/catalog.toml",
           "label": "mine"
         }
@@ -985,17 +985,13 @@
             "origin": "catalog",
             "overlay": "b",
             "catalog": "mine",
-            "source": "https://github.com/acme/pdf.git"
+            "source": "https://github.com/acme/pdf.git",
+            "pin": "sha256:abababababababababababababababababababababababababababababababab"
           }
         ],
         "missing": [],
         "ambiguous": [],
-        "unpinned": [
-          [
-            "pdf",
-            "b"
-          ]
-        ],
+        "unpinned": [],
         "weakenings": [],
         "not_fetched": [],
         "name_mismatch": [],
