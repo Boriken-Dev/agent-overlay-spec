@@ -17,15 +17,22 @@ source   = [ "git+" ] location [ "@" ref ] [ "#" path ]
   starting `git@`, `ssh://` or `git://`, or prefixed `git+`.
 - `ref` exists only for a Git location: a branch, tag or commit, with no `/`, `:` or `\`. It is the
   part after the last `@`, when that `@` is not part of `git@host`, a URL's user information, or a
-  scheme. Absent, the remote's default branch.
+  scheme. Absent, the remote's default branch. A URL's **authority** runs from after `://` to the first
+  `/` or `?`, and an `@` in it is always user information: `git+https://evil.example@github.com` names
+  the host `github.com` with a user, and no ref.
 - `path` is the part after the first `#`: the overlay's root inside the location, with leading and
   trailing `/` removed; what remains is a [relative path](manifest.md#fields), or the source is
   refused. Absent, the location's root is the overlay.
 - A Git location is a local path, an scp-like `user@host:path`, or a URL whose scheme is `https`,
   `http`, `ssh`, `git` or `file`. A location holding `::` (Git's remote-helper syntax, which runs a
   program) is refused, and so is a location, ref or host starting with `-`, since it would reach
-  `git` or `ssh` as an option. A consumer passes the location after `--`, and limits Git's
-  transports (`protocol.allow`) to the ones it accepts.
+  `git` or `ssh` as an option, and so is a user, port or scp-like path that starts with `-` once
+  percent-decoded (`ssh://%2doProxyCommand=x@host/a.git`). A consumer passes the location after `--`,
+  and limits Git's transports (`protocol.allow`) to the ones it accepts.
+- A source holds no control character (U+0000–U+001F, U+007F–U+009F), no U+2028 or U+2029 and no
+  character that reorders displayed text (U+200E, U+200F, U+202A–U+202E, U+2066–U+2069), and an
+  authority holds no `\`, which URL parsers read differently: what a person is shown must be what is
+  fetched.
 
 | Source | Kind | Location | Ref | Path |
 | --- | --- | --- | --- | --- |

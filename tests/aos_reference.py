@@ -22,7 +22,38 @@ except ModuleNotFoundError:  # Python < 3.11
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = json.loads((ROOT / "schemas" / "overlay.schema.json").read_text(encoding="utf-8"))
-VALIDATOR = Draft202012Validator(SCHEMA, format_checker=FormatChecker())
+
+
+def _ecma_pattern(pattern: str) -> str:
+    """A schema pattern for Python's ``re``, which reads ``$`` as matching before a final line
+    feed too; ECMA-262, which JSON Schema names, reads it as the end of the string."""
+    out, index, in_class = [], 0, False
+    while index < len(pattern):
+        char = pattern[index]
+        if char == "\\":
+            out.append(pattern[index : index + 2])
+            index += 2
+            continue
+        if char == "[":
+            in_class = True
+        elif char == "]":
+            in_class = False
+        out.append("\\Z" if char == "$" and not in_class else char)
+        index += 1
+    return "".join(out)
+
+
+def _pattern(validator: Any, pattern: str, instance: Any, schema: Any) -> Any:
+    from jsonschema.exceptions import ValidationError
+
+    if isinstance(instance, str) and not re.search(_ecma_pattern(pattern), instance):
+        yield ValidationError("%r does not match %r" % (instance, pattern))
+
+
+from jsonschema import validators as _validators  # noqa: E402
+
+_Validator = _validators.extend(Draft202012Validator, {"pattern": _pattern})
+VALIDATOR = _Validator(SCHEMA, format_checker=FormatChecker())
 _RELPATH = re.compile(SCHEMA["$defs"]["relPath"]["allOf"][0]["pattern"])
 _RELPATH_EXCLUDED = re.compile(SCHEMA["$defs"]["relPath"]["allOf"][1]["not"]["pattern"])
 
@@ -134,6 +165,9 @@ def _parse(kind: str, payload: bytes, max_depth: int) -> "dict[str, Any]":
     except RecursionError:
         # A parser that recurses on its input stops here, however deep the text goes.
         raise ReadError("too-deep")
+    except ValueError as error:
+        # What a parser cannot convert: an integer too long to read, an escape past Unicode.
+        raise ReadError("integer-range" if "digits" in str(error) else "parse-error", str(error))
     if not isinstance(value, dict):
         raise ReadError("not-a-mapping")
     _check_model(value, 1, max_depth)
@@ -152,8 +186,11 @@ def _read_json(text: str) -> Any:
     def constant(name: str) -> Any:
         raise ReadError("parse-error", "%s is not JSON" % name)
 
+    def integer(digits: str) -> int:
+        return _int(digits.lstrip("-").lstrip("0") or "0", 10, digits.startswith("-"))
+
     try:
-        return json.loads(text, object_pairs_hook=pairs, parse_constant=constant)
+        return json.loads(text, object_pairs_hook=pairs, parse_constant=constant, parse_int=integer)
     except json.JSONDecodeError as error:
         raise ReadError("parse-error", str(error), error.lineno, error.colno)
 
@@ -164,6 +201,12 @@ _YAML_HEX = re.compile(r"^0x[0-9a-fA-F]+$")
 _YAML_FLOAT = re.compile(r"^[-+]?(?:\.[0-9]+|[0-9]+(?:\.[0-9]*)?)(?:[eE][-+]?[0-9]+)?$")
 _YAML_INF = re.compile(r"^[-+]?\.(?:inf|Inf|INF)$")
 _YAML_NAN = re.compile(r"^\.(?:nan|NaN|NAN)$")
+
+
+def _int(digits: str, base: int, negative: bool = False) -> int:
+    if len(digits) > {10: 19, 8: 22, 16: 16}[base]:
+        raise ReadError("integer-range")
+    return -int(digits, base) if negative else int(digits, base)
 
 
 def _yaml_scalar(event: "yaml.ScalarEvent") -> Any:
@@ -177,12 +220,13 @@ def _yaml_scalar(event: "yaml.ScalarEvent") -> Any:
         return True
     if value in ("false", "False", "FALSE"):
         return False
+    # Past 64 bits a number is refused unread: some runtimes refuse to convert one this long.
     if _YAML_INT.match(value):
-        return int(value)
+        return _int(value.lstrip("+-0") or "0", 10, value.startswith("-"))
     if _YAML_OCT.match(value):
-        return int(value[2:], 8)
+        return _int(value[2:].lstrip("0") or "0", 8)
     if _YAML_HEX.match(value):
-        return int(value[2:], 16)
+        return _int(value[2:].lstrip("0") or "0", 16)
     if _YAML_FLOAT.match(value):
         return float(value)
     if _YAML_INF.match(value) or _YAML_NAN.match(value):
@@ -196,7 +240,7 @@ def _read_yaml(text: str, max_depth: int = DEFAULT_MAX_DEPTH) -> Any:
     Events are taken one at a time, so a refusal comes at the first node that earns it, before
     the rest of the document is parsed and with nothing expanded.
     """
-    if any(c in text for c in "\x85\u2028\u2029"):
+    if any(c in text for c in "\x85\u2028\u2029\ufeff"):
         raise ReadError("parse-error", "a Unicode line break YAML 1.1 and 1.2 read differently")
     stack: "list[Any]" = []
     keys: "list[Optional[str]]" = []
@@ -375,17 +419,39 @@ def split_front_matter(data: bytes, *, max_bytes: int = DEFAULT_MAX_BYTES) -> "d
         }
 
 
+def _almost_a_fence(data: bytes) -> bool:
+    """A document that is no block but that a person, or a laxer reader, would take for one:
+    a fence after white space or a second byte-order mark, a first line that only starts like a
+    fence, or a format line before one."""
+    lead = data
+    while lead[:1] in (b" ", b"\t", b"\r", b"\n") or lead.startswith(BYTE_ORDER_MARK):
+        lead = lead[3:] if lead.startswith(BYTE_ORDER_MARK) else lead[1:]
+    if lead.startswith((b"---", b"...")):
+        return True
+    start = 3 if data.startswith(BYTE_ORDER_MARK) else 0
+    if data.startswith(b"#!", start):
+        end = data.find(b"\n", start)
+        if end >= 0:
+            second = data.find(b"\n", end + 1)
+            line = data[end + 1 :] if second < 0 else data[end + 1 : second]
+            return _fence(line, second >= 0) is not None
+    return False
+
+
 def read_front_matter(
     data: bytes, *, max_bytes: int = DEFAULT_MAX_BYTES, max_depth: int = DEFAULT_MAX_DEPTH
 ) -> "dict[str, Any]":
     """The split, then the metadata read: YAML unless its first line names another format.
 
-    ``case`` tells apart ``none``, ``unterminated``, ``too-large``, ``empty``, ``unknown-format``,
-    ``does-not-parse``, ``not-a-mapping`` and ``mapping``, so a viewer can show the text. ``error``
+    ``case`` tells apart ``none``, ``malformed``, ``unterminated``, ``too-large``, ``empty``,
+    ``unknown-format``, ``does-not-parse``, ``not-a-mapping`` and ``mapping``, so a viewer can show
+    the text. ``error``
     and ``line`` are what a gate refuses with; ``data`` is the manifest where there is one.
     """
     found = split_front_matter(data, max_bytes=max_bytes)
     case = found["case"]
+    if case == "none" and _almost_a_fence(data):
+        return dict(found, case="malformed", error="malformed-fence", line=1)
     if case in ("none", "empty"):
         return dict(found, data={})
     if case == "unterminated":
@@ -437,6 +503,7 @@ def read_overlay(
     *,
     max_bytes: int = DEFAULT_MAX_BYTES,
     max_depth: int = DEFAULT_MAX_DEPTH,
+    max_context_bytes: int = DEFAULT_MAX_BYTES,
 ) -> "dict[str, Any]":
     """What a gate reads from an overlay's files, by relative path: the manifest, the file it came
     from, the context entries, the context files it ignores, and the problems of the manifest."""
@@ -459,7 +526,14 @@ def read_overlay(
         body = data[found["body_offset"] :]
         body_line = found["body_line"]
     context = context_of(manifest, files)
-    if "OVERLAY.md" in context and _has_body(files):
+    harness = manifest.get("harness") if isinstance(manifest.get("harness"), dict) else {}
+    named = list(context)
+    for harness_id, hints in harness.items():
+        if isinstance(hints, dict) and "context" in hints:
+            named += harness_context_of(manifest, harness_id, files)
+    if "OVERLAY.md" in named and _has_body(files):
+        if len(body) > max_context_bytes:
+            raise ReadError("too-large", "the body of OVERLAY.md", body_line)
         try:
             body.decode("utf-8")
         except UnicodeDecodeError:
@@ -922,6 +996,7 @@ def _semantic(doc: "dict[str, Any]") -> "list[tuple[str, str]]":
         if not valid_license(about["license"]):
             found.append(("license-expression", "/about/license"))
     found += _skills(doc.get("skills"))
+    found += _manifest_named(doc)
     return found
 
 
@@ -978,10 +1053,43 @@ def _holds_credentials(location: str) -> bool:
     ``ssh://git@host`` and ``git@host:path`` name an account, not a secret."""
     if "://" not in location:
         return False
-    scheme, rest = location.split("://", 1)
-    authority = rest.split("/", 1)[0]
+    scheme, authority, rest = _authority(location)
     user = authority.rpartition("@")[0]
     return "?" in rest or ":" in user or bool(user and scheme.lower() in ("http", "https"))
+
+
+def source_host(location: str) -> "Optional[str]":
+    """The host a source reaches, lowercased and without brackets, or None for a path."""
+    if "://" in location:
+        hostport = _authority(location)[1].rpartition("@")[2]
+    elif re.match(r"^[^/\\:]+:", location) and not _DRIVE.match(location):
+        hostport = location.split(":", 1)[0].rpartition("@")[2]
+        return hostport.lower() or None
+    else:
+        return None
+    if hostport.startswith("["):
+        return hostport[1:].split("]", 1)[0].lower()
+    return hostport.rsplit(":", 1)[0].lower() if ":" in hostport else hostport.lower()
+
+
+def host_scope(host: "Optional[str]") -> str:
+    """``local`` for this machine (loopback, link-local, unspecified, ``localhost``), ``private``
+    for a private network address, ``public`` otherwise, judged on the text alone."""
+    import ipaddress
+
+    if host is None:
+        return "public"
+    if host == "localhost" or host.endswith(".localhost"):
+        return "local"
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return "public"
+    mapped = getattr(address, "ipv4_mapped", None)
+    address = mapped or address
+    if address.is_loopback or address.is_link_local or address.is_unspecified:
+        return "local"
+    return "private" if address.is_private else "public"
 
 
 def _mcp(mcp: Any) -> "list[tuple[str, str]]":
@@ -1082,6 +1190,7 @@ def named_files(doc: "dict[str, Any]") -> "list[tuple[str, str]]":
 
 def _files(doc: "dict[str, Any]", files: "set[str]") -> "list[tuple[str, str]]":
     found = [("missing-file", at) for at, path in named_files(doc) if path not in files]
+    found += _manifest_named(doc)
     env = doc.get("env")
     if isinstance(env, dict):
         added = {entry["variable"] for entry in default_paths(doc, files)}
@@ -1108,6 +1217,17 @@ def _files(doc: "dict[str, Any]", files: "set[str]") -> "list[tuple[str, str]]":
             name = link.get("name") if isinstance(link, dict) else None
             if isinstance(name, str) and "skills/%s/SKILL.md" % name not in files:
                 found.append(("missing-skill", "/mcp/skills/%d/name" % index))
+    return found
+
+
+def _manifest_named(doc: "dict[str, Any]") -> "list[tuple[str, str]]":
+    """A manifest is never another field's file: only ``context`` names ``OVERLAY.md``, for its
+    body, and nothing names ``overlay.cfg``, so no field of either reaches an agent as text."""
+    found = []
+    for at, path in named_files(doc):
+        is_context = at.startswith("/context/") or "/context/" in at and at.startswith("/harness/")
+        if path == "overlay.cfg" or (path == "OVERLAY.md" and not is_context):
+            found.append(("manifest-file", at))
     return found
 
 
@@ -1274,27 +1394,52 @@ def _is_git_location(location: str) -> bool:
     return location.endswith(".git") or location.startswith(_GIT_PREFIXES)
 
 
+def _authority(location: str) -> "tuple[str, str, str]":
+    """A URL's scheme, authority and the rest: the authority ends at the first ``/`` or ``?``."""
+    scheme, rest = location.split("://", 1)
+    cut = len(rest)
+    for char in "/?":
+        found = rest.find(char)
+        if 0 <= found < cut:
+            cut = found
+    return scheme, rest[:cut], rest[cut:]
+
+
 def shown_source(parsed: "dict[str, Optional[str]]", ref: "Optional[str]" = None) -> str:
     """A parsed source as a consumer shows it: no user information or query in a URL."""
     location = parsed["location"] or ""
     if "://" in location:
-        scheme, rest = location.split("://", 1)
-        authority, slash, tail = rest.partition("/")
-        location = "%s://%s%s%s" % (
-            scheme,
-            authority.rpartition("@")[2].split("?", 1)[0],
-            slash,
-            tail.split("?", 1)[0],
-        )
+        scheme, authority, rest = _authority(location)
+        location = "%s://%s%s" % (scheme, authority.rpartition("@")[2], rest.split("?", 1)[0])
     ref = ref if ref is not None else parsed["ref"]
     return location + ("@" + ref if ref else "") + ("#" + parsed["path"] if parsed["path"] else "")
 
 
+def source_key(parsed: "dict[str, Optional[str]]", ref: "Optional[str]" = None) -> str:
+    """A parsed source in full, as it is fetched: what two entries must share to be one."""
+    ref = ref if ref is not None else parsed["ref"]
+    return (
+        (parsed["location"] or "")
+        + ("@" + ref if ref else "")
+        + ("#" + parsed["path"] if parsed["path"] else "")
+    )
+
+
+#: Characters no source holds: controls, line separators and what reorders displayed text.
+_SOURCE_CONTROL = re.compile(
+    "[\x00-\x1f\x7f-\x9f\u2028\u2029\u200e\u200f\u202a-\u202e\u2066-\u2069]"
+)
+
+
 def parse_source(text: str) -> "dict[str, Optional[str]]":
     """``[git+]<location>[@<ref>][#<path>]`` as ``{kind, location, ref, path}``."""
+    from urllib.parse import unquote
+
     raw = text.strip()
     if not raw:
         raise ValueError("empty")
+    if _SOURCE_CONTROL.search(raw):
+        raise ValueError("control character")
     explicit_git = raw.startswith("git+")
     if explicit_git:
         raw = raw[len("git+") :]
@@ -1302,10 +1447,13 @@ def parse_source(text: str) -> "dict[str, Optional[str]]":
     path = (path.strip().strip("/") or None) if hash_sep else None
     location, ref = body.strip(), None
     head, at, tail = location.rpartition("@")
+    # An @ inside a URL's authority is user information, never the start of a ref.
+    in_authority = "://" in location and len(head) < len(location) - len(_authority(location)[2])
     if (
         at
         and head
         and tail
+        and not in_authority
         and not re.search(r"[/:\\]", tail)
         and not head.endswith(("://", ":"))
         and (explicit_git or _is_git_location(head))
@@ -1313,20 +1461,30 @@ def parse_source(text: str) -> "dict[str, Optional[str]]":
         location, ref = head, tail
     if path is not None and not valid_relpath(path):
         raise ValueError("path")
+    parts: "list[str]" = []
+    if "://" in location:
+        scheme, authority, _rest = _authority(location)
+        if "\\" in authority:
+            raise ValueError("backslash in the authority")
+        user, _at, hostport = authority.rpartition("@")
+        host, _colon, port = (
+            hostport.rpartition(":") if not hostport.endswith("]") else (hostport, "", "")
+        )
+        parts = [user, host or hostport, port]
+    elif re.match(r"^[^/\\:]+:", location) and not _DRIVE.match(location):
+        hostpart, _colon, rest = location.partition(":")
+        parts = [hostpart.rpartition("@")[0], hostpart.rpartition("@")[2], rest]
+    if any(unquote(part).startswith("-") for part in parts):
+        raise ValueError("option-like")
     if explicit_git or _is_git_location(location):
         if location.startswith("-") or (ref or "").startswith("-"):
             raise ValueError("option-like")
         if "::" in location:
             raise ValueError("git remote helper")
         if "://" in location:
-            scheme, rest = location.split("://", 1)
+            scheme = location.split("://", 1)[0]
             if scheme.lower() not in ("https", "http", "ssh", "git", "file"):
                 raise ValueError("scheme")
-            host = rest.split("/", 1)[0].rsplit("@", 1)[-1]
-        else:
-            host = location.split(":", 1)[0].rsplit("@", 1)[-1] if "@" in location else ""
-        if host.startswith("-"):
-            raise ValueError("option-like host")
         return {"kind": "git", "location": location, "ref": ref, "path": path}
     kind = "url" if "://" in location else "directory"
     return {"kind": kind, "location": location, "ref": None, "path": path}
@@ -1606,8 +1764,10 @@ def skill_entries(manifest: "dict[str, Any]", files: "Iterable[str]") -> "list[d
         found = {name: {"name": name, "origin": "bundled"} for name in bundled}
     for entry in _declared(manifest, "skills"):
         if isinstance(entry, dict):
-            source = shown_source(parse_source(entry["source"]), entry.get("ref"))
+            parsed = parse_source(entry["source"])
+            source = shown_source(parsed, entry.get("ref"))
             item = {"name": entry["name"], "origin": "source", "source": source}
+            item["key"] = source_key(parsed, entry.get("ref"))
             if "pin" in entry:
                 item["pin"] = entry["pin"]
             found[entry["name"]] = item
@@ -2372,10 +2532,28 @@ def environments(
 
 def _skill_origin(entry: "dict[str, Any]", identity: str) -> Any:
     """What two overlays must share to name one skill without colliding: a bundled skill is its
-    overlay's own, one from elsewhere is its source and pin."""
+    overlay's own, one from elsewhere is its source in full, as fetched, and its pin."""
     if entry["origin"] == "bundled":
         return ("bundled", identity)
-    return (entry.get("source"), entry.get("pin"))
+    return (entry.get("key"), entry.get("pin"))
+
+
+def _deliver(
+    winners: "dict[str, tuple[str, str, Any]]",
+    collisions: "set[str]",
+    entry: "dict[str, Any]",
+    identity: str,
+) -> bool:
+    """Records one skill offered for delivery. A skill from elsewhere never takes a name another
+    overlay's skill holds: it is reported, and only the user's configuration could choose it."""
+    folded = entry["name"].lower()
+    origin = _skill_origin(entry, identity)
+    if folded in winners and winners[folded][2] != origin:
+        collisions.add(folded)
+        if entry["origin"] != "bundled":
+            return False
+    winners[folded] = (entry["name"], identity, origin)
+    return True
 
 
 def compose(
@@ -2406,11 +2584,7 @@ def compose(
     collisions: "set[str]" = set()
     for identity in active:
         for entry in skill_entries(overlays[identity], files.get(identity, [])):
-            folded = entry["name"].lower()
-            origin = _skill_origin(entry, identity)
-            if folded in winners and winners[folded][2] != origin:
-                collisions.add(folded)
-            winners[folded] = (entry["name"], identity, origin)
+            _deliver(winners, collisions, entry, identity)
     result["skills"] = {name: identity for name, identity, _origin in winners.values()}
     result["skill_collisions"] = sorted(collisions)
     if facts is not None:
@@ -2459,7 +2633,7 @@ ABOUT_FIELDS = ("summary", "icon", "homepage", "repository", "license", "authors
 
 
 def _subschema(pointer_to: str) -> Draft202012Validator:
-    return Draft202012Validator(
+    return _Validator(
         {"$defs": SCHEMA["$defs"], "$ref": pointer_to}, format_checker=FormatChecker()
     )
 
@@ -2534,7 +2708,11 @@ def valid_license(expression: str) -> bool:
                 return False
         return True
 
-    return compound() and position == len(tokens)
+    try:
+        return compound() and position == len(tokens)
+    except RecursionError:
+        # Parentheses nested past what the grammar can follow make no license expression.
+        return False
 
 
 def about_field_valid(field: str, value: Any) -> bool:
@@ -2571,6 +2749,8 @@ DEFAULT_CATALOG_MAX_BYTES = 4 * 1024 * 1024
 CATALOG_ENTRY_KEYS = frozenset(("source", "ref", "pin", "description", "about"))
 _REF = re.compile(r"^[^-/:\\@#\x00-\x20\x7f][^/:\\@#\x00-\x20\x7f]*$")
 _DRIVE = re.compile(r"^[A-Za-z]:")
+#: A scheme before the location, which no relative path has: ``file:``, ``zip:``, ``ext:``.
+_SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]+:")
 
 
 def catalog_format(name: str) -> "Optional[str]":
@@ -2626,13 +2806,14 @@ def _join(*parts: str) -> str:
 
 
 def local_source(parsed: "dict[str, Optional[str]]") -> bool:
-    """A source on the consumer's machine: a directory, or a local Git path or ``file:`` URL."""
+    """A source on the consumer's machine: a directory, a local Git path, any ``file:``
+    location, or a host that is this machine."""
     location = parsed["location"] or ""
-    if parsed["kind"] == "directory":
+    if location.lower().startswith("file:") or parsed["kind"] == "directory":
         return True
-    if parsed["kind"] == "git":
-        return _local_git(location)
-    return location.lower().startswith("file:")
+    if parsed["kind"] == "git" and _local_git(location):
+        return True
+    return host_scope(source_host(location)) == "local"
 
 
 def resolve_entry_source(
@@ -2642,7 +2823,11 @@ def resolve_entry_source(
     import posixpath
 
     location = entry["location"] or ""
-    relative = entry["kind"] == "directory" and not _absolute_directory(location)
+    relative = (
+        entry["kind"] == "directory"
+        and not _absolute_directory(location)
+        and not _SCHEME.match(location)
+    )
     local = (not relative) and local_source(entry)
     if origin is None or origin["kind"] == "directory":
         if relative and origin is not None:
@@ -2652,6 +2837,10 @@ def resolve_entry_source(
     if local:
         raise CatalogRefusal("local-source")
     if not relative:
+        if entry["kind"] != "git" and not _WEB_URL.match(location):
+            raise CatalogRefusal("invalid-source")
+        if _holds_credentials(location):
+            raise CatalogRefusal("source-credentials")
         return dict(entry)
     if origin["kind"] == "git":
         folder = posixpath.dirname(origin["path"] or "")
@@ -2811,10 +3000,11 @@ def resolve_skills(
     fetches: bool = True,
 ) -> "dict[str, Any]":
     """What a consumer shows before installing and reports after: every skill of the active
-    overlays with where it comes from, each name no catalog offers or more than one does, each
-    without a pin, and the collisions. ``catalogs`` are ``(label, read_catalog result)``; ``order``
-    is the order of labels the user configured, if any; a consumer that does not ``fetches``
-    delivers only bundled skills and says so for the rest."""
+    overlays with where it comes from, each name no catalog offers or more than one does, the
+    weakenings, the collisions and what each would do. ``catalogs`` are ``(label, read_catalog
+    result)``; ``order`` is the order of labels the user configured, if any; a consumer that does
+    not ``fetches`` delivers only bundled skills and says so for the rest. Where ``files`` gives an
+    overlay's texts, a bundled ``SKILL.md`` naming another skill is not delivered."""
     visited, _missing = resolve(overlays, requested)
     active = composition_order(overlays, visited)
     catalogs = list(catalogs)
@@ -2825,12 +3015,16 @@ def resolve_skills(
         "missing": [],
         "ambiguous": [],
         "unpinned": [],
+        "weakenings": [],
         "not_fetched": [],
+        "name_mismatch": [],
+        "shadowing": [],
     }
     winners: "dict[str, tuple[str, str, Any]]" = {}
     collisions: "set[str]" = set()
     for identity in active:
-        for entry in skill_entries(overlays[identity], files.get(identity, [])):
+        tree = files.get(identity, [])
+        for entry in skill_entries(overlays[identity], tree):
             item = dict(entry, overlay=identity)
             name = entry["name"]
             if entry["origin"] == "catalog":
@@ -2851,25 +3045,40 @@ def resolve_skills(
                 else:
                     item["catalog"], offer = offers[0]
                     item["source"] = shown_source(offer["source"])
+                    item["key"] = source_key(offer["source"])
                     if "pin" in offer:
                         item["pin"] = offer["pin"]
-            out["skills"].append(item)
+            out["skills"].append({key: value for key, value in item.items() if key != "key"})
             if item["origin"] in ("missing", "ambiguous"):
                 continue
+            if item["origin"] == "bundled" and isinstance(tree, dict):
+                text = tree.get("skills/%s/SKILL.md" % name)
+                if text is not None and bundled_name(_as_bytes(text)) not in (None, name):
+                    out["name_mismatch"].append([name, identity])
+                    continue
             if item["origin"] != "bundled":
                 if not fetches:
                     out["not_fetched"].append([name, identity])
                     continue
                 if "pin" not in item:
                     out["unpinned"].append([name, identity])
-            folded = name.lower()
-            origin = _skill_origin(item, identity)
-            if folded in winners and winners[folded][2] != origin:
-                collisions.add(folded)
-            winners[folded] = (name, identity, origin)
+                location = item["key"].split("#", 1)[0]
+                if re.match(r"^(?:git\+)?(?:http|git)://", location, re.IGNORECASE):
+                    out["weakenings"].append(["insecure-transport", name, identity])
+                if host_scope(source_host(location)) == "private":
+                    out["weakenings"].append(["private-source", name, identity])
+            if not _deliver(winners, collisions, item, identity):
+                out["shadowing"].append([name, identity])
     out["delivered"] = {name: identity for name, identity, _origin in winners.values()}
     out["collisions"] = sorted(collisions)
     return out
+
+
+def bundled_name(data: bytes) -> "Optional[str]":
+    """The ``name`` a bundled ``SKILL.md`` gives, when its front matter reads; None otherwise."""
+    found = read_front_matter(data)
+    name = found.get("data", {}).get("name")
+    return name if isinstance(name, str) or name is None else str(name)
 
 
 def _ranked(offers: "list[Any]", rank: "list[str]") -> "list[Any]":
@@ -2881,6 +3090,10 @@ def _ranked(offers: "list[Any]", rank: "list[str]") -> "list[Any]":
     return offers
 
 
+#: The Agent Skills front matter keys that grant nothing; any other is reported.
+SKILL_INERT_KEYS = ("name", "description", "license", "compatibility", "metadata")
+
+
 def read_fetched_skill(
     name: str,
     files: "dict[str, Any]",
@@ -2888,9 +3101,10 @@ def read_fetched_skill(
     *,
     max_bytes: int = DEFAULT_MAX_BYTES,
     max_depth: int = DEFAULT_MAX_DEPTH,
-) -> str:
-    """Checks a skill fetched under ``name``, by relative path to content, before it is delivered,
-    and returns its tree digest. The pin comes first, so nothing unverified is parsed."""
+) -> "dict[str, Any]":
+    """Checks a skill fetched under ``name``, by relative path to content, before it is delivered:
+    its tree digest, and the front matter keys a consumer reports. The pin comes first, so nothing
+    unverified is parsed."""
     entries = [
         (tuple(part.encode("utf-8") for part in path.split("/")), "file", _as_bytes(value))
         for path, value in files.items()
@@ -2908,9 +3122,16 @@ def read_fetched_skill(
     )
     if "error" in found:
         raise ReadError("skill-unreadable", found["error"], found["line"])
-    if "name" in found["data"] and found["data"]["name"] != name:
+    if (
+        found["case"] != "mapping"
+        or found.get("format") != "yaml"
+        or "#!" in found["metadata"][:2].decode("utf-8", "replace")
+    ):
+        raise ReadError("skill-unreadable", "front matter in YAML is required")
+    if found["data"].get("name") != name:
         raise ReadError("skill-name-mismatch", name)
-    return digest
+    reported = sorted(key for key in found["data"] if key not in SKILL_INERT_KEYS)
+    return {"digest": digest, "reported": reported}
 
 
 def list_catalogs(catalogs: "list[tuple[str, dict[str, Any]]]") -> "dict[str, Any]":

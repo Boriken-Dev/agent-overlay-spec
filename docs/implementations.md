@@ -5,7 +5,8 @@ static data, so a reader needs a TOML parser, a YAML parser whose events it can 
 applied, a few lines to split front matter, and nothing that executes; Python, Rust, Dart, Go and
 JavaScript are equally suitable. A YAML loader that applies aliases first is not enough: Dart's
 `package:yaml`, for one, hands back the expanded document, and a reader there needs a parser that
-refuses first.
+refuses first; that package's own parser also slows with the square of the nesting, so a reader built on
+it scans for nesting past the depth bound before it parses.
 
 ## Reference implementation
 

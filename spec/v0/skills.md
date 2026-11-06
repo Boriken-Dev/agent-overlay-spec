@@ -51,12 +51,21 @@ A table has these keys and no other, since a misspelt `pin` must not fetch a ski
 wherever it was read from, since the same overlay reaches other machines:
 
 - a local source is refused (`local-source`): a directory, relative or absolute, a Git location that
-  is a local path, a `file:` URL;
+  is a local path, any location starting `file:`, and a host that is the consumer's machine as its text
+  says: `localhost` or a name under it, and a loopback, link-local or unspecified address, IPv4-mapped or
+  not;
 - a location with user information over `http` or `https`, a password in any URL, or a query is
   refused (`source-credentials`). An SSH account (`git@host:path`, `ssh://git@host/path`) is not a
   credential;
 - a location that is not Git is an `http` or `https` URL (`invalid-source`);
 - a `ref` beside an `@ref` or on a source that is not Git is refused (`ref-not-allowed`).
+
+A source over plain `http` or `git://` is reported as the [weakening](security.md#weakenings)
+`insecure-transport`, and one whose host is a private network address as `private-source`, when the
+skill is resolved; a consumer that resolves a host name checks the address it connects to the same way.
+A consumer fetches what a manifest names **without the user's credentials**, SSH agent or prompts, and
+follows no redirect to another host: a manifest holds no credential, so none is owed to the host it
+picked.
 
 A validator refuses, at the entry:
 
@@ -81,8 +90,8 @@ specification does.
 and nothing of any skill:
 
 - **Missing.** No catalog offers the name. A catalog's overlay of that name is not a skill, and neither
-  is another active overlay's bundled skill of that name, which falls under
-  [collisions](#delivery): nothing says the two are one skill.
+  is another active overlay's bundled skill of that name: nothing says the two are one skill, so the name
+  is reported missing and the bundled skill is delivered as its own overlay's.
 - **Ambiguous.** More than one catalog offers it, even with one source: a consumer MUST NOT pick one by
   itself. It reports both labels, and may follow an order of catalogs the user configured for this, as
   for [overlays](catalog.md#several-catalogs), reporting which it took.
@@ -101,8 +110,13 @@ anything of it is fetched; a source is shown without user information or query.
 An entry with no pin, in the table or in the catalog, is reported as the
 [weakening](security.md#weakenings) `unpinned`, with the skill as its subject.
 
-Two overlays naming one skill alike are one skill: the same name, resolving to the same source and
-pin. Otherwise, with different sources or pins, they fall under [collisions](#delivery).
+Two overlays naming one skill alike are one skill: the same name, resolving to the same source, in
+full as it is fetched (user information and query included), and the same pin. Otherwise they fall
+under [collisions](#delivery).
+
+**What was accepted is recorded.** A consumer records, for each skill from elsewhere it fetched, the
+catalog's label, the source, the ref and the pin or the digest it fetched. A later resolution that gives
+another is an update, shown and accepted as one, never applied because a catalog changed.
 
 ## Fetching
 
@@ -114,11 +128,17 @@ never fetches before that decision. Fetching runs nothing. Then, before it deliv
    as an overlay's, and refuses it on a mismatch with the pin (`pin-mismatch`), before reading any of
    its files. Both a table's pin and a pin in the user's configuration MUST match.
 2. The directory has a `SKILL.md` at its root, or it is no skill (`not-a-skill`).
-3. Its `SKILL.md` is read as [front matter](manifest.md#the-split) in the
-   [restricted YAML](manifest.md#restricted-yaml). What a gate refuses, this refuses
-   (`skill-unreadable`). A `name` that is present and differs from the entry's name, exactly, refuses
-   the skill (`skill-name-mismatch`): a harness would load it as that other name, which is not the skill
-   that was shown and accepted.
+3. Its `SKILL.md` begins with [front matter](manifest.md#the-split) in the
+   [restricted YAML](manifest.md#restricted-yaml), with no format line, as the Agent Skills
+   specification requires. What a gate refuses, a malformed fence included, this refuses, and so a
+   `SKILL.md` without front matter (`skill-unreadable`).
+4. Its `name` is the entry's name, exactly, or the skill is refused (`skill-name-mismatch`): a harness
+   would load it as that other name, which is not the skill that was shown and accepted.
+5. Its front matter keys and its list of files are shown before it is delivered. Each key other than
+   `name`, `description`, `license`, `compatibility` and `metadata` is reported as the
+   [weakening](security.md#weakenings) `skill-keys`, with the skill and the key as its subject, since a
+   harness may take such a key as a grant (`allowed-tools` pre-approves tools) or as code to run; a
+   consumer MAY refuse the skill instead, and SHOULD for native delivery.
 
 A refusal is reported with the overlay naming the skill, and the skill is not delivered.
 
@@ -140,13 +160,18 @@ says what today's consumers do.
 A consumer delivers a skill the way its harness takes one: natively where the harness loads skill
 directories, or by a routing line naming the `SKILL.md`, since a skill is a file an agent can read.
 A [harness hint](harness.md#harness-hints) can turn native delivery off for one harness. A fetched
-skill is delivered like a bundled one.
+skill is delivered like a bundled one. A consumer that reads a bundled `SKILL.md` whose front matter
+gives another `name` does not deliver it under this one (`skill-name-mismatch`); one whose front matter
+it cannot read it delivers as before, leaving that to the harness.
 
 Two active overlays with skills whose names are equal without regard to ASCII case collide, since
 a shared skills directory on Windows or macOS holds them as one, unless they name one skill from
 elsewhere [alike](#resolving-a-name). A consumer reports the collision; by default the skill of the
 overlay later in [composition order](composition.md#deterministic-ordering) is the one delivered, and
-a consumer SHOULD let its configuration refuse the collision or name the winner instead.
+a consumer SHOULD let its configuration refuse the collision or name the winner instead. **A skill from
+elsewhere never takes a name by default**: where it would win, the skill already holding the name stays
+delivered and it is reported, whatever `priority` its overlay declares, since `priority` is the
+overlay's own claim. Only the user's configuration can name it the winner.
 
 > **Status:** dotagents publishes every `skills/<name>/` directory that holds a `SKILL.md` into a
 > shared skills directory (a symlink where it can, a copy otherwise), tracks which overlay published

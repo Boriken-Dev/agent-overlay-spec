@@ -95,7 +95,7 @@ quoted and block scalars and comments are ordinary YAML, and stay.
 | A mapping key `<<`, in any scalar style and however it is written (`"\x3c<"`) | `yaml-merge-key` |
 | A directive: `%YAML`, `%TAG` | `yaml-directive` |
 | More than one document, including content after a line `...` | `parse-error` |
-| U+0085, U+2028 or U+2029 anywhere in the text, which YAML 1.1 and 1.2 parsers split differently. As an escape in a double-quoted string (`"\u2028"`) it is a character of the string | `parse-error` |
+| U+0085, U+2028 or U+2029 anywhere in the text, which YAML 1.1 and 1.2 parsers split differently, and U+FEFF, which some keep in a key and others drop. As an escape in a double-quoted string (`"\u2028"`) it is a character of the string | `parse-error` |
 | A key that is not a string: a plain scalar resolving to another type (`1:`, `true:`), or a collection | `non-string-key` |
 | Two keys equal once read, in whichever styles (`a` and `"a"`) | `duplicate-key` |
 
@@ -111,9 +111,9 @@ core schema, and by nothing else:
 | --- | --- |
 | empty, `~`, `null`, `Null`, `NULL` | a null, refused (`null-value`) |
 | `true`, `True`, `TRUE`, `false`, `False`, `FALSE` | a boolean |
-| `[-+]?[0-9]+`, `0o[0-7]+`, `0x[0-9a-fA-F]+` | an integer, in decimal when it has a leading zero; outside signed 64 bits, refused (`integer-range`) |
+| `[-+]?[0-9]+`, `0o[0-7]+`, `0x[0-9a-fA-F]+` | an integer, in decimal when it has a leading zero; outside signed 64 bits, refused (`integer-range`) without converting it, however many digits it has |
 | `[-+]?(\.[0-9]+\|[0-9]+(\.[0-9]*)?)([eE][-+]?[0-9]+)?` | a float |
-| `.inf`, `.nan` in the core schema's spellings, signed or not | refused (`non-finite-float`) |
+| `.inf`, `+.inf`, `-.inf` and `.nan`, in the core schema's spellings (`.Inf`, `.NAN`, ...) | refused (`non-finite-float`); `+.nan` is no core-schema float, and is a string |
 | anything else, `yes`, `on`, `2026-11-04`, `1_000`, `0b11` and `1:20` included | a string |
 
 The schema's types then hold as in every format: `priority: "5"` and `priority: 5.0` are not integers.
@@ -152,7 +152,10 @@ top-level mapping is at depth 1, and an array or mapping inside one at depth `n`
 
 The depth bound holds while parsing, in every format: text nested past it is refused (`too-deep`), and
 a parser that recurses on its input MUST NOT reach the end of its stack first. A document of a few
-hundred kilobytes of `[` is within the size bound.
+hundred kilobytes of `[` is within the size bound. **Reading takes time and memory linear in the length
+of the text**, nesting included, so a refusal costs no more than reading: a parser that is slower than
+that on deep nesting is preceded by a scan of its own that refuses nesting past the bound. An integer is
+refused past 64 bits before it is converted.
 
 ## `OVERLAY.md`
 
@@ -235,7 +238,8 @@ validates it.
 
 | Case | When | Manifest | A viewer | A gate |
 | --- | --- | --- | --- | --- |
-| `none` | The first line is no opening fence | empty | Shows the body | Accepts it |
+| `none` | The first line is no opening fence, and the document does not look like one | empty | Shows the body | Accepts it |
+| `malformed` | The first line is no opening fence, but after white space and byte-order marks the text starts with `---` or `...`, or a format line comes right before a fence | | Shows the text, all of it | Refuses: `malformed-fence` |
 | `unterminated` | There is an opening fence and no closing fence, so no block | | Shows the text, all of it | Refuses: `unterminated-front-matter` |
 | `too-large` | The [bound](#bounds) ended before the split did | | Shows no metadata | Refuses: `too-large` |
 | `empty` | The metadata is only white space, or a format line and white space | empty | Shows the body | Accepts it |
@@ -243,6 +247,13 @@ validates it.
 | `does-not-parse` | The parser refuses it, or [reading](#reading-overlaycfg) does | | Shows the metadata as unreadable text | Refuses, by the reading class |
 | `not-a-mapping` | It parses to a sequence or a scalar | | Shows the metadata as text | Refuses: `not-a-mapping` |
 | `mapping` | It reads as a mapping | the mapping | Shows its fields | Applies the [data model](#data-model) and the schema to it |
+
+A `malformed` document is refused rather than read as one with no manifest, because the difference
+is invisible (a space, a no-break space, a second byte-order mark) and the cost is silent: every field,
+`[defaults]` turning off a script included, would be dropped, and the metadata sent to an agent as text,
+while a laxer reader saw a block. A [context file](harness.md#context) is only context, so for it the
+case is `none`. A viewer splits by this rule, never by its Markdown renderer's own, so what it shows as
+the body is what a gate takes as one.
 
 **Positions.** Offsets count bytes from the first byte of the file, a byte-order mark included. Lines
 count from 1 at the file's first line, whose opening fence is line 1, so the metadata starts on line 2
@@ -328,6 +339,10 @@ A **relative path** is `/`-separated and relative to the overlay root, and every
   `prn`, `aux`, `nul`, `conin$`, `conout$`, `com` or `lpt` followed by a digit or `¹²³`) with or
   without an extension, and does not end in `.pyc` in any case;
 - holds no `~` followed by a digit, the shape of a Windows short name.
+
+**No field names a manifest** (`manifest-file`): `overlay.cfg` is named by none, and `OVERLAY.md` only
+by `context` and a harness's `context`, where it stands for its body. Named as a rules file, an env file or
+a script, a manifest's fields would be read, or reach an agent, as something else.
 
 The schema's `relPath` expresses exactly this. A consumer resolves a relative path under the root
 and opens it so that it cannot leave the root through a symbolic link, a junction or `..` (for

@@ -23,7 +23,7 @@ Error classes:
   `null-value`, `duplicate-key`, `non-string-key`, `datetime-value`, `non-finite-float`,
   `integer-range`, `invalid-unicode`, `yaml-tag`, `yaml-anchor`, `yaml-merge-key`,
   `yaml-directive`, `too-deep`, `too-large`, `dotenv-syntax`, `env-script-output`,
-  `unterminated-front-matter`, and for an overlay's files `two-manifests`;
+  `unterminated-front-matter`, `malformed-fence`, and for an overlay's files `two-manifests`;
 - substituting, in `dotenv` reading cases and when applying: `undefined-variable`,
   `secret-placeholder`, `invalid-pattern`;
 - digest: `symlink`, `special-file`, `non-utf8-name`, `invalid-name`, `case-collision`;
@@ -31,11 +31,11 @@ Error classes:
   `env-path-conflict`, `reserved-variable`;
 - resolving: `cycle`, `invalid-source`;
 - skills: `skill-name`, `skill-duplicate`, `skill-ambiguous`, `skill-case`, `local-source`,
-  `source-credentials`, `ref-not-allowed` in a manifest, and when one is fetched `pin-mismatch`,
+  `source-credentials`, `ref-not-allowed` and `manifest-file` in a manifest, and when one is fetched `pin-mismatch`,
   `not-a-skill`, `skill-unreadable`, `skill-name-mismatch`;
 - catalogs: `not-a-catalog` and the reading classes for a whole catalog; for an entry
   `invalid-name`, `duplicate-name`, `invalid-entry`, `invalid-source`, `invalid-pin`,
-  `ref-not-allowed`, `leaves-repository`, `local-source`; for several catalogs `invalid-label`,
+  `ref-not-allowed`, `leaves-repository`, `local-source`, `source-credentials`; for several catalogs `invalid-label`,
   and for a requested name `ambiguous`, `not-found`;
 - icons: `icon-format`, `icon-too-large`, `icon-mismatch`, `icon-unreadable`, `icon-dimensions`.
 

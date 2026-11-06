@@ -1,5 +1,5 @@
 {
-  "description": "OVERLAY.md and the front matter of any document. A case with an input ('text', 'base64', or 'parts', a list of [text, times] to concatenate) and optional 'limits' ('max_bytes', 'max_depth') expects the split and the reading: 'case' is 'none', 'unterminated', 'too-large', 'empty', 'unknown-format', 'does-not-parse', 'not-a-mapping' or 'mapping'; offsets are bytes from the start of the file and lines count from 1; 'metadata' and 'body' are text ('..._base64' when not UTF-8, '..._size' when the input is 'parts'); 'format' is the format read; 'data' is the manifest where there is one, and 'error' and 'line' what a gate refuses with ('line' only where one answer is right whatever the parser). A 'context_file' case expects the context's 'text', or an 'error'. A 'files' case gives an overlay's files by relative path (text, or {'base64': ...}) and expects 'manifest_file', 'manifest', the 'context' entries in order ('OVERLAY.md' standing for its body), 'context_ignored', 'issues' (pointers of the manifest's problems), 'applies', 'harness_context' where a harness names context, 'digest' where stated; or an 'error' and 'line'.",
+  "description": "OVERLAY.md and the front matter of any document. A case with an input ('text', 'base64', or 'parts', a list of [text, times] to concatenate) and optional 'limits' ('max_bytes', 'max_depth') expects the split and the reading: 'case' is 'none', 'malformed', 'unterminated', 'too-large', 'empty', 'unknown-format', 'does-not-parse', 'not-a-mapping' or 'mapping'; offsets are bytes from the start of the file and lines count from 1; 'metadata' and 'body' are text ('..._base64' when not UTF-8, '..._size' when the input is 'parts'); 'format' is the format read; 'data' is the manifest where there is one, and 'error' and 'line' what a gate refuses with ('line' only where one answer is right whatever the parser). A 'context_file' case expects the context's 'text', or an 'error'. A 'files' case gives an overlay's files by relative path (text, or {'base64': ...}) and expects 'manifest_file', 'manifest', the 'context' entries in order ('OVERLAY.md' standing for its body), 'context_ignored', 'issues' (pointers of the manifest's problems), 'applies', 'harness_context' where a harness names context, 'digest' where stated; or an 'error' and 'line'.",
   "spec": "spec/v0/manifest.md#overlaymd",
   "cases": [
     {
@@ -40,74 +40,113 @@
     },
     {
       "id": "doc-none-two-boms",
-      "description": "Only one is dropped; the second is the body's.",
+      "description": "Only one is dropped; the second is the body's. A gate refuses it as a malformed fence, and a viewer shows it as text.",
       "text": "﻿﻿---\nname: x\n---\n",
       "expect": {
-        "case": "none",
+        "case": "malformed",
         "body_offset": 3,
         "body_line": 1,
+        "error": "malformed-fence",
         "body": "﻿---\nname: x\n---\n",
+        "line": 1
+      }
+    },
+    {
+      "id": "doc-malformed-leading-space-dots",
+      "description": "'...' after white space. A gate refuses it as a malformed fence, and a viewer shows it as text.",
+      "text": "  ...\nname: x\n...\n",
+      "expect": {
+        "case": "malformed",
+        "body_offset": 0,
+        "body_line": 1,
+        "error": "malformed-fence",
+        "body": "  ...\nname: x\n...\n"
+      }
+    },
+    {
+      "id": "doc-none-thematic-later",
+      "description": "A rule on a later line, after text, is text.",
+      "text": "# Title\n---\nname: x\n---\n",
+      "expect": {
+        "case": "none",
+        "body_offset": 0,
+        "body_line": 1,
+        "body": "# Title\n---\nname: x\n---\n",
+        "data": {}
+      }
+    },
+    {
+      "id": "doc-none-format-line-alone",
+      "description": "A format line with no fence after it is text.",
+      "text": "#!toml\nname = 'x'\n",
+      "expect": {
+        "case": "none",
+        "body_offset": 0,
+        "body_line": 1,
+        "body": "#!toml\nname = 'x'\n",
         "data": {}
       }
     },
     {
       "id": "doc-none-format-line-first",
-      "description": "A format line before the fence hides nothing: it is no fence, and the text is the body.",
+      "description": "A format line before the fence hides nothing: it is no fence, and the text is the body. A gate refuses it as a malformed fence, and a viewer shows it as text.",
       "text": "#!toml\n---\nname = 'x'\n---\n",
       "expect": {
-        "case": "none",
+        "case": "malformed",
         "body_offset": 0,
         "body_line": 1,
+        "error": "malformed-fence",
         "body": "#!toml\n---\nname = 'x'\n---\n",
-        "data": {}
+        "line": 1
       }
     },
     {
       "id": "doc-none-blank-first",
-      "description": "A blank first line.",
+      "description": "A blank first line. A gate refuses it as a malformed fence, and a viewer shows it as text.",
       "text": "\n---\nname: x\n---\n",
       "expect": {
-        "case": "none",
+        "case": "malformed",
         "body_offset": 0,
         "body_line": 1,
+        "error": "malformed-fence",
         "body": "\n---\nname: x\n---\n",
-        "data": {}
+        "line": 1
       }
     },
     {
       "id": "doc-none-leading-space",
-      "description": "A fence is not indented.",
+      "description": "A fence is not indented. A gate refuses it as a malformed fence, and a viewer shows it as text.",
       "text": " ---\nname: x\n---\n",
       "expect": {
-        "case": "none",
+        "case": "malformed",
         "body_offset": 0,
         "body_line": 1,
-        "body": " ---\nname: x\n---\n",
-        "data": {}
+        "error": "malformed-fence",
+        "body": " ---\nname: x\n---\n"
       }
     },
     {
       "id": "doc-none-dots-do-not-open",
-      "description": "'...' only closes.",
+      "description": "'...' only closes. A gate refuses it as a malformed fence, and a viewer shows it as text.",
       "text": "...\nname: x\n...\n",
       "expect": {
-        "case": "none",
+        "case": "malformed",
         "body_offset": 0,
         "body_line": 1,
-        "body": "...\nname: x\n...\n",
-        "data": {}
+        "error": "malformed-fence",
+        "body": "...\nname: x\n...\n"
       }
     },
     {
       "id": "doc-none-four-dashes",
-      "description": "Four dashes.",
+      "description": "Four dashes. A gate refuses it as a malformed fence, and a viewer shows it as text.",
       "text": "----\nname: x\n----\n",
       "expect": {
-        "case": "none",
+        "case": "malformed",
         "body_offset": 0,
         "body_line": 1,
-        "body": "----\nname: x\n----\n",
-        "data": {}
+        "error": "malformed-fence",
+        "body": "----\nname: x\n----\n"
       }
     },
     {
@@ -124,86 +163,87 @@
     },
     {
       "id": "doc-none-comment-after-fence",
-      "description": "A comment is text on the fence's line.",
+      "description": "A comment is text on the fence's line. A gate refuses it as a malformed fence, and a viewer shows it as text.",
       "text": "--- # manifest\nname: x\n---\n",
       "expect": {
-        "case": "none",
+        "case": "malformed",
         "body_offset": 0,
         "body_line": 1,
+        "error": "malformed-fence",
         "body": "--- # manifest\nname: x\n---\n",
-        "data": {}
+        "line": 1
       }
     },
     {
       "id": "doc-none-text-after-fence",
-      "description": "A document on the fence's line.",
+      "description": "A document on the fence's line. A gate refuses it as a malformed fence, and a viewer shows it as text.",
       "text": "--- name: x\n---\n",
       "expect": {
-        "case": "none",
+        "case": "malformed",
         "body_offset": 0,
         "body_line": 1,
-        "body": "--- name: x\n---\n",
-        "data": {}
+        "error": "malformed-fence",
+        "body": "--- name: x\n---\n"
       }
     },
     {
       "id": "doc-none-form-feed",
-      "description": "A form feed is not a blank.",
+      "description": "A form feed is not a blank. A gate refuses it as a malformed fence, and a viewer shows it as text.",
       "text": "---\f\nname: x\n---\n",
       "expect": {
-        "case": "none",
+        "case": "malformed",
         "body_offset": 0,
         "body_line": 1,
-        "body": "---\f\nname: x\n---\n",
-        "data": {}
+        "error": "malformed-fence",
+        "body": "---\f\nname: x\n---\n"
       }
     },
     {
       "id": "doc-none-nbsp",
-      "description": "A no-break space is not a blank.",
+      "description": "A no-break space is not a blank. A gate refuses it as a malformed fence, and a viewer shows it as text.",
       "text": "--- \nname: x\n---\n",
       "expect": {
-        "case": "none",
+        "case": "malformed",
         "body_offset": 0,
         "body_line": 1,
-        "body": "--- \nname: x\n---\n",
-        "data": {}
+        "error": "malformed-fence",
+        "body": "--- \nname: x\n---\n"
       }
     },
     {
       "id": "doc-none-lone-cr",
-      "description": "A carriage return alone ends no line.",
+      "description": "A carriage return alone ends no line. A gate refuses it as a malformed fence, and a viewer shows it as text.",
       "text": "---\rname: x\r---\r",
       "expect": {
-        "case": "none",
+        "case": "malformed",
         "body_offset": 0,
         "body_line": 1,
-        "body": "---\rname: x\r---\r",
-        "data": {}
+        "error": "malformed-fence",
+        "body": "---\rname: x\r---\r"
       }
     },
     {
       "id": "doc-none-cr-before-blank",
-      "description": "A carriage return is part of a line end only directly before the line feed.",
+      "description": "A carriage return is part of a line end only directly before the line feed. A gate refuses it as a malformed fence, and a viewer shows it as text.",
       "text": "---\r \nname: x\n---\n",
       "expect": {
-        "case": "none",
+        "case": "malformed",
         "body_offset": 0,
         "body_line": 1,
-        "body": "---\r \nname: x\n---\n",
-        "data": {}
+        "error": "malformed-fence",
+        "body": "---\r \nname: x\n---\n"
       }
     },
     {
       "id": "doc-none-unicode-line-break",
-      "description": "U+2028 ends no line.",
+      "description": "U+2028 ends no line. A gate refuses it as a malformed fence, and a viewer shows it as text.",
       "text": "--- name: x\n---\n",
       "expect": {
-        "case": "none",
+        "case": "malformed",
         "body_offset": 0,
         "body_line": 1,
-        "body": "--- name: x\n---\n",
-        "data": {}
+        "error": "malformed-fence",
+        "body": "--- name: x\n---\n"
       }
     },
     {
@@ -2174,6 +2214,156 @@
       }
     },
     {
+      "id": "doc-yaml-bom-later-line",
+      "description": "A byte-order mark on a later line is refused, since parsers keep or drop it from a key.",
+      "text": "---\n# c\n﻿a: 1\n---\n",
+      "expect": {
+        "case": "does-not-parse",
+        "metadata_offset": 4,
+        "metadata_line": 2,
+        "body_offset": 20,
+        "body_line": 5,
+        "format": "yaml",
+        "error": "parse-error",
+        "metadata": "# c\n﻿a: 1\n",
+        "body": ""
+      }
+    },
+    {
+      "id": "doc-yaml-bom-escaped",
+      "description": "As an escape it is a character.",
+      "text": "---\na: \"\\ufeffx\"\n---\n",
+      "expect": {
+        "case": "mapping",
+        "metadata_offset": 4,
+        "metadata_line": 2,
+        "body_offset": 21,
+        "body_line": 4,
+        "format": "yaml",
+        "metadata": "a: \"\\ufeffx\"\n",
+        "body": "",
+        "data": {
+          "a": "﻿x"
+        }
+      }
+    },
+    {
+      "id": "doc-yaml-huge-int",
+      "description": "An integer thousands of digits long is refused, not converted.",
+      "text": "---\na: 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999\n---\n",
+      "expect": {
+        "case": "does-not-parse",
+        "metadata_offset": 4,
+        "metadata_line": 2,
+        "body_offset": 5012,
+        "body_line": 4,
+        "format": "yaml",
+        "error": "integer-range",
+        "metadata": "a: 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999\n",
+        "body": ""
+      }
+    },
+    {
+      "id": "doc-yaml-huge-hex",
+      "description": "In hexadecimal.",
+      "text": "---\na: 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\n---\n",
+      "expect": {
+        "case": "does-not-parse",
+        "metadata_offset": 4,
+        "metadata_line": 2,
+        "body_offset": 5014,
+        "body_line": 4,
+        "format": "yaml",
+        "error": "integer-range",
+        "metadata": "a: 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\n",
+        "body": ""
+      }
+    },
+    {
+      "id": "doc-yaml-leading-zeros",
+      "description": "Leading zeros are not digits that count.",
+      "text": "---\na: 000000000000000000000000000012\n---\n",
+      "expect": {
+        "case": "mapping",
+        "metadata_offset": 4,
+        "metadata_line": 2,
+        "body_offset": 42,
+        "body_line": 4,
+        "format": "yaml",
+        "metadata": "a: 000000000000000000000000000012\n",
+        "body": "",
+        "data": {
+          "a": 12
+        }
+      }
+    },
+    {
+      "id": "doc-json-huge-int",
+      "description": "In JSON.",
+      "text": "---\n#!json\n{\"a\": 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999}\n---\n",
+      "expect": {
+        "case": "does-not-parse",
+        "metadata_offset": 4,
+        "metadata_line": 2,
+        "body_offset": 5023,
+        "body_line": 5,
+        "format": "json",
+        "error": "integer-range",
+        "metadata": "#!json\n{\"a\": 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999}\n",
+        "body": ""
+      }
+    },
+    {
+      "id": "doc-toml-huge-int",
+      "description": "In TOML.",
+      "text": "---\n#!toml\na = 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999\n---\n",
+      "expect": {
+        "case": "does-not-parse",
+        "metadata_offset": 4,
+        "metadata_line": 2,
+        "body_offset": 5020,
+        "body_line": 5,
+        "format": "toml",
+        "error": "integer-range",
+        "metadata": "#!toml\na = 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999\n",
+        "body": ""
+      }
+    },
+    {
+      "id": "doc-yaml-escape-past-unicode",
+      "description": "An escape past Unicode.",
+      "text": "---\na: \"\\UFFFFFFFF\"\n---\n",
+      "expect": {
+        "case": "does-not-parse",
+        "metadata_offset": 4,
+        "metadata_line": 2,
+        "body_offset": 24,
+        "body_line": 4,
+        "format": "yaml",
+        "error": "parse-error",
+        "metadata": "a: \"\\UFFFFFFFF\"\n",
+        "body": ""
+      }
+    },
+    {
+      "id": "doc-yaml-signed-nan",
+      "description": "'+.nan' is no core-schema float: a string.",
+      "text": "---\na: +.nan\n---\n",
+      "expect": {
+        "case": "mapping",
+        "metadata_offset": 4,
+        "metadata_line": 2,
+        "body_offset": 17,
+        "body_line": 4,
+        "format": "yaml",
+        "metadata": "a: +.nan\n",
+        "body": "",
+        "data": {
+          "a": "+.nan"
+        }
+      }
+    },
+    {
       "id": "doc-yaml-line-separator",
       "description": "U+2028 in the text is refused.",
       "text": "---\na: one two\n---\n",
@@ -3640,6 +3830,101 @@
         "context_ignored": [],
         "issues": [],
         "applies": true
+      }
+    },
+    {
+      "id": "overlay-malformed-refused",
+      "description": "Almost a fence: a gate refuses rather than read no manifest and all of it as context.",
+      "files": {
+        "OVERLAY.md": "--- # manifest\ndefaults: {setup: false}\n---\nBody.\n",
+        "setup.sh": "echo\n"
+      },
+      "expect": {
+        "error": "malformed-fence",
+        "line": 1
+      }
+    },
+    {
+      "id": "overlay-malformed-blank-first",
+      "description": "A blank first line.",
+      "files": {
+        "OVERLAY.md": "\n---\ndefaults: {setup: false}\n---\nBody.\n"
+      },
+      "expect": {
+        "error": "malformed-fence",
+        "line": 1
+      }
+    },
+    {
+      "id": "overlay-rules-names-overlay-md",
+      "description": "A manifest is never a rules file.",
+      "files": {
+        "OVERLAY.md": "---\nrules: [OVERLAY.md]\n---\nBody.\n"
+      },
+      "expect": {
+        "manifest_file": "OVERLAY.md",
+        "manifest": {
+          "rules": [
+            "OVERLAY.md"
+          ]
+        },
+        "context": [
+          "OVERLAY.md"
+        ],
+        "context_ignored": [],
+        "issues": [
+          "/rules/0"
+        ],
+        "applies": false
+      }
+    },
+    {
+      "id": "overlay-body-past-context-bound",
+      "description": "A body that is context is bounded where it is used.",
+      "files": {
+        "OVERLAY.md": "---\nname: x\n---\nBody.\nBody.\nBody.\nBody.\nBody.\nBody.\nBody.\nBody.\nBody.\nBody.\nBody.\nBody.\nBody.\nBody.\nBody.\nBody.\nBody.\nBody.\nBody.\nBody.\n"
+      },
+      "limits": {
+        "max_context_bytes": 64
+      },
+      "expect": {
+        "error": "too-large",
+        "line": 4
+      }
+    },
+    {
+      "id": "overlay-body-within-context-bound",
+      "description": "Within it.",
+      "files": {
+        "OVERLAY.md": "---\nname: x\n---\nBody.\nBody.\nBody.\nBody.\nBody.\nBody.\nBody.\nBody.\nBody.\nBody.\n"
+      },
+      "limits": {
+        "max_context_bytes": 64
+      },
+      "expect": {
+        "manifest_file": "OVERLAY.md",
+        "manifest": {
+          "name": "x"
+        },
+        "context": [
+          "OVERLAY.md"
+        ],
+        "context_ignored": [],
+        "issues": [],
+        "applies": true
+      }
+    },
+    {
+      "id": "overlay-harness-body-invalid-utf8",
+      "description": "A body a harness's context names must be UTF-8 too.",
+      "files": {
+        "OVERLAY.md": {
+          "base64": "LS0tCmRlZmF1bHRzOiB7Y29udGV4dDogZmFsc2V9Cmhhcm5lc3M6IHtjb2RleDoge2NvbnRleHQ6IFtPVkVSTEFZLm1kXX19Ci0tLQr/Cg=="
+        }
+      },
+      "expect": {
+        "error": "invalid-utf8",
+        "line": 5
       }
     },
     {

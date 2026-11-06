@@ -736,8 +736,8 @@
         "rules": [],
         "context": [],
         "skills": {
-          "lint": "b",
-          "review": "b"
+          "lint": "a",
+          "review": "a"
         },
         "skill_collisions": [
           "lint",
@@ -783,7 +783,7 @@
         "rules": [],
         "context": [],
         "skills": {
-          "pdf": "b"
+          "pdf": "a"
         },
         "skill_collisions": [
           "pdf"

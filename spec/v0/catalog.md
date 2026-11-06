@@ -50,7 +50,8 @@ tags = ["documentation", "release", "changelog"]
 - A **license expression** is an [SPDX license expression](https://spdx.github.io/spdx-spec/v2.3/SPDX-license-expressions/):
   license identifiers (ASCII letters, digits, `.` and `-`, optionally followed by `+`) and
   `LicenseRef-` references, a `WITH` exception, joined by `AND` and `OR` with parentheses, `AND`
-  binding tighter than `OR`. The operators are upper case. Whether an identifier is on the SPDX
+  binding tighter than `OR`. The operators are upper case. Parentheses nested past the depth bound make
+  no expression. Whether an identifier is on the SPDX
   License List is not checked; a store MAY check it for display.
 - A **tag** is lowercase ASCII letters and digits in runs joined by single `-`, at most 32
   characters; `tags` holds each tag once.
@@ -232,7 +233,12 @@ catalog file from.
 - **A catalog from elsewhere names nothing on this machine.** In a catalog read from a Git
   repository or a URL, an absolute directory, a Git location that is a local path, or any `file:`
   URL, refuses the entry (`local-source`): a catalog chooses its own sources, and one naming a
-  local path would install whatever the consumer's machine holds there.
+  local path would install whatever the consumer's machine holds there. A host that is this machine, as
+  [a manifest's source](skills.md#declaring-skills) defines it, is local too, and so is any location
+  with a scheme before a path (`file:/etc/x`, `javascript:x`), which is never relative.
+- A catalog from elsewhere names a location that is neither Git nor an `http` or `https` URL
+  (`invalid-source`), and holds no credential: a query, a password, or a user over the web refuses the
+  entry (`source-credentials`). A catalog on the consumer's own machine is the user's, and may.
 - `ref` belongs to a Git source that has no ref of its own. A `ref` beside an `@ref`, on a relative
   source (whose ref is the catalog's), or on a source that is not Git refuses the entry
   (`ref-not-allowed`).
@@ -254,6 +260,7 @@ A store refuses an entry, **alone**, and reports it, in `overlays` and in `skill
 | Its `ref` is not allowed | `ref-not-allowed` |
 | Its relative source leaves the catalog's repository | `leaves-repository` |
 | A catalog from elsewhere names a local source | `local-source` |
+| A catalog from elsewhere names a source holding a credential | `source-credentials` |
 
 An informational field that is invalid or unknown (the catalog's `name`, `description` or
 `homepage`; an entry's `description`; each field of an entry's `about`, or an `about` that is not a
@@ -309,10 +316,12 @@ activating, never from catalog claims**:
   dependency files, their environments and whether each is pinned;
 - the overlays it `requires`, each shown and accepted the same way;
 - its context: the [body](manifest.md#overlaymd) of `OVERLAY.md` or `CONTEXT.md`, and a `CONTEXT.md`
-  that is ignored;
+  that is ignored; its `routing` lines and its rules files, which reach an agent too;
 - every [skill it names from elsewhere](skills.md#resolving-a-name), each with its source, the catalog
-  that offered it, and whether it is pinned, and every name that is missing or ambiguous, all accepted
-  together with the overlay. These are shown before any of them is fetched;
+  that offered it, and whether it is pinned, every name that is missing or ambiguous, and every
+  collision a skill would join, all accepted together with the overlay. These are shown before any of
+  them is fetched; after fetching, each one's front matter keys and files are shown before it is
+  delivered;
 - the variables it sets or adds to, the secrets and host variables it asks for, its MCP servers and
   its commands;
 - every [weakening](security.md#weakenings) activating it would report, `unpinned` included.

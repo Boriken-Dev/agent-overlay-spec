@@ -448,3 +448,22 @@ says nothing of where skills are hosted, so a source names the skill's own direc
 layout holds it. AOS keeps its wider name rule for what is already bundled, recommending that form.
 
 **Status:** adopted; Proposed until an implementation reads it.
+
+## 24 — What a reader shows is what it fetches and applies
+
+**Decision:** an `@` in a URL's authority is user information, never a ref; a source holds no control or
+reordering character and an authority no `\`; a user, port or scp-like path that starts with `-` once
+percent-decoded is refused. A manifest names no host that is the consumer's machine, a catalog from
+elsewhere none either and no credential or non-web location, and a manifest's source is fetched without the
+user's credentials. A skill from elsewhere never takes a name another overlay's skill holds by default. A
+fetched skill has YAML front matter giving its name, and its other keys are shown and reported. A document
+that looks like front matter and is not is refused at a gate (`malformed-fence`). Reading is linear in the
+text, nesting included, and no field names a manifest.
+
+**Reason:** an independent security review of the amendment showed each gap with an input: a source shown
+as one host and fetched from another, a catalog entry whose query hid the real host and suppressed a
+collision, an overlay with a high `priority` replacing a trusted skill, a manifest dropped in silence by a
+space before its fence, and a Dart YAML parser whose cost grows with the square of the nesting. Each rule
+closes one of them, and each has vectors that the previous text's reference passed.
+
+**Status:** adopted; Proposed until an implementation reads it.

@@ -29,8 +29,11 @@ overlay is not giving it to an agent:
 
 - a store or a viewer shows a body as text, marked as the overlay's, renders no HTML in it and fetches
   nothing it links to, and never adds it to an agent's context to describe the overlay;
-- what is in the fence never reaches an agent as context: not a manifest's fields, not `about`, not a
-  block a viewer could not read. An unclosed block in `OVERLAY.md` is refused, not shown to an agent;
+- what is in the fence reaches an agent only as the fields that are instructions by definition: its
+  `routing` lines and the rules files it names, both shown [before installing](catalog.md#before-installing).
+  No other field, not `about`, not a block a viewer could not read, and never the fence as text: an
+  unclosed or malformed block in `OVERLAY.md` is refused, not shown to an agent, and
+  [no field names a manifest](manifest.md#fields) as a rules file or anything else;
 - every byte of `OVERLAY.md` is under the [tree digest](integrity.md#tree-digest), so a pin covers the
   body as it covers `CONTEXT.md`.
 
@@ -66,7 +69,9 @@ then reports the refusal the same way.
 | `env-sensitive` | An overlay sets a [sensitive variable](#sensitive-variables) through `env`, an env file or an env script, or adds to one other than `PATH`, `PYTHONPATH` and `NODE_PATH` through `paths`. The subject is the variable. |
 | `unlocked-dependencies` | A [dependency file](runtime.md#dependencies) is not pinned: a Python file without a hash on every requirement (a declared `requirements` is never one), or a `package.json` without a `package-lock.json`. The subject is the file; for a shared or named environment that is not pinned, the environment (`python:shared`, `node:<name>`), reported to every member. |
 | `deps-network` | A dependency file is installed, which needs the network. The subject is the file. |
-| `insecure-transport` | An MCP server is reached over plain `http` on a host other than loopback. The subject is the server. |
+| `insecure-transport` | An MCP server is reached over plain `http` on a host other than loopback, or a [skill from elsewhere](skills.md#declaring-skills) is fetched over plain `http` or `git://`. The subject is the server, or the skill. |
+| `private-source` | A skill from elsewhere is fetched from a private network address. The subject is the skill. |
+| `skill-keys` | A fetched skill's front matter holds a key other than `name`, `description`, `license`, `compatibility` and `metadata`. The subject is the skill and the key. |
 
 A consumer's own settings can weaken too (a disabled sandbox, a raised limit); a consumer reports
 those the same way, under identifiers of its own.
@@ -170,7 +175,11 @@ An overlay's [`skills`](skills.md) can make a consumer fetch code and instructio
 does not cover, so naming a source is a request, and only the user's yes grants it:
 
 - **Who may name a source.** Anyone who writes a manifest may ask for a source, and it asks for nothing
-  on the consumer's machine: [local sources and credentials are refused](skills.md#declaring-skills).
+  on the consumer's machine: [local sources, this machine's addresses and credentials are
+  refused](skills.md#declaring-skills), a private address and plain transports are reported, and the
+  fetch carries none of the user's credentials and follows no redirect to another host. The source
+  shown is the one fetched: an `@` in an authority is user information, and a source holds no control
+  or reordering character.
   What is fetched is what the user accepted: the overlay and its skills [together](catalog.md#before-installing),
   each source shown first, and fetching never happens before that, for an overlay from a project or a
   catalog above all. A source is reached with the consumer's own network position and Git transports, as
@@ -184,9 +193,11 @@ does not cover, so naming a source is a request, and only the user's yes grants 
   nothing in it is read as an overlay](skills.md#fetching). So a skill cannot name further skills, and a
   fetched tree's digest is checked before any file of it is parsed.
 - **A skill is what it says.** A skill whose `SKILL.md` gives another name than the one accepted is
-  refused, so a fetched skill cannot take a trusted skill's place in a harness by naming itself after it.
-  A [collision](skills.md#delivery) between overlays' skills is reported, and the configuration can
-  refuse it.
+  refused, so a fetched skill cannot take a trusted skill's place in a harness by naming itself after it,
+  and a skill from elsewhere never takes a name another overlay's skill holds unless the configuration
+  says so. Its front matter keys are shown and those that could grant or run anything reported, since a
+  harness may honour them; its `description`, which a harness shows the agent before the skill is used,
+  is the author's text, accepted with the source.
 
 ## Collisions and updates
 

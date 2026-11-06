@@ -23,8 +23,9 @@ after the base context it starts from. A leading front matter block, as [the spl
 finds it, is not context and is dropped, unread: a block that would not parse or names an unknown format
 is dropped the same, since no field of a context file is applied. Without a closing fence there is no
 block, and all of the file is context. A head past the split's [bound](manifest.md#bounds) is refused
-with that setting's name, never cut, and a consumer MAY bound the total size of the context by another
-setting, likewise.
+with that setting's name, never cut. A consumer MUST bound the total size of the context it adds, by
+another setting with a default (1 MiB is RECOMMENDED), and likewise refuses past it with the setting's
+name; the body of `OVERLAY.md` counts as its file does.
 
 An operator chose to give the overlay to the agent, so the text is instruction, not fenced data; a
 consumer still marks where each file came from.

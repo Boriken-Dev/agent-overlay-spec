@@ -801,6 +801,111 @@
       }
     },
     {
+      "id": "remote-sources-held",
+      "description": "A catalog from elsewhere: a credential or query, a host that is this machine, a scheme before a path, and a location that is not Git or the web are refused; a private address is not.",
+      "catalog": {
+        "name": "skills.json",
+        "text": "{\"skills\": {\"query\": \"https://evil.example?@github.com/acme/pdf.git\", \"user\": \"https://token@example.org/skills/a\", \"loop\": \"http://127.0.0.1/x.git\", \"fileish\": \"file:/etc/passwd\", \"zip\": \"zip:///etc/x.zip\", \"s3\": \"s3://internal/x\", \"js\": \"javascript:alert(1)\", \"helper\": \"ext::sh -c id\", \"private\": \"https://10.1.2.3/skills/x\", \"ok\": \"./ok\"}}\n",
+        "base": "https://example.org/catalogs/overlays.json"
+      },
+      "expect": {
+        "form": "minimal",
+        "entries": {},
+        "refused": [],
+        "skills": {
+          "entries": {
+            "ok": {
+              "source": {
+                "kind": "url",
+                "location": "https://example.org/catalogs/ok",
+                "ref": null,
+                "path": null
+              }
+            },
+            "private": {
+              "source": {
+                "kind": "url",
+                "location": "https://10.1.2.3/skills/x",
+                "ref": null,
+                "path": null
+              }
+            }
+          },
+          "refused": [
+            [
+              "fileish",
+              "local-source"
+            ],
+            [
+              "helper",
+              "local-source"
+            ],
+            [
+              "js",
+              "local-source"
+            ],
+            [
+              "loop",
+              "local-source"
+            ],
+            [
+              "query",
+              "source-credentials"
+            ],
+            [
+              "s3",
+              "invalid-source"
+            ],
+            [
+              "user",
+              "source-credentials"
+            ],
+            [
+              "zip",
+              "invalid-source"
+            ]
+          ]
+        },
+        "ignored": []
+      }
+    },
+    {
+      "id": "local-sources-kept",
+      "description": "A catalog on this machine is the user's own: credentials and other schemes stay, to be shown without them.",
+      "catalog": {
+        "name": "catalog.toml",
+        "text": "[skills]\ntoken = \"https://u:secret@example.org/skills/pdf?token=t\"\nzip = \"zip:///srv/skills.zip\"\n",
+        "base": "/srv/overlays/catalogs/catalog.toml"
+      },
+      "expect": {
+        "form": "minimal",
+        "entries": {},
+        "refused": [],
+        "skills": {
+          "entries": {
+            "token": {
+              "source": {
+                "kind": "url",
+                "location": "https://u:secret@example.org/skills/pdf?token=t",
+                "ref": null,
+                "path": null
+              }
+            },
+            "zip": {
+              "source": {
+                "kind": "url",
+                "location": "zip:///srv/skills.zip",
+                "ref": null,
+                "path": null
+              }
+            }
+          },
+          "refused": []
+        },
+        "ignored": []
+      }
+    },
+    {
       "id": "skills-minimal",
       "description": "A catalog of skills alone, as strings, resolved beside the catalog.",
       "catalog": {

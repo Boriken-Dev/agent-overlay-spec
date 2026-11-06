@@ -157,6 +157,17 @@ The first edition, `0.1.0-draft`, a development draft open for review.
 - A validator no longer refuses a listed skill with no directory: it flags it (`skill-from-catalog`), and
   refuses a table whose name is also bundled and a name differing from a bundled one only in case. A skill
   name is also a single path component.
+- Sources: an `@` in a URL's authority is user information, never a ref; a source holds no control or
+  reordering character and an authority no backslash; a user, port or scp-like path starting with `-`,
+  percent-decoded, is refused. A catalog from elsewhere names no host that is this machine, no location
+  that is neither Git nor the web, and no credential (`source-credentials`).
+- A skill from elsewhere never takes a name another overlay's skill holds by default; a fetched skill has
+  YAML front matter naming it, and its other keys are reported (`skill-keys`); a bundled `SKILL.md` naming
+  another skill is not delivered. A source over `http` or `git://` is reported `insecure-transport`, one at a
+  private address `private-source`.
+- A document that looks like front matter and is not is refused at a gate (`malformed-fence`); U+FEFF is
+  refused in YAML; an integer past 64 bits is refused before it is converted; reading is linear in the text;
+  no field names a manifest (`manifest-file`); a consumer bounds the context it adds.
 - A front matter block in a context file follows the split: blanks after a fence are allowed, and only a line
   feed ends a line. A catalog may hold `overlays`, `skills` or both, and one from elsewhere cannot name a
   `file:` URL of any kind.

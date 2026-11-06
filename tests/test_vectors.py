@@ -286,7 +286,7 @@ SKILLS = cases("skills.json")
 def test_skills(case):
     if "fetched" in case:
         try:
-            got = {"digest": aos.read_fetched_skill(case["name"], case["fetched"], case.get("pin"))}
+            got = aos.read_fetched_skill(case["name"], case["fetched"], case.get("pin"))
         except aos.ReadError as error:
             got = {"error": error.code}
     else:
