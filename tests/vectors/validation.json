@@ -1686,7 +1686,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/ref"
+        "at": "/skills/0/ref",
+        "class": "ref-not-allowed"
       }
     },
     {
@@ -1703,7 +1704,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/ref"
+        "at": "/skills/0/ref",
+        "class": "ref-not-allowed"
       }
     },
     {
@@ -1719,7 +1721,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/source"
+        "at": "/skills/0/source",
+        "class": "local-source"
       }
     },
     {
@@ -1735,7 +1738,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/source"
+        "at": "/skills/0/source",
+        "class": "local-source"
       }
     },
     {
@@ -1751,7 +1755,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/source"
+        "at": "/skills/0/source",
+        "class": "local-source"
       }
     },
     {
@@ -1767,7 +1772,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/source"
+        "at": "/skills/0/source",
+        "class": "local-source"
       }
     },
     {
@@ -1783,7 +1789,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/source"
+        "at": "/skills/0/source",
+        "class": "local-source"
       }
     },
     {
@@ -1799,7 +1806,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/source"
+        "at": "/skills/0/source",
+        "class": "local-source"
       }
     },
     {
@@ -1815,7 +1823,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/source"
+        "at": "/skills/0/source",
+        "class": "local-source"
       }
     },
     {
@@ -1831,7 +1840,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/source"
+        "at": "/skills/0/source",
+        "class": "local-source"
       }
     },
     {
@@ -1847,7 +1857,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/source"
+        "at": "/skills/0/source",
+        "class": "local-source"
       }
     },
     {
@@ -1863,7 +1874,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/source"
+        "at": "/skills/0/source",
+        "class": "local-source"
       }
     },
     {
@@ -1879,7 +1891,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/source"
+        "at": "/skills/0/source",
+        "class": "invalid-source"
       }
     },
     {
@@ -1895,7 +1908,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/source"
+        "at": "/skills/0/source",
+        "class": "invalid-source"
       }
     },
     {
@@ -1911,7 +1925,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/source"
+        "at": "/skills/0/source",
+        "class": "invalid-source"
       }
     },
     {
@@ -1927,7 +1942,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/source"
+        "at": "/skills/0/source",
+        "class": "invalid-source"
       }
     },
     {
@@ -1943,7 +1959,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/source"
+        "at": "/skills/0/source",
+        "class": "source-credentials"
       }
     },
     {
@@ -1959,7 +1976,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/source"
+        "at": "/skills/0/source",
+        "class": "source-credentials"
       }
     },
     {
@@ -1975,7 +1993,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/source"
+        "at": "/skills/0/source",
+        "class": "source-credentials"
       }
     },
     {
@@ -1991,7 +2010,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/source"
+        "at": "/skills/0/source",
+        "class": "source-credentials"
       }
     },
     {
@@ -2004,7 +2024,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0"
+        "at": "/skills/0",
+        "class": "skill-name"
       }
     },
     {
@@ -2017,7 +2038,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0"
+        "at": "/skills/0",
+        "class": "skill-name"
       }
     },
     {
@@ -2030,7 +2052,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0"
+        "at": "/skills/0",
+        "class": "skill-name"
       }
     },
     {
@@ -2056,7 +2079,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0"
+        "at": "/skills/0",
+        "class": "skill-name"
       }
     },
     {
@@ -2072,7 +2096,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/0/name"
+        "at": "/skills/0/name",
+        "class": "skill-name"
       }
     },
     {
@@ -2086,7 +2111,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/1"
+        "at": "/skills/1",
+        "class": "skill-duplicate"
       }
     },
     {
@@ -2103,7 +2129,8 @@
       },
       "expect": {
         "valid": false,
-        "at": "/skills/1/name"
+        "at": "/skills/1/name",
+        "class": "skill-duplicate"
       }
     },
     {
@@ -2122,7 +2149,8 @@
       ],
       "expect": {
         "valid": false,
-        "at": "/skills/0/name"
+        "at": "/skills/0/name",
+        "class": "skill-ambiguous"
       }
     },
     {
@@ -2141,7 +2169,8 @@
       ],
       "expect": {
         "valid": false,
-        "at": "/skills/0/name"
+        "at": "/skills/0/name",
+        "class": "skill-ambiguous"
       }
     },
     {
@@ -2163,7 +2192,8 @@
       ],
       "expect": {
         "valid": false,
-        "at": "/skills/0/name"
+        "at": "/skills/0/name",
+        "class": "skill-ambiguous"
       }
     },
     {
@@ -2179,7 +2209,8 @@
       ],
       "expect": {
         "valid": false,
-        "at": "/skills/0"
+        "at": "/skills/0",
+        "class": "skill-case"
       }
     },
     {
@@ -2192,7 +2223,8 @@
       ],
       "expect": {
         "valid": false,
-        "at": ""
+        "at": "",
+        "class": "two-manifests"
       }
     },
     {

@@ -102,6 +102,8 @@ def test_validation(case):
             assert flags == case["expect"].get("flags", [])
     else:
         at = case["expect"]["at"]
+        if "class" in case["expect"]:
+            assert (case["expect"]["class"], at) in issues, issues
         assert any(
             found == at or found.startswith(at + "/") or (found and at.startswith(found + "/"))
             for _code, found in issues
