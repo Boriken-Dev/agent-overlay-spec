@@ -57,7 +57,8 @@ review-basics/
 
 Files in other conventional places work the same way: `lib/python/` for Python modules, `skills/`
 for skills, `env` for environment values, `lib/python/requirements.txt` for packages, `setup.sh`
-or `setup.py` for a setup step. To turn one
+or `setup.py` for a setup step, `hook.py` for code at a session's events, which runs only once the
+user allows it. To turn one
 off, set its key in `[defaults]` (`bin = false`). A runtime and secret references are declared; see
 [Authoring](authoring.md), [Environment](spec/v0/environment.md) and
 [Runtime and setup](spec/v0/runtime.md).

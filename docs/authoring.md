@@ -18,6 +18,7 @@ a consumer looks for them, and they work with no manifest:
 | `NAME=value` lines in `env` | sets them in order, substituting `${NAME}` placeholders |
 | a script in `env.py` (or `.js`, `.ps1`, `.sh`, ...) | runs it to compute environment values, and reports it |
 | a script in `setup.py` (or `.ps1`, `.sh`, ...) | runs it with its phase (`install` on the first add, `sync` on every sync, `remove`), with the network, and reports it |
+| a script in `hook.py` (or `.ps1`, `.sh`, ...) | runs it at a session's events once the user allows it, telling it the event, and reports it |
 
 Other common paths are `kb/`, `references/`, `workflows/`, `setup/`, `env/` and `locks/`; they mean
 something when a field names them. A `local.env` is not part of an overlay: local overrides belong to
@@ -26,7 +27,7 @@ the user's or project's own configuration.
 ## Defaults and how to turn one off
 
 Each [default](spec/v0/package.md#defaults) stays on until you turn it off in `[defaults]`, one
-key each: `bin`, `lib`, `env`, `env_scripts`, `setup`, `deps`, `context`, `skills`, `rules`.
+key each: `bin`, `lib`, `env`, `env_scripts`, `setup`, `deps`, `context`, `skills`, `rules`, `hooks`.
 
 ```toml
 [defaults]
@@ -186,6 +187,47 @@ Each of these is a weakening when it loosens a default (network for setup or for
 dependencies, reading the host's environment, unlocked dependencies, no timeout), and consumers
 report it. Declare only what you need.
 
+## Hooks
+
+A [hook](spec/v0/hooks.md) runs at a session's events. With no manifest, `hook.py` (or `.js`, `.ps1`,
+`.sh`, chosen as `env.<ext>` is) is told of the events that carry nothing the user wrote: `pre-env`,
+`session-start`, `session-end`, `turn-end`, `cd` and `pre-compact`. Its first argument is the event; a
+JSON payload is on its standard input. Exit 0 with no output for an event you do not handle, including
+one a later edition adds:
+
+```python
+import json, sys
+
+event = sys.argv[1] if len(sys.argv) > 1 else ""
+payload = json.load(sys.stdin)
+if event == "session-start" and payload["reason"] == "new":
+    print(json.dumps({"context": "Run the tests before you report a task done."}))
+```
+
+`hooks` says what runs at each event, and gives a hook the events that carry content: `prompt` (the
+user's words) and `pre-tool` and `post-tool` (a tool's input). Naming them is how a reader of your
+manifest learns what your hook is told:
+
+```toml
+[hooks]
+pre-tool = { match = ["execute"], timeout = 5, on_failure = "refuse" }   # hook.py, for shell calls
+post-tool = { run = "hooks/after_edit.py", match = ["edit"] }
+turn-end = false                                                         # nothing at turn-end
+```
+
+What a hook may print, as one JSON object: `context`; `decision` (`block` for `prompt` and
+`pre-compact`, `deny` or `ask` for `pre-tool`) with a `reason`; and `env`, which a consumer applies
+where the harness lets it. `pre-env` prints what an env script prints. **Nothing a hook prints approves
+anything**: an `allow`, or any decision but those, fails the run. A hook that fails is reported and the
+session goes on; write `on_failure = "refuse"` on a guard, so that a crash or a timeout refuses the call
+instead of letting it through.
+
+Your users allow your hooks at your overlay's digest, so every release asks them again. Keep a hook
+small and quick (30 seconds by default, and a consumer may allow less), and expect `prompt` and the tool
+events to be missing on some harnesses: a consumer reports what it cannot fire, but cannot fire it.
+See [`examples/hook-script/`](https://github.com/Boriken-Dev/agent-overlay-spec/tree/main/examples/hook-script)
+and [`examples/hooks-table/`](https://github.com/Boriken-Dev/agent-overlay-spec/tree/main/examples/hooks-table).
+
 ## Skills and commands
 
 Put a skill in `skills/<skill-name>/SKILL.md`. To offer only some of them, set
@@ -247,7 +289,7 @@ until it fetches the overlay, then shows the overlay's own manifest, so keep the
 ## Checks
 
 Validate the parsed manifest against the [schema](schemas/overlay.schema.json) and check that every
-file a field names exists. Review setup, scripts and dependency declarations as code, and the
-`env.<ext>` and `setup.<ext>` files that run by default. In this
+file a field names exists. Review setup, scripts, hooks and dependency declarations as code, and the
+`env.<ext>`, `setup.<ext>` and `hook.<ext>` files that run by default. In this
 repository, `python -m pytest` runs every example and fixture.
 Validate a catalog against the schema's `$defs/catalog`, and its icons as a store would.

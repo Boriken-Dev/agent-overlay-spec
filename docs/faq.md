@@ -68,7 +68,8 @@ Rename `overlay.toml` to `overlay.cfg`, or move its fields to `OVERLAY.md`'s fro
 consumers read it. `bin/`, `skills/`, `CONTEXT.md`, `env.py` and `setup.py`
 keep working by default, and Python modules move from `lib/` to `lib/python/`. Three more things
 change: a plain `env` file is read as `dotenv`, with `${NAME}` substituted,
-rather than sourced by bash, `pre.env` files mean nothing by name, a root `requirements.txt` moves
+rather than sourced by bash, `pre.env` files mean nothing by name (a `pre-env` hook takes their
+place), a root `requirements.txt` moves
 to `lib/python/requirements.txt`, and a `bin/*.py` becomes a command only through `[scripts]`. See
 [Compatibility](compatibility.md).
 
@@ -76,4 +77,25 @@ to `lib/python/requirements.txt`, and a `bin/*.py` becomes a command only throug
 
 Yes, when it ships `env.<ext>` or `setup.<ext>` and the consumer has activated it: those run by
 default, and every run is reported. Set `env_scripts = false` or `setup = false` in `[defaults]`
-to turn them off.
+to turn them off. A `hook.<ext>` also runs by default, at the events that carry no content, but only
+once the user has allowed the overlay's hooks at its digest.
+
+## Can a hook approve a tool call?
+
+No. A hook adds context, blocks a prompt or a compaction, and denies a tool call or sends it to the user
+to approve; there is no output that approves, and a hook that tries is a failure. A consumer reads the
+hook's output itself and never hands the harness the hook's own words, so a harness's own approval
+vocabulary means nothing from a hook. To make a guard fail closed, give it `on_failure = "refuse"`.
+
+## What does a hook learn?
+
+The event, and that event's payload: the harness, the working directory and a session id, plus a
+reason, a directory, a prompt's text or a tool's input for the events that have them. Never the
+environment, a secret or another overlay's data. The prompt and tool events reach a hook only when
+its manifest names them, and a consumer lists every hook and what it is told before installing.
+
+## Why is `pre.env` gone, and what replaces it?
+
+An overlay's `pre.env` ran in a tier before every overlay's environment, by its name alone. A
+`pre-env` [hook](spec/v0/hooks.md) does that now, declared and allowed like any hook: its output is an
+env script's, and it applies after the root variables and before any overlay's declarations.

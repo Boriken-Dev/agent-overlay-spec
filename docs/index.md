@@ -46,7 +46,7 @@ from its own environment (and reports that it did), and, because they are where 
 
 - [Quick start](getting-started.md) and [authoring](authoring.md)
 - [Format reference](spec/v0/index.md): [manifest](spec/v0/manifest.md),
-  [environment](spec/v0/environment.md), [runtime and setup](spec/v0/runtime.md),
+  [environment](spec/v0/environment.md), [runtime and setup](spec/v0/runtime.md), [hooks](spec/v0/hooks.md),
   [integrity](spec/v0/integrity.md), [security](spec/v0/security.md),
   [store and catalogs](spec/v0/catalog.md)
 - [Implementations](implementations.md) and [compatibility with dotagents](compatibility.md)

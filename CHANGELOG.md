@@ -27,6 +27,21 @@ The first edition, `0.1.0-draft`, a development draft open for review.
   sources, and a consumer that does not fetch says so of each. A manifest names no local source and holds
   no credential; a fetched skill is checked against its pin first, needs a `SKILL.md`, and must not name
   another skill. Vectors in `tests/vectors/skills.json`.
+- Hooks (Proposed): `hook.<ext>` at the root, chosen by runtime, and a `hooks` field mapping an event to
+  a script, a table of `run`, `match`, `timeout` and `on_failure`, or `false`; a `hooks` key in
+  `defaults`. Core events `pre-env`, `session-start` (with a `reason`), `session-end`, `prompt` and
+  `turn-end`; Extended `cd`, `pre-compact`, `pre-tool` and `post-tool`, matched by ACP tool kind.
+  `hook.<ext>` gets the events with no content by default; `prompt` and the tool events only when
+  declared. A hook is told its event as its first argument and `AOS_HOOK_EVENT`, and a payload of that
+  event's keys alone on standard input; its output adds context, blocks, denies or asks, and sets
+  variables where the consumer can, through a loader with no decision for a shell. No output approves:
+  any other decision is refused (`grant`). Time, output and payload bounded by settings; a failure is
+  reported (`hook-failed`), and `on_failure = "refuse"` fails a guard closed. An overlay's hooks are off
+  until the user allows them at its digest (`hook-not-allowed`), a running one is the weakening `hook`,
+  and an event a consumer cannot fire is reported (`hook-unsupported`), as is an output it cannot apply
+  (`hook-not-applied`). A scope's own configuration may declare hooks too, the user's with no allowance.
+  `pre-env` output applies after the root variables and before every overlay's declarations. Vectors in
+  `tests/vectors/hooks.json`, with `pre-env` cases in `compose.json` and the field's in `validation.json`.
 
 - The package format, manifest fields, composition, dependencies, sources, skills, commands, MCP
   declarations, security and conformance, grounded in the dotagents overlay format.
@@ -171,6 +186,9 @@ The first edition, `0.1.0-draft`, a development draft open for review.
 - A front matter block in a context file follows the split: blanks after a fence are allowed, and only a line
   feed ends a line. A catalog may hold `overlays`, `skills` or both, and one from elsewhere cannot name a
   `file:` URL of any kind.
+- The order of application gains a step: every overlay's allowed `pre-env` hook output, after the root
+  variables and before any overlay's declarations. A harness hint still adds no hook; `hooks` is the one
+  route, and is listed before installing.
 
 - `overlay.toml` is now `overlay.cfg`, with no second name.
 - `setup_timeout` is replaced by `setup` variants; `setup.py` is one case of the default setup.

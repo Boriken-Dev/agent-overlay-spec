@@ -467,3 +467,51 @@ space before its fence, and a Dart YAML parser whose cost grows with the square 
 closes one of them, with vectors that fail on the reference before it.
 
 **Status:** adopted; Proposed until an implementation reads it.
+
+## 25 — Hooks: a small set of events, tightening, never granting
+
+**Decision:** an overlay runs code at a session's events through `hook.<ext>`, chosen by runtime as
+`env.<ext>` and `setup.<ext>` are, and a `hooks` field mapping an event to a script, a table (`run`,
+`match`, `timeout`, `on_failure`) or `false`. Core events, which a consumer fires on every harness or
+reports: `pre-env` (fired by the consumer itself; its output is exactly an env script's),
+`session-start` with a reason, `session-end` (best effort), `prompt`, `turn-end`. Extended, where the
+harness allows: `cd`, `pre-compact`, `pre-tool`, `post-tool`. `hook.<ext>` gets the events that carry no
+content by default; `prompt`, `pre-tool` and `post-tool` run only when declared. Outputs add context,
+block, deny or ask; no output approves, and any other decision is refused as an attempt to grant. Setting
+variables is a capability of a consumer on a harness, never a promise of an event, and reaches a shell
+through a loader that carries no decision. A failure is reported and the event goes on, unless the
+author wrote `on_failure = "refuse"`. An overlay's hooks are off until the user allows them at its tree
+digest; a scope's own configuration may declare hooks in the same shape, the user's needing no
+allowance. `setup.<ext>` stays separate.
+
+**Reason:** the owner: "also a hook.<ext> to be called and a hooks section in the cfg. we need to
+restore avaliabily to have pre.env and others. So we can establish some default hook Events example
+hook.py pre-env hook cd hook resume hook newsession etc.. which ones should we spec. What do you
+propose", then "maybe also add context for new directory, pre-env same output as env scripts", "maybe
+also add envars if it can" and "pre-tool ... sorry add envar here if possible", and "do it" on the
+proposal of a reason for `session-start`, report and carry on with `on_failure = "refuse"` for a
+guard, and hooks in stores too.
+
+The classes follow what was measured, on Claude Code 2.1.318 and Codex 0.166.0 with throwaway homes
+and a stand-in model, and read from Gemini CLI's and Pi's documentation. Every harness has a session
+start, an end, a prompt and a turn end, and a consumer that speaks ACP sees each of them itself, so they
+are Core; `pre-env` needs no harness at all. Only Claude Code has a working-directory event, its output
+does not reach the model and its variables arrive after the next command may have started, so `cd` is
+Extended and takes variables only. No harness lets a hook block at the start of a session, so a
+refusal there is reported where it cannot be applied. Variables reach later commands on Claude Code
+alone, and plain values only for PowerShell, which is why they are a capability.
+
+The rule that a hook never grants comes from a measurement: Claude Code takes a `PreToolUse` answer of
+`allow` with a rewritten input as an approval, so a loader written that way ran calls that would have
+asked, and under `dontAsk` calls that would have been refused (dotagents 0.9.1 fixes its own loader).
+Codex's `allow` did not grant there, but needs `allow` to rewrite at all, so a consumer gives Codex no
+rewrite rather than an approval. A consumer reading the hook's output itself, and never passing a
+harness the hook's own words or exit status, is what keeps that vocabulary out of an overlay's reach.
+
+Events that carry the user's words or a tool's input go to a hook only when its manifest names them, so
+what it learns is in the manifest and shown before installing; the owner's own list (`pre-env`, `cd`,
+resume, new session) carries none. Allowing by digest, rather than by activation, is what a harness's
+own trust of hooks does (Codex trusts each hook by a hash), and an update that changes any file is new
+code that has not been seen.
+
+**Status:** adopted; Proposed until an implementation fires hooks.

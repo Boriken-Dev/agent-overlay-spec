@@ -40,6 +40,7 @@ and documented.
 | Resolver | Parse sources, normalize identities, resolve `requires`, order overlays; resolve skill names through catalogs, reporting what is missing or ambiguous. |
 | Manager | Install, compose, remove; document scopes, collisions and execution policy; fetch and check an overlay's skills after the user accepts them, or report each as not delivered. |
 | Store | Read catalogs, list and search their entries by label, show `about` and icons; show what an overlay would do from its own manifest before installing it. |
+| Hooks | Read `hooks` and `hook.<ext>`, list them before installing, keep them off until allowed at the digest; fire `pre-env` yourself and the session events from what you see or the harness's own hooks; read each output yourself, refuse any that grants, and report every event and output you cannot apply. |
 
 Each class has [vectors](spec/v0/conformance.md#vectors) to test against. See
 [Conformance](spec/v0/conformance.md) for the obligations of each claim.

@@ -1,8 +1,8 @@
 # Compatibility and open decisions
 
 This page compares the specification with dotagents 0.8.3, the reference implementation, from its
-source and tests, and for [`OVERLAY.md`, YAML and named skills](#overlaymd-yaml-and-named-skills) with
-dotagents 0.9.0 and Canoa. "Proposed" in the specification means no implementation reads the field yet;
+source and tests, for [`OVERLAY.md`, YAML and named skills](#overlaymd-yaml-and-named-skills) with
+dotagents 0.9.0 and Canoa, and for [hooks](#hooks) with dotagents 0.9.1 and Canoa. "Proposed" in the specification means no implementation reads the field yet;
 the table below is the list an implementation works from.
 
 ## What dotagents does and what AOS declares
@@ -86,6 +86,55 @@ vectors become ones it runs), `skills` as names and tables with the rule of
 [not delivered](spec/v0/skills.md#a-consumer-that-does-not-fetch). Two consumers' front matter readers
 differ today, as the vectors now show: one takes a closing `...` and blanks after a fence and another
 only `---`, and dotagents splits lines on more than a line feed (a form feed, U+2028).
+
+## Hooks
+
+Neither consumer fires an overlay's hooks yet. What each does with an overlay that has them, from
+dotagents 0.9.1 (its tag, its validator run on each case) and Canoa's readers (`crates/canoa-host` and
+`app/lib/profile/`, read on 2026-11-06):
+
+| An overlay with | dotagents 0.9.1 | Canoa | Says so? |
+| --- | --- | --- | --- |
+| `hook.<ext>` and no manifest | A file with no meaning: nothing runs | The same | **No** |
+| `[hooks]` in `overlay.cfg` | An unknown top-level key: valid, kept, not applied | The same | **No** |
+| `hooks` in `OVERLAY.md`'s front matter | Its front matter is not read at all ([above](#overlaymd-yaml-and-named-skills)) | The same | **No** |
+| `[defaults] hooks = false` | An unknown key of `defaults`: the manifest is invalid, ignored whole with a warning, and `overlays add` and `sync` refuse it | Invalid: not applied | **Yes**: a refusal |
+| `hooks` under `[harness.<id>]` | Kept, never applied | The same | Nothing is lost: AOS never applies it either |
+
+**A hook is dropped silently by both today**, which [Hooks](spec/v0/hooks.md) forbids of a consumer
+that knows the field: it MUST say so of an overlay that declares `hooks` or holds a `hook.<ext>`, and a
+consumer that fires hooks MUST report each Core event it cannot fire on a harness (`hook-unsupported`),
+never skipping one. So, until each consumer fires them:
+
+- **Authors:** a hook that is a guard (`on_failure = "refuse"`) protects nothing under either consumer.
+  An overlay whose safety depends on one says so in its context, where every consumer shows it, and its
+  author does not rely on it until the consumers it serves fire hooks. A hook that only adds context
+  loses only that.
+- **Consumers:** the next release of each reads `hooks` and `hook.<ext>`, lists them before installing,
+  and either fires them, allowed at the digest, or reports every one as not run. A consumer that fires
+  only some events reports the others per harness. Neither claims an event it does not fire.
+
+What a consumer could fire through each harness, from the measurements behind the event classes
+([decision 25](design/decisions.md)): Claude Code 2.1.318 and Codex 0.166.0 run on Windows with a
+stand-in model, and what Canoa's ACP client sees. Gemini CLI and Pi were read from their documentation
+only.
+
+| Event | dotagents, through Claude Code | dotagents, through Codex | Canoa, over ACP |
+| --- | --- | --- | --- |
+| `pre-env` | Itself, before it starts the harness | Itself | Itself, before it starts the agent |
+| `session-start` | `SessionStart`: context and variables (Bash; plain values only for PowerShell) | `SessionStart`: context; no variables | Its own `new`, `load` and `resume`; context on `new` only |
+| `session-end` | `SessionEnd`, not after a kill | `SessionEnd`, not after a kill | Its own close, or the agent's process ending |
+| `prompt` | `UserPromptSubmit`: context, block; not for slash commands | `UserPromptSubmit`: context, block | Every prompt is its own: context, block |
+| `turn-end` | `Stop` | `Stop` | The prompt's stop reason |
+| `cd` | `CwdChanged`: variables, after the hook ends | None: reported | None: reported |
+| `pre-compact` | `PreCompact`: instructions to the summary, block | `PreCompact`: block, no context | None: reported |
+| `pre-tool` | `PreToolUse`: deny, ask, context; variables only through the loader, which makes a call ask unless the tool is allowed whole | `PreToolUse`: deny, context; `ask` applied as deny; no variables, since a rewrite needs an approval | Only calls the harness asks about: deny; the rest reported |
+| `post-tool` | `PostToolUse`: context | `PostToolUse`: context | `tool_call_update`: context only in the next prompt |
+
+dotagents' own hooks are another matter: it wires Claude Code's `SessionStart` and, on request,
+`PreToolUse` itself to load the environment, and since 0.9.1 its PowerShell loader rewrites the call
+with no decision, so the permission system decides. A store's own `pre.env*` files still run before
+every overlay's environment, which is what a scope's own `pre-env` hook will replace.
 
 ## dotagents conventions that are not defaults
 
