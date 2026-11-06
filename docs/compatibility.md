@@ -132,8 +132,11 @@ only.
 | `post-tool` | `PostToolUse`: context | `PostToolUse`: context | `tool_call_update`: context only in the next prompt |
 
 dotagents' own hooks are another matter: it wires Claude Code's `SessionStart` and, on request,
-`PreToolUse` itself to load the environment, and since 0.9.1 its PowerShell loader rewrites the call
-with no decision, so the permission system decides. A store's own `pre.env*` files still run before
+`PreToolUse` itself to load the environment. Its PowerShell loader in 0.9.0 answered `allow` with the
+rewritten call, which Claude Code took as an approval: calls that would have asked ran unasked, and under
+`dontAsk` calls that would have been refused ran. Since 0.9.1 it rewrites the call with no decision, so
+the permission system decides, and a call asks unless `PowerShell` is allowed whole. That is the loader
+[Hooks](spec/v0/hooks.md#variables) requires. A store's own `pre.env*` files still run before
 every overlay's environment, which is what a scope's own `pre-env` hook will replace.
 
 ## dotagents conventions that are not defaults

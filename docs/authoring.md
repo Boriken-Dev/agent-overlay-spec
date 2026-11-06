@@ -217,12 +217,15 @@ turn-end = false                                                         # nothi
 
 What a hook may print, as one JSON object: `context`; `decision` (`block` for `prompt` and
 `pre-compact`, `deny` or `ask` for `pre-tool`) with a `reason`; and `env`, which a consumer applies
-where the harness lets it. `pre-env` prints what an env script prints. **Nothing a hook prints approves
+where the harness lets it, for the variables the entry lists in `sets`
+(`session-start = { sets = ["TOOL_MODE"] }`). Text holds no terminal escapes or other control
+characters but tabs and line ends. `pre-env` prints what an env script prints. **Nothing a hook prints approves
 anything**: an `allow`, or any decision but those, fails the run. A hook that fails is reported and the
 session goes on; write `on_failure = "refuse"` on a guard, so that a crash or a timeout refuses the call
 instead of letting it through.
 
-Your users allow your hooks at your overlay's digest, so every release asks them again. Keep a hook
+Your users allow your hooks at your overlay's digest, so every release asks them again, and an overlay
+with a `refuse` guard is not activated until they do. Keep a hook
 small and quick (30 seconds by default, and a consumer may allow less), and expect `prompt` and the tool
 events to be missing on some harnesses: a consumer reports what it cannot fire, but cannot fire it.
 See [`examples/hook-script/`](https://github.com/Boriken-Dev/agent-overlay-spec/tree/main/examples/hook-script)

@@ -515,3 +515,34 @@ own trust of hooks does (Codex trusts each hook by a hash), and an update that c
 code that has not been seen.
 
 **Status:** adopted; Proposed until an implementation fires hooks.
+
+## 26 — Hooks after review: one allowance, declared variables, guards that wait
+
+**Decision:** a consumer keeps one allowed digest per identity, the digest of what the user was shown,
+checked at each activation; allowing another replaces it. An overlay with a hook whose `on_failure` is
+`refuse` is not activated while its hooks are off. A project's hooks are allowed at the digest of every
+file in the directory that holds their configuration and run from the consumer's copy, with the base
+environment only. A table lists the variables its `env` output may set (`sets`); any other is a failure.
+`context` and `reason` hold no control character but tab and line ends and no bidirectional control, and
+a reason is at most 1024 code points. A call of kind `other` runs every hook of its event. One event has a
+time bound of its own (`event-timeout`), and a consumer's wrapper that fails while a guard is present
+refuses. An event fired for only some occurrences is reported `hook-partial`, and no decision is never an
+approval. The payload's `session` is never the harness's own id. `CLAUDE_CONFIG_DIR` and `CODEX_HOME` are
+sensitive. The text says what the allowance does not cover: a hook's reach is the user's, and an update
+can still add an env script or a setup, which run under the decision to activate.
+
+**Reason:** an independent security review of the amendment gave each gap a case: a planted `json.py`
+beside an allowed project script, which Python loads first; a guard turned off by an update while its
+overlay stayed active; a revert to an older allowed digest; an MCP tool filed as `other` passing an
+`execute` guard; a terminal escape in a reason repainting an approval; many hooks outlasting a harness's
+own timeout, which fails open; a hook setting `LD_PRELOAD` for a call another guard judged by its text;
+and a consumer whose only answer to a permission request is an approval. Each rule closes one, with
+vectors that fail on the reference before it.
+
+Not adopted: refusing a variable that loads code (`NODE_OPTIONS`, `LD_*`) rather than reporting it, and
+gating env scripts by the same allowance, which change environments and env scripts for every overlay and
+are a separate amendment; a network rule for hooks, which no consumer can enforce on a harness's own hooks
+today; and failing every `pre-tool` hook closed by default, since the owner chose report and carry on with
+`refuse` for a guard, which the text now tells authors to write.
+
+**Status:** adopted; Proposed until an implementation fires hooks.

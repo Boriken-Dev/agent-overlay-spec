@@ -42,6 +42,13 @@ The first edition, `0.1.0-draft`, a development draft open for review.
   (`hook-not-applied`). A scope's own configuration may declare hooks too, the user's with no allowance.
   `pre-env` output applies after the root variables and before every overlay's declarations. Vectors in
   `tests/vectors/hooks.json`, with `pre-env` cases in `compose.json` and the field's in `validation.json`.
+- Hooks, after a security review: one allowed digest per identity, checked at each activation; an
+  overlay with a `refuse` guard is not activated while its hooks are off; a project's hooks are allowed at
+  the digest of every file beside their configuration and run from the consumer's copy with the base
+  environment; `sets` lists the variables a hook may set; `context` and `reason` hold no control or
+  bidirectional character, and a reason at most 1024 code points; a call of kind `other` runs every hook;
+  an event has its own time bound (`event-timeout`); an event fired in part is reported `hook-partial`,
+  and no decision is never an approval. `CLAUDE_CONFIG_DIR` and `CODEX_HOME` are sensitive variables.
 
 - The package format, manifest fields, composition, dependencies, sources, skills, commands, MCP
   declarations, security and conformance, grounded in the dotagents overlay format.
