@@ -60,6 +60,11 @@ wherever it was read from, since the same overlay reaches other machines:
 - a location that is not Git is an `http` or `https` URL (`invalid-source`);
 - a `ref` beside an `@ref` or on a source that is not Git is refused (`ref-not-allowed`).
 
+A host is read as a URL parser reads it. An IPv4 address has one to four parts, each decimal, `0x`
+hexadecimal, or octal with a leading zero, and the last fills the bytes the others leave: `127.1`,
+`2130706433`, `0x7f.0.0.1` and `0177.0.0.1` are all `127.0.0.1`, and `10.1` is `10.0.0.1`. A private
+network address includes the shared address space `100.64.0.0/10`.
+
 A source over plain `http` or `git://` is reported as the [non-default setting](security.md#non-default-settings)
 `insecure-transport`, and one whose host is a private network address as `private-source`, when the
 skill is resolved; a consumer that resolves a host name checks the address it connects to the same way.
@@ -134,7 +139,11 @@ never fetches before that decision. Fetching runs nothing. Then, before it deliv
    `SKILL.md` without front matter (`skill-unreadable`).
 4. Its `name` is the entry's name, exactly, or the skill is refused (`skill-name-mismatch`): a harness
    would load it as that other name, which is not the skill that was shown and accepted.
-5. Its front matter keys and its list of files are shown before it is delivered. Each key other than
+5. Its front matter keys and its list of files are shown before it is delivered. The list is the
+   members the digest covers, in the byte order of their paths, and the consumer writes those and
+   nothing else: an entry under an [excluded name](integrity.md#tree-digest) (`node_modules`,
+   `__pycache__`, `.git`, a `.pyc`) is no refusal, since the digest leaves it out, and it is not
+   written. Each key other than
    `name`, `description`, `license`, `compatibility` and `metadata` is reported as the
    [non-default setting](security.md#non-default-settings) `skill-keys`, with the skill and the key as its subject, since a
    harness may take such a key as a grant (`allowed-tools` pre-approves tools) or as code to run; a

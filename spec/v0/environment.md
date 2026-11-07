@@ -278,6 +278,13 @@ An undefined name, a secret read by a placeholder and an invalid pattern are err
 that holds them, as a missing env file is: the overlay's environment is not applied, and the
 consumer reports the variable being set and the placeholder's name, never a value.
 
+Applying an overlay does not require it to validate, but a consumer never acts on a name or a path a
+manifest may not hold. A variable name that does not match the pattern [above](#env), or a path that
+is not a [relative path](manifest.md#fields), in `env`, `env_files`, `env_scripts`, `setup`, `paths`,
+`scripts` or a runtime's `lock`, `requirements` or `package`, is refused (`invalid-reference`) with
+that name or path as the subject, before anything is read, set or run, as a `file` reference's key
+that is not a relative path is. Every other fault of a manifest is for the validator.
+
 ## Env files
 
 `env_files` lists files of env values, applied in order before `env`. The `env`

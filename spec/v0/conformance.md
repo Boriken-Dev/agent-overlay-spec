@@ -33,6 +33,13 @@ with an `id`, its input and an `expect`.
 - **Errors are classes**, such as `parse-error` or `symlink`. An implementation maps its own errors
   to them; where two classes are right, `expect.error` lists both, and where reading and refusing
   are both right, `expect` has both `data` and `error`.
+- **A refusal's subject is safe to show.** Where a vector records the subject of a refusal
+  (`effective.json`), it is the variable, path or key the refusal is about, with each control,
+  format, line-separator, paragraph-separator, surrogate, private-use or unassigned character
+  (Unicode general categories `Cc`, `Cf`, `Zl`, `Zp`, `Cs`, `Co` and `Cn`) written as `\xNN`
+  below U+0100, `\uNNNN` below U+10000 and `\UNNNNNNNN` above, in lowercase hexadecimal, and the
+  whole cut to 256 characters, which are counted after the escapes, with `...` after them when it
+  was cut.
 - A file names every input it needs: file contents, an OS, an environment, secrets. No vector reads
   the filesystem or the network, except that `digest.json` trees can also be built on a filesystem
   that can hold them.
@@ -41,7 +48,7 @@ with an `id`, its input and an `expect`.
 | --- | --- | --- |
 | `reading.json` | Document bytes (`text` or `base64`), `format` (`aos`, `dotenv`, `env-script` for an env script's output, or `catalog` with the file `name`), optional `limits`; for `dotenv`, optional `env`, `os` and `secret_variables` to substitute against | `data`, or `error` |
 | `front_matter.json` | Document bytes (`text`, `base64`, or `parts` to concatenate, for what is too large to write out) with optional `limits`; a `context_file`; or an overlay's `files` | The split's and the reading's `case`, the `metadata` and `body` with their offsets and lines, the `format`, the `data` or the `error` and `line`; the context's text; or the manifest and the file it came from, the context in order, what was ignored, the problems and the digest |
-| `skills.json` | `overlays`, `requested`, optional `files`, `catalogs`, `order` and `fetches`; or a `fetched` skill's files, its `name` and an optional `pin` | Each skill with its origin and source, the missing, ambiguous, unpinned and not-fetched names, what is delivered and the collisions; or the fetched tree's digest, or the refusal |
+| `skills.json` | `overlays`, `requested`, optional `files`, `catalogs`, `order` and `fetches`; or a `fetched` skill's files, its `name` and an optional `pin` | Each skill with its origin and source, the missing, ambiguous, unpinned and not-fetched names, what is delivered and the collisions; or the fetched tree's digest, the front matter keys it reports and the files the digest covers, or the refusal |
 | `validation.json` | A data model `document`, optional `files` | `valid`, and for a valid one the pointers of any names `flags` picks out; for an invalid one the pointer `at` of the offending value, and its `class` where the text names one; where `about` is written, whether the manifest still `applies` |
 | `names.json` | An overlay `name` | `valid`, `normalized`, `variable` |
 | `source.json` | A `source` string | `kind`, `location`, `ref`, `path`, or `error` |

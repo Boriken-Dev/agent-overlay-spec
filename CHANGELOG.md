@@ -11,6 +11,11 @@ The first edition, `0.1.0-draft`, a development draft open for review.
 
 ### Added
 
+- Settled behaviours, with vectors: a fetched skill lists the files its digest covers, byte-ordered, and an
+  entry under an excluded name is no refusal; a refusal's subject has its control, format and separator
+  characters escaped and is cut to 256 characters; a source's IPv4 host is read as a URL parser reads it
+  (`127.1`, `2130706433`, `0x7f.0.0.1`, `10.1`) and `100.64.0.0/10` is private; applying refuses a variable
+  name that is not a name and a path that leaves the overlay (`invalid-reference`) without validating the rest.
 - `OVERLAY.md` (Proposed): the manifest as front matter, YAML by default or as a `#!<format>` first line
   inside the fence names, holding the same fields as `overlay.cfg`, `about` included; a body with anything
   but white space is the overlay's context, and `CONTEXT.md` beside it is ignored and reported. An overlay
