@@ -71,7 +71,7 @@ defines.
 
 **Pin**: a tree digest a consumer requires an overlay to have.
 
-**Weakening**: a choice, declared by an overlay or made by a consumer, that is looser than the
+**Non-default setting**: a choice, declared by an overlay or made by a consumer, that is looser than the
 default and that a consumer reports.
 
 **Informational field**: a field a store shows and nothing else reads: the `about` table and a

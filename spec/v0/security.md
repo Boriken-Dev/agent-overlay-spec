@@ -9,7 +9,7 @@ decides to trust it, and then pins what was trusted.
 
 Reading a manifest executes nothing, reads no other file, and consults no environment
 ([static reading](manifest.md#static-reading)). A consumer can therefore show a user everything an
-overlay would do (its environment, path additions, setup, runtime, servers, hooks and weakenings) before
+overlay would do (its environment, path additions, setup, runtime, servers, hooks and non-default settings) before
 any of it happens, from the manifest and the overlay's list of files, which decides the
 [defaults](package.md#defaults). YAML [tags, anchors, aliases and merge keys](manifest.md#restricted-yaml)
 are refused because general YAML loaders construct objects or expand documents from them, a few hundred
@@ -47,13 +47,13 @@ A consumer shows source and revision before it first activates an overlay, and t
 it updates one. A branch or a registry entry can change after review; a [pin](integrity.md#pins)
 cannot. A mismatched pin is a refusal, never a warning.
 
-## Weakenings
+## Non-default settings
 
-A **weakening** is a choice looser than the default, declared by an overlay or made by a consumer.
+A **non-default setting** is a choice looser than the default, declared by an overlay or made by a consumer.
 AOS does not forbid them: a user may need an overlay whose setup downloads a toolchain. It requires
 that each is **reported, never applied silently**: in a log line, a status view or the user
 interface, each time the overlay is activated, with an identifier, the overlay, and a subject (a
-variable name or a path), never a value. A consumer MAY refuse any weakening by its own policy, and
+variable name or a path), never a value. A consumer MAY refuse any non-default setting by its own policy, and
 then reports the refusal the same way.
 
 | Id | When |
@@ -74,7 +74,7 @@ then reports the refusal the same way.
 | `private-source` | A skill from elsewhere is fetched from a private network address. The subject is the skill. |
 | `skill-keys` | A fetched skill's front matter holds a key other than `name`, `description`, `license`, `compatibility` and `metadata`. The subject is the skill and the key. |
 
-A consumer's own settings can weaken too (a disabled sandbox, a raised limit); a consumer reports
+A consumer's own settings can be non-default too (a disabled sandbox, a raised limit); a consumer reports
 those the same way, under identifiers of its own.
 
 ### Sensitive variables

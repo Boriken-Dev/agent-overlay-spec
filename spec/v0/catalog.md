@@ -329,7 +329,7 @@ activating, never from catalog claims**:
   each event the consumer cannot fire, or fires only in part, on the harnesses it serves, that a hook
   runs with the user's access and can read what the harness stores, and that they stay off until allowed
   at this digest;
-- every [weakening](security.md#weakenings) activating it would report, `unpinned` included.
+- every [non-default setting](security.md#non-default-settings) activating it would report, `unpinned` included.
 
 Nothing of the overlay runs to compute this: [reading is static](security.md#reading-is-safe-by-construction).
 A catalog field that seems to say any of it (a tag `offline`, a summary saying it runs nothing) is

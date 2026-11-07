@@ -15,6 +15,6 @@ details in a public issue.
 ## Security expectations
 
 Implementations treat remote overlays as untrusted until the user or administrator establishes
-trust, pin what they install by digest, and report every weakening they apply. Review code, setup,
+trust, pin what they install by digest, and report every non-default setting they apply. Review code, setup,
 dependencies, environment declarations, MCP declarations, and update sources before activation. See
 [Security considerations](https://boriken-dev.github.io/agent-overlay-spec/spec/v0/security/).

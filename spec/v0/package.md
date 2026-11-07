@@ -127,7 +127,7 @@ an edition adds a runtime, as with `lib`.
 **Defaults that run code.** The `env_scripts`, `setup` and `hooks` defaults run scripts, and the
 `deps` default runs a package manager. Running by default is never running silently: a consumer runs them only for an overlay it has activated, which is the
 [trust decision](security.md#execution-and-dependencies), and reports each run as a
-[weakening](security.md#weakenings): `env-script` for an env script, `setup-network` for a default
+[non-default setting](security.md#non-default-settings): `env-script` for an env script, `setup-network` for a default
 setup, `deps-network` for each dependency file installed, `hook` for each event a hook runs at, and
 `script-not-run` for a default script present that cannot run. A hook also stays off until the user
 allows it at the overlay's digest ([Hooks](hooks.md#off-until-allowed)).

@@ -114,7 +114,7 @@ A consumer that enforces pins:
   [relative paths](manifest.md#fields)), since a file can change between being hashed and being
   read only where something can write the copy.
 
-An overlay installed without a pin is a [weakening](security.md#weakenings), `unpinned`, that the
+An overlay installed without a pin is a [non-default setting](security.md#non-default-settings), `unpinned`, that the
 consumer reports every time it activates the overlay. A pin cannot be overridden: to accept other
 bytes, the user changes the pin.
 

@@ -38,7 +38,7 @@ overlay, and so are skill names; each matches `[A-Za-z0-9][A-Za-z0-9_.-]*`.
 - `transport = "streamable-http"` requires an absolute `http` or `https` `url` (scheme in any case)
   with a host, no user information and no fragment. Optional: `headers_env`, a mapping of HTTP
   header name to a variable name whose value, from the consumer's own environment, is sent as that
-  header. Plain `http` to a host other than `localhost`, `127.0.0.0/8` or `[::1]` is the weakening
+  header. Plain `http` to a host other than `localhost`, `127.0.0.0/8` or `[::1]` is the non-default setting
   `insecure-transport`, and a consumer never sends a `headers_env` value over it unless its policy
   says so.
 - `mcp.skills` entries hold exactly `name` and `server`. The server MUST be declared in the same
@@ -58,7 +58,7 @@ command that resolves to a batch file (`.cmd`, `.bat`) is refused, as for
 `env_passthrough` and `headers_env` read the consumer's own environment, and like an `env`
 provider reference they need a [grant](environment.md#secret-references): a variable not granted is
 not passed, and is listed as not granted. Each one passed is the
-[weakening](security.md#weakenings) `env-passthrough`. A literal `env` value is in the overlay for
+[non-default setting](security.md#non-default-settings) `env-passthrough`. A literal `env` value is in the overlay for
 anyone to read, so a credential never goes there; a secret reference does.
 
 Starting a stdio server runs the overlay's code, so it is a

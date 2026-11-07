@@ -35,7 +35,7 @@ and documented.
 |---|---|
 | Read-only consumer | List an overlay's files and expose them; treat the manifest as optional. |
 | Manifest reader | Read `OVERLAY.md` (the split, front matter) and `overlay.cfg` (format line, TOML, restricted YAML, the data model, static reading), keep unknown top-level keys, report errors. |
-| Environment | Build an environment from the declarations, resolve secret references, report weakenings. |
+| Environment | Build an environment from the declarations, resolve secret references, report non-default settings. |
 | Integrity | Compute the tree digest; refuse a pin mismatch. |
 | Resolver | Parse sources, normalize identities, resolve `requires`, order overlays; resolve skill names through catalogs, reporting what is missing or ambiguous. |
 | Manager | Install, compose, remove; document scopes, collisions and execution policy; fetch and check an overlay's skills after the user accepts them, or report each as not delivered. |

@@ -60,7 +60,7 @@ wherever it was read from, since the same overlay reaches other machines:
 - a location that is not Git is an `http` or `https` URL (`invalid-source`);
 - a `ref` beside an `@ref` or on a source that is not Git is refused (`ref-not-allowed`).
 
-A source over plain `http` or `git://` is reported as the [weakening](security.md#weakenings)
+A source over plain `http` or `git://` is reported as the [non-default setting](security.md#non-default-settings)
 `insecure-transport`, and one whose host is a private network address as `private-source`, when the
 skill is resolved; a consumer that resolves a host name checks the address it connects to the same way.
 A consumer fetches what a manifest names **without the user's credentials**, SSH agent or prompts, and
@@ -108,7 +108,7 @@ with its source, its catalog's label when it came through one, and whether it is
 anything of it is fetched; a source is shown without user information or query.
 
 An entry with no pin, in the table or in the catalog, is reported as the
-[weakening](security.md#weakenings) `unpinned`, with the skill as its subject.
+[non-default setting](security.md#non-default-settings) `unpinned`, with the skill as its subject.
 
 Two overlays naming one skill alike are one skill: the same name, resolving to the same source, in
 full as it is fetched (user information and query included), and the same pin. Otherwise they fall
@@ -136,7 +136,7 @@ never fetches before that decision. Fetching runs nothing. Then, before it deliv
    would load it as that other name, which is not the skill that was shown and accepted.
 5. Its front matter keys and its list of files are shown before it is delivered. Each key other than
    `name`, `description`, `license`, `compatibility` and `metadata` is reported as the
-   [weakening](security.md#weakenings) `skill-keys`, with the skill and the key as its subject, since a
+   [non-default setting](security.md#non-default-settings) `skill-keys`, with the skill and the key as its subject, since a
    harness may take such a key as a grant (`allowed-tools` pre-approves tools) or as code to run; a
    consumer MAY refuse the skill instead, and SHOULD for native delivery.
 

@@ -94,9 +94,9 @@ digest of the source and of an installed copy agree.
 
 **Status:** adopted; Proposed until an implementation computes it.
 
-## 9 — Weakenings are reported, not forbidden
+## 9 — Non-default settings are reported, not forbidden
 
-**Decision:** AOS names a fixed set of weakenings (`unpinned`, `setup-network`,
+**Decision:** AOS names a fixed set of non-default settings (`unpinned`, `setup-network`,
 `network-not-enforced`, `no-timeout`, `env-script`, `env-passthrough`, `secret-read`,
 `env-sensitive`, `unlocked-dependencies`, `insecure-transport`). A consumer reports each one it applies, every time, by identifier,
 overlay and subject, never a value; it may refuse any by its own policy.

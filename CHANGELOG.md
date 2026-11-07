@@ -173,6 +173,9 @@ The first edition, `0.1.0-draft`, a development draft open for review.
 
 ### Changed
 
+- **Breaking: a weakening is now a non-default setting.** The word goes from the security section, the glossary, the
+  site and the reference reader; the vectors' keys `weakenings` and `hook_weakenings` become `non_defaults` and
+  `hook_non_defaults`. The identifiers (`unpinned`, `env-passthrough`, ...) and the pairs are unchanged.
 - **YAML is required of every reader**, as a [restricted subset](spec/v0/manifest.md#restricted-yaml) of YAML
   1.2; TOML stays required and `overlay.cfg` keeps its default of TOML. JSON stays optional. The depth bound
   holds while parsing, in every format, and a mapping key `<<` is refused in any scalar style.

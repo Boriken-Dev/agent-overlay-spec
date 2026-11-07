@@ -183,7 +183,7 @@ skills = [
   esac
   ```
 
-Each of these is a weakening when it loosens a default (network for setup or for installing
+Each of these is a non-default setting when it loosens a default (network for setup or for installing
 dependencies, reading the host's environment, unlocked dependencies, no timeout), and consumers
 report it. Declare only what you need.
 

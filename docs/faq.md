@@ -59,7 +59,7 @@ No. MCP is an optional extension. A consumer can read and expose the files witho
 ## Is an overlay safe if its manifest validates?
 
 No. Validation checks structure and types. It does not assess instructions, code, dependencies,
-remote services, or trustworthiness. Pin what you install by digest, and read the weakenings a
+remote services, or trustworthiness. Pin what you install by digest, and read the non-default settings a
 consumer reports.
 
 ## Will my existing dotagents overlay need migration?

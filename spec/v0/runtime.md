@@ -129,7 +129,7 @@ A `python` variant:
 | Key | Type | Meaning |
 | --- | --- | --- |
 | `version` | string, one to three dotted numbers of at most nine digits (`"3.9"`, `"3.11.4"`) | The minimum version, compared numerically, missing parts as `0` |
-| `requirements` | relative path | A requirements file, not locked. A [weakening](security.md#weakenings): `unlocked-dependencies`. |
+| `requirements` | relative path | A requirements file, not locked. A [non-default setting](security.md#non-default-settings): `unlocked-dependencies`. |
 | `lock` | relative path | A locked requirements file, installed in hash-checking mode |
 | `lock_digest` | [digest](integrity.md#digest-form) | The SHA-256 of the lock file's bytes; a mismatch refuses the install |
 | `environment` | `"shared"`, `"isolated"` or a name | The [environment](#environments) its packages go into; default `"shared"` |
@@ -210,7 +210,7 @@ By [default](package.md#defaults) the file is in the runtime's library directory
 default file. `lib/<runtime>/` holding that ecosystem's standard manifest is kept for other
 runtimes, which a later edition may define.
 
-A file that is not pinned still installs, and is reported as the weakening `unlocked-dependencies`,
+A file that is not pinned still installs, and is reported as the non-default setting `unlocked-dependencies`,
 since what it installs depends on what the index serves that day. Installing needs the network,
 pinned or not, and every installed file is reported as `deps-network`. Installing runs code: pip
 builds a source distribution it is given (a lock refuses them), and npm runs packages' install
@@ -240,7 +240,7 @@ The key is `environment`, not `env`, since `env` is the field of environment var
 whatever the overlay chooses, and MAY key that environment by digest as well as identity, so a pin
 covers exactly the packages a session gets. It MUST NOT go the other way: an overlay that chooses
 `isolated` or a name is never put into a shared environment. A consumer that applies such a policy
-says so in its documentation; it is not a weakening, since it shares less.
+says so in its documentation; it is not a non-default setting, since it shares less.
 
 - **Python.** The environment is a virtual environment the consumer makes with the selected
   interpreter (`python -m venv`) and installs into with its own pip. Its packages directory is
@@ -337,11 +337,11 @@ it:
 - runs it **outside the agent's sandbox**, as part of preparing the overlay, never from the agent's
   session;
 - stops it after `timeout` and treats that as a failure; a consumer MAY lower or raise the timeout by
-  its own setting, and `0` (no limit) is a [weakening](security.md#weakenings), `no-timeout`;
+  its own setting, and `0` (no limit) is a [non-default setting](security.md#non-default-settings), `no-timeout`;
 - runs it in its own process group (a job object on Windows) and, when it ends or is stopped, ends
   every process it started, so nothing it launched outlives it; it bounds the output it keeps;
 - denies it the network when `network` is `false`, or reports `network-not-enforced` when it cannot;
-  `network = true` is a weakening, `setup-network`;
+  `network = true` is a non-default setting, `setup-network`;
 - does not activate the digest an `install` or `sync` failed for, as [Setup phases](#setup-phases)
   says, and reports the failure with the exit status.
 

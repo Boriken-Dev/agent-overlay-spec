@@ -37,7 +37,7 @@ consumer pins the whole tree by one digest. See the
 - **Hooks that only tighten.** `hook.py` or a `hooks` table runs at a session's events (before the
   environment, a session's start and end, a prompt, a tool call), adds context, blocks or denies, and
   never approves; off until the user allows it at the overlay's digest.
-- **Integrity.** A canonical tree digest with test vectors, a source and pin form, and weakenings
+- **Integrity.** A canonical tree digest with test vectors, a source and pin form, and non-default settings
   an implementation must report rather than apply silently.
 - **Conformance vectors as data**, so implementations in any language test against the same files.
 
@@ -94,7 +94,7 @@ The same manifest in JSON:
 | [Runtime and setup](https://boriken-dev.github.io/agent-overlay-spec/spec/v0/runtime/) | Interpreters, per-OS setup, timeouts, network, runtimes and lockfiles |
 | [Integrity](https://boriken-dev.github.io/agent-overlay-spec/spec/v0/integrity/) | The tree digest, pins and verification |
 | [Store and catalogs](https://boriken-dev.github.io/agent-overlay-spec/spec/v0/catalog/) | Informational fields and icons for a store, catalogs of many overlays, and what a store may believe |
-| [Security](https://boriken-dev.github.io/agent-overlay-spec/spec/v0/security/) | Trust, weakenings and what must be reported |
+| [Security](https://boriken-dev.github.io/agent-overlay-spec/spec/v0/security/) | Trust, non-default settings and what must be reported |
 | [Conformance](https://boriken-dev.github.io/agent-overlay-spec/spec/v0/conformance/) | Classes of implementation and the vectors |
 
 [dotagents](https://github.com/jose-pr/dotagents) is the reference implementation. AOS does not

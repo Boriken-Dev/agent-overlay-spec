@@ -337,7 +337,7 @@ enough:
   is not activated while its hooks are off**, since its guard would be missing without a word: the
   consumer keeps the digest it last activated with hooks allowed, if it keeps one active across an
   update, or activates none until the user allows;
-- while they are on, each event with a hook is reported as the [weakening](security.md#weakenings)
+- while they are on, each event with a hook is reported as the [non-default setting](security.md#non-default-settings)
   `hook`, with the event as its subject, each time the overlay is activated.
 
 The allowance covers an overlay's hooks and nothing else of it: its env scripts, setup and servers run

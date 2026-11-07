@@ -98,7 +98,7 @@ Two providers are defined:
 
 | Provider | `key` | Value |
 | --- | --- | --- |
-| `env` | a variable name | That variable from the consumer's own environment (the host's, not the one being built). Reading it is a [weakening](security.md#weakenings), `env-passthrough`. |
+| `env` | a variable name | That variable from the consumer's own environment (the host's, not the one being built). Reading it is a [non-default setting](security.md#non-default-settings), `env-passthrough`. |
 | `file` | a [relative path](manifest.md#fields) | The content of that file under a secrets directory the consumer's configuration names, with one trailing line feed (`LF` or `CRLF`) removed. Never a file in the overlay. A consumer with no secrets directory cannot resolve it; a key that is not a relative path is refused. |
 
 A consumer MAY support further providers (a vault, a system keychain, a password manager) under
@@ -107,7 +107,7 @@ names of its own.
 **Grants.** An overlay names the secrets it wants; it does not decide that it gets them. A consumer
 resolves a reference only when its own configuration **grants** that overlay, by identity, that
 reference: a secret name, a `file` key, a host variable for `env`, or a key of another provider.
-Nothing is granted by default. Reading a granted secret is the weakening `secret-read` (or
+Nothing is granted by default. Reading a granted secret is the non-default setting `secret-read` (or
 `env-passthrough` for the `env` provider), reported with the reference, never the value.
 
 A reference that is not granted, to a provider the consumer does not have, to a secret name it does
@@ -378,7 +378,7 @@ it in `env`, and a consumer refuses the env file. `paths` here includes its defa
 with a `bin/` cannot set `PATH` in `env` unless `[defaults] bin = false`, and a validator that knows
 the files refuses it. Adding to a
 [sensitive variable](security.md#sensitive-variables) other than `PATH`, `PYTHONPATH` and
-`NODE_PATH` is the weakening `env-sensitive`.
+`NODE_PATH` is the non-default setting `env-sensitive`.
 
 A path addition reaches the processes the overlay serves. It never decides which program the
 consumer itself runs: a consumer finds interpreters, probed commands and its own tools on the base
@@ -420,7 +420,7 @@ the overlay's own processes.
 
 A consumer MAY refuse to let an overlay set a variable (its own policy), and MUST report each refusal
 by variable name. Setting a [sensitive variable](security.md#sensitive-variables) is a
-[weakening](security.md#weakenings), `env-sensitive`.
+[non-default setting](security.md#non-default-settings), `env-sensitive`.
 
 ## Env scripts
 
