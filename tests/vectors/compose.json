@@ -2266,7 +2266,7 @@
           "SEEN": "yes"
         },
         "hook_reports": [],
-        "hook_weakenings": []
+        "hook_non_defaults": []
       }
     },
     {
@@ -2311,7 +2311,7 @@
           "MODE": "high"
         },
         "hook_reports": [],
-        "hook_weakenings": []
+        "hook_non_defaults": []
       }
     },
     {
@@ -2356,7 +2356,7 @@
           "MODE": "declared"
         },
         "hook_reports": [],
-        "hook_weakenings": []
+        "hook_non_defaults": []
       }
     },
     {
@@ -2391,7 +2391,7 @@
           "RAW": "${LOW_OVERLAY_ROOT}"
         },
         "hook_reports": [],
-        "hook_weakenings": []
+        "hook_non_defaults": []
       }
     },
     {
@@ -2430,7 +2430,7 @@
           "A": "1"
         },
         "hook_reports": [],
-        "hook_weakenings": []
+        "hook_non_defaults": []
       }
     },
     {
@@ -2476,7 +2476,7 @@
             "exit"
           ]
         ],
-        "hook_weakenings": []
+        "hook_non_defaults": []
       }
     },
     {
@@ -2524,7 +2524,7 @@
             "output"
           ]
         ],
-        "hook_weakenings": []
+        "hook_non_defaults": []
       }
     },
     {
@@ -2568,7 +2568,7 @@
             "timeout"
           ]
         ],
-        "hook_weakenings": []
+        "hook_non_defaults": []
       }
     },
     {
@@ -2606,7 +2606,7 @@
           "CODEX_HOME": "/ov/low/codex"
         },
         "hook_reports": [],
-        "hook_weakenings": [
+        "hook_non_defaults": [
           [
             "env-sensitive",
             "CODEX_HOME"
@@ -2650,7 +2650,7 @@
           "decision": "allow"
         },
         "hook_reports": [],
-        "hook_weakenings": []
+        "hook_non_defaults": []
       }
     }
   ]

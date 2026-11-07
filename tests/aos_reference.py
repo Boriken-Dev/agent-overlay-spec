@@ -1857,7 +1857,7 @@ def default_script(
 
 
 # --------------------------------------------------------------------------------------------
-# Applying declarations: the effective environment, setup, runtime and weakenings.
+# Applying declarations: the effective environment, setup, runtime and non_defaults.
 # --------------------------------------------------------------------------------------------
 
 SENSITIVE_NAMES = frozenset(
@@ -1884,7 +1884,7 @@ SENSITIVE_PREFIXES = (
     "SSL_",
 )
 SENSITIVE_SUFFIXES = ("_PROXY", "_BASE_URL")
-#: Path additions exist for these, so adding to them is not a weakening.
+#: Path additions exist for these, so adding to them is not a non_default.
 PATH_VARIABLES = frozenset(("PATH", "PYTHONPATH", "NODE_PATH"))
 UNIX_NAMES = frozenset(("macos", "linux", "freebsd", "openbsd", "netbsd"))
 SCRIPT_EXTENSIONS = {
@@ -2039,7 +2039,7 @@ def _apply_mapping(
     mapping: "dict[str, Any]",
     facts: "dict[str, Any]",
     root: str,
-    weakenings: "list[list[str]]",
+    non_defaults: "list[list[str]]",
 ) -> None:
     windows = env.windows
     before = env.copy()
@@ -2068,18 +2068,18 @@ def _apply_mapping(
                 raise Refused("unresolved-reference", name)
             secret = True
             if entry.get("provider") == "env":
-                weakenings.append(["env-passthrough", entry["key"]])
+                non_defaults.append(["env-passthrough", entry["key"]])
             else:
-                weakenings.append(["secret-read", reference_name(entry)])
+                non_defaults.append(["secret-read", reference_name(entry)])
         if is_sensitive(name):
-            weakenings.append(["env-sensitive", name])
+            non_defaults.append(["env-sensitive", name])
         env.set(name, value, secret)
 
 
 def _apply_dotenv(
     env: Environment,
     entries: "list[tuple[str, str, bool]]",
-    weakenings: "list[list[str]]",
+    non_defaults: "list[list[str]]",
 ) -> None:
     """A dotenv file's lines in order: each sees the environment the earlier lines left."""
     for name, text, literal in entries:
@@ -2090,7 +2090,7 @@ def _apply_dotenv(
         except SubstitutionError as error:
             raise Refused(error.code, name)
         if is_sensitive(name):
-            weakenings.append(["env-sensitive", name])
+            non_defaults.append(["env-sensitive", name])
         env.set(name, value)
 
 
@@ -2099,7 +2099,7 @@ def _apply_paths(
     paths: "list[dict[str, Any]]",
     root: str,
     os_name: str,
-    weakenings: "list[list[str]]",
+    non_defaults: "list[list[str]]",
 ) -> None:
     windows = env.windows
     separator = ";" if windows else ":"
@@ -2114,7 +2114,7 @@ def _apply_paths(
     for key, entries in grouped.items():
         variable = names[key]
         if is_sensitive(variable) and variable.upper() not in PATH_VARIABLES:
-            weakenings.append(["env-sensitive", variable])
+            non_defaults.append(["env-sensitive", variable])
         prepend: "list[str]" = []
         append: "list[str]" = []
         seen: "set[str]" = set()
@@ -2137,7 +2137,7 @@ def apply_overlay(
     manifest: "dict[str, Any]",
     facts: "dict[str, Any]",
     root: str,
-    weakenings: "list[list[str]]",
+    non_defaults: "list[list[str]]",
     tree: "Iterable[str]" = (),
     identity: str = "",
     state: "Optional[str]" = None,
@@ -2152,7 +2152,7 @@ def apply_overlay(
     if state is not None:
         env.extra["AOS_OVERLAY_STATE"] = state
     try:
-        return _apply_overlay(env, manifest, facts, root, weakenings, tree)
+        return _apply_overlay(env, manifest, facts, root, non_defaults, tree)
     finally:
         env.extra = {}
 
@@ -2162,7 +2162,7 @@ def _apply_overlay(
     manifest: "dict[str, Any]",
     facts: "dict[str, Any]",
     root: str,
-    weakenings: "list[list[str]]",
+    non_defaults: "list[list[str]]",
     tree: "Iterable[str]",
 ) -> "list[dict[str, Any]]":
     os_name = facts["os"]
@@ -2202,38 +2202,38 @@ def _apply_overlay(
             if name.upper() in listed:
                 raise Refused("env-path-conflict", name)
         if item.get("format", "aos") == "dotenv":
-            _apply_dotenv(env, lines, weakenings)
+            _apply_dotenv(env, lines, non_defaults)
         else:
-            _apply_mapping(env, mapping, facts, root, weakenings)
-    _apply_mapping(env, manifest.get("env", {}), facts, root, weakenings)
-    _apply_paths(env, paths, root, os_name, weakenings)
+            _apply_mapping(env, mapping, facts, root, non_defaults)
+    _apply_mapping(env, manifest.get("env", {}), facts, root, non_defaults)
+    _apply_paths(env, paths, root, os_name, non_defaults)
     scripts = []
     if facts.get("env_scripts_enabled", True):
         chosen, _configured, present, others = default_script(
             manifest, "env_scripts", "env", tree, os_name, facts.get("interpreters", INTERPRETERS)
         )
         if chosen is None:
-            weakenings.extend(["script-not-run", path] for path in present)
+            non_defaults.extend(["script-not-run", path] for path in present)
         for script in ([chosen] if chosen else []) + others:
             if os_matches(script, os_name):
                 selected = {"interpreter": script["interpreter"], "path": script["path"]}
                 selected["args"] = script.get("args", [])
                 selected["timeout"] = script.get("timeout", 60)
                 scripts.append(selected)
-                weakenings.append(["env-script", script["path"]])
+                non_defaults.append(["env-script", script["path"]])
                 if selected["timeout"] == 0:
-                    weakenings.append(["no-timeout", script["path"]])
+                    non_defaults.append(["no-timeout", script["path"]])
     return scripts
 
 
 def effective(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str, Any]":
-    """What a consumer applies for one overlay: environment, setup, runtime, needs, weakenings."""
+    """What a consumer applies for one overlay: environment, setup, runtime, needs, non_defaults."""
     os_name = facts["os"]
     windows = os_name == "windows"
     root = facts["root"]
-    weakenings: "list[list[str]]" = []
+    non_defaults: "list[list[str]]" = []
     if not facts.get("pinned", False):
-        weakenings.append(["unpinned", ""])
+        non_defaults.append(["unpinned", ""])
     runtime = manifest.get("runtime", {})
     supported = "os" not in runtime or os_matches(runtime, os_name)
     env = Environment(facts.get("base_env", {}), windows)
@@ -2246,7 +2246,7 @@ def effective(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
             manifest,
             facts,
             root,
-            weakenings,
+            non_defaults,
             facts.get("files", {}),
             facts["identity"],
             facts.get("state"),
@@ -2269,7 +2269,7 @@ def effective(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
         # A default setup that declares nothing is taken to need the network.
         network = not configured
         if setup is None:
-            weakenings.extend(["script-not-run", path] for path in present)
+            non_defaults.extend(["script-not-run", path] for path in present)
     if setup is not None:
         setup = {
             "interpreter": setup["interpreter"],
@@ -2279,11 +2279,11 @@ def effective(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
             "network": setup.get("network", network),
         }
         if setup["network"]:
-            weakenings.append(["setup-network", setup["path"]])
+            non_defaults.append(["setup-network", setup["path"]])
         elif not facts.get("enforces_network", True):
-            weakenings.append(["network-not-enforced", setup["path"]])
+            non_defaults.append(["network-not-enforced", setup["path"]])
         if setup["timeout"] == 0:
-            weakenings.append(["no-timeout", setup["path"]])
+            non_defaults.append(["no-timeout", setup["path"]])
     python = first_variant(runtime.get("python", []), os_name)
     if python is not None:
         python = {key: value for key, value in python.items() if key != "os"}
@@ -2293,9 +2293,9 @@ def effective(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
         return {"error": refused.code, "subject": refused.subject}
     for dependency in dependencies:
         # Installing fetches packages: it needs the network, locked or not.
-        weakenings.append(["deps-network", dependency["file"]])
+        non_defaults.append(["deps-network", dependency["file"]])
         if dependency["lock"] is None:
-            weakenings.append(["unlocked-dependencies", dependency["file"]])
+            non_defaults.append(["unlocked-dependencies", dependency["file"]])
     node = first_variant(runtime.get("node", []), os_name)
     if node is not None:
         node = {key: value for key, value in node.items() if key != "os"}
@@ -2329,21 +2329,21 @@ def effective(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
                 if not granted(value, facts):
                     ungranted.add(reference_name(value))
                 elif value.get("provider") == "env":
-                    weakenings.append(["env-passthrough", value["key"]])
+                    non_defaults.append(["env-passthrough", value["key"]])
                 else:
-                    weakenings.append(["secret-read", reference_name(value)])
+                    non_defaults.append(["secret-read", reference_name(value)])
         for name in list(server.get("env_passthrough", [])) + list(
             server.get("headers_env", {}).values()
         ):
             if name in host_grants:
-                weakenings.append(["env-passthrough", name])
+                non_defaults.append(["env-passthrough", name])
             else:
                 ungranted.add("env:" + name)
         url = server.get("url", "")
         if url[:7].lower() == "http://":
             host = url[7:].split("/", 1)[0].split("?", 1)[0].rsplit(":", 1)[0].lower()
             if host not in ("localhost", "[::1]") and not host.startswith("127."):
-                weakenings.append(["insecure-transport", server["name"]])
+                non_defaults.append(["insecure-transport", server["name"]])
     for name, entry in manifest.get("env", {}).items():
         if isinstance(entry, dict) and ("provider" in entry or "secret" in entry):
             if entry.get("optional") and not granted(entry, facts):
@@ -2358,7 +2358,7 @@ def effective(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
         "node": node,
         "dependencies": dependencies,
         "needs": {"interpreters": sorted(interpreters), "commands": sorted(set(commands))},
-        "weakenings": sorted({tuple(w) for w in weakenings}),
+        "non_defaults": sorted({tuple(w) for w in non_defaults}),
     }
     if "change" in facts:
         result.update(
@@ -2631,12 +2631,12 @@ def compose(
         roots = facts["roots"]
         for identity in active:
             env.set(root_variable(identity), roots[identity])
-        weakenings: "list[list[str]]" = []
+        non_defaults: "list[list[str]]" = []
         packages = facts.get("packages", {})
         try:
             if "pre_env" in facts:
                 result["hook_reports"] = []
-                result["hook_weakenings"] = []
+                result["hook_non_defaults"] = []
                 _apply_pre_env(env, active, facts["pre_env"], facts.get("hook_limits", {}), result)
             for identity in active:
                 tree = files.get(identity, [])
@@ -2647,7 +2647,7 @@ def compose(
                     overlays[identity],
                     dict(facts, files=texts, packages=packages.get(identity, {})),
                     roots[identity],
-                    weakenings,
+                    non_defaults,
                     files.get(identity, []),
                     identity,
                 )
@@ -2666,7 +2666,7 @@ def _apply_pre_env(
     result: "dict[str, Any]",
 ) -> None:
     """The ``pre-env`` hooks' output, every overlay's in composition order, after the root
-    variables and before any overlay's declarations; reports and weakenings go to ``result``."""
+    variables and before any overlay's declarations; reports and non_defaults go to ``result``."""
     for identity in active:
         if identity not in runs:
             continue
@@ -2674,7 +2674,7 @@ def _apply_pre_env(
             "pre-env", [dict(runs[identity], source=identity)], None, limits, env.windows
         )
         result["hook_reports"] += fired["reports"]
-        result["hook_weakenings"] += fired["weakenings"]
+        result["hook_non_defaults"] += fired["non_defaults"]
         if fired["decision"] == "refuse":
             raise Refused("hook-refused", identity)
         for name, value in fired["env"].items():
@@ -2863,7 +2863,7 @@ def hook_plan(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
     )
     fires = facts.get("fires", list(HOOK_EVENTS))
     partial = facts.get("partial", [])
-    weakenings = [["script-not-run", path] for path in not_run]
+    non_defaults = [["script-not-run", path] for path in not_run]
     reports: "list[list[str]]" = []
     if entries and not on:
         reports.append(["hook-not-allowed", facts.get("identity", "")])
@@ -2872,7 +2872,7 @@ def hook_plan(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
             if entry["event"] not in fires:
                 reports.append(["hook-unsupported", entry["event"]])
                 continue
-            weakenings.append(["hook", entry["event"]])
+            non_defaults.append(["hook", entry["event"]])
             if entry["event"] in partial:
                 reports.append(["hook-partial", entry["event"]])
     guarded = any(entry["on_failure"] == "refuse" for entry in entries)
@@ -2883,7 +2883,7 @@ def hook_plan(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
         "activates": on or not guarded,
         "needs": sorted({entry["interpreter"] for entry in entries if entry["interpreter"]}),
         "reports": sorted(reports),
-        "weakenings": sorted(weakenings),
+        "non_defaults": sorted(non_defaults),
     }
 
 
@@ -3035,7 +3035,7 @@ def fire_event(
         "context": [],
         "env": {},
         "reports": [],
-        "weakenings": [],
+        "non_defaults": [],
     }
     for run in runs:
         source = run["source"]
@@ -3079,7 +3079,7 @@ def fire_event(
                     (k for k in result["env"] if windows and k.upper() == name.upper()), name
                 )
                 result["env"][key] = value
-    result["weakenings"] = sorted(["env-sensitive", n] for n in result["env"] if is_sensitive(n))
+    result["non_defaults"] = sorted(["env-sensitive", n] for n in result["env"] if is_sensitive(n))
     return result
 
 
@@ -3460,7 +3460,7 @@ def resolve_skills(
 ) -> "dict[str, Any]":
     """What a consumer shows before installing and reports after: every skill of the active
     overlays with where it comes from, each name no catalog offers or more than one does, the
-    weakenings, the collisions and what each would do. ``catalogs`` are ``(label, read_catalog
+    non_defaults, the collisions and what each would do. ``catalogs`` are ``(label, read_catalog
     result)``; ``order`` is the order of labels the user configured, if any; a consumer that does
     not ``fetches`` delivers only bundled skills and says so for the rest. Where ``files`` gives an
     overlay's texts, a bundled ``SKILL.md`` naming another skill is not delivered."""
@@ -3474,7 +3474,7 @@ def resolve_skills(
         "missing": [],
         "ambiguous": [],
         "unpinned": [],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],
@@ -3523,9 +3523,9 @@ def resolve_skills(
                     out["unpinned"].append([name, identity])
                 location = item["key"].split("#", 1)[0]
                 if re.match(r"^(?:git\+)?(?:http|git)://", location, re.IGNORECASE):
-                    out["weakenings"].append(["insecure-transport", name, identity])
+                    out["non_defaults"].append(["insecure-transport", name, identity])
                 if host_scope(source_host(location)) == "private":
-                    out["weakenings"].append(["private-source", name, identity])
+                    out["non_defaults"].append(["private-source", name, identity])
             if not _deliver(winners, collisions, item, identity):
                 out["shadowing"].append([name, identity])
     out["delivered"] = {name: identity for name, identity, _origin in winners.values()}

@@ -1,5 +1,5 @@
 {
-  "description": "The skills field and where its names resolve. A 'resolve-' case gives 'overlays', 'requested', optional 'files' and 'catalogs' (each read as in catalog.json, with its 'label'), an optional 'order' of labels and 'fetches' (absent, true); 'expect' gives each skill in composition order and by name with its 'origin' ('bundled', 'source', 'catalog', 'missing', 'ambiguous'), the 'source' as shown, 'pin', 'catalog' or 'catalogs'; the 'missing', 'ambiguous', 'unpinned' and 'not_fetched' reports, the 'weakenings' ([id, name, overlay]: 'insecure-transport', 'private-source'), each bundled skill whose SKILL.md names another ('name_mismatch'), each skill from elsewhere kept from a name another overlay's skill holds ('shadowing'); what is 'delivered', by name, and the 'collisions'. 'files' may map paths to text, for the SKILL.md of bundled skills. A 'fetched-' case gives a skill's 'name', the 'fetched' files and an optional 'pin'; 'expect' gives its tree 'digest' and the front matter keys 'reported', or an 'error'.",
+  "description": "The skills field and where its names resolve. A 'resolve-' case gives 'overlays', 'requested', optional 'files' and 'catalogs' (each read as in catalog.json, with its 'label'), an optional 'order' of labels and 'fetches' (absent, true); 'expect' gives each skill in composition order and by name with its 'origin' ('bundled', 'source', 'catalog', 'missing', 'ambiguous'), the 'source' as shown, 'pin', 'catalog' or 'catalogs'; the 'missing', 'ambiguous', 'unpinned' and 'not_fetched' reports, the 'non_defaults' ([id, name, overlay]: 'insecure-transport', 'private-source'), each bundled skill whose SKILL.md names another ('name_mismatch'), each skill from elsewhere kept from a name another overlay's skill holds ('shadowing'); what is 'delivered', by name, and the 'collisions'. 'files' may map paths to text, for the SKILL.md of bundled skills. A 'fetched-' case gives a skill's 'name', the 'fetched' files and an optional 'pin'; 'expect' gives its tree 'digest' and the front matter keys 'reported', or an 'error'.",
   "spec": "spec/v0/skills.md",
   "cases": [
     {
@@ -37,7 +37,7 @@
         "missing": [],
         "ambiguous": [],
         "unpinned": [],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],
@@ -106,7 +106,7 @@
         "missing": [],
         "ambiguous": [],
         "unpinned": [],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],
@@ -157,7 +157,7 @@
             "a"
           ]
         ],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],
@@ -204,7 +204,7 @@
         ],
         "ambiguous": [],
         "unpinned": [],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],
@@ -241,7 +241,7 @@
         ],
         "ambiguous": [],
         "unpinned": [],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],
@@ -286,7 +286,7 @@
         ],
         "ambiguous": [],
         "unpinned": [],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],
@@ -345,7 +345,7 @@
           ]
         ],
         "unpinned": [],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],
@@ -404,7 +404,7 @@
           ]
         ],
         "unpinned": [],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],
@@ -461,7 +461,7 @@
             "a"
           ]
         ],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],
@@ -520,7 +520,7 @@
             "a"
           ]
         ],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],
@@ -569,7 +569,7 @@
             "a"
           ]
         ],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],
@@ -618,7 +618,7 @@
             "a"
           ]
         ],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],
@@ -676,7 +676,7 @@
         "missing": [],
         "ambiguous": [],
         "unpinned": [],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],
@@ -735,7 +735,7 @@
         "missing": [],
         "ambiguous": [],
         "unpinned": [],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [
@@ -797,7 +797,7 @@
         "missing": [],
         "ambiguous": [],
         "unpinned": [],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [
@@ -864,7 +864,7 @@
         "missing": [],
         "ambiguous": [],
         "unpinned": [],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [
@@ -926,7 +926,7 @@
         "missing": [],
         "ambiguous": [],
         "unpinned": [],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],
@@ -992,7 +992,7 @@
         "missing": [],
         "ambiguous": [],
         "unpinned": [],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [
@@ -1046,7 +1046,7 @@
         "missing": [],
         "ambiguous": [],
         "unpinned": [],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [
           [
@@ -1116,7 +1116,7 @@
         "missing": [],
         "ambiguous": [],
         "unpinned": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "insecure-transport",
             "a",
@@ -1186,7 +1186,7 @@
         "missing": [],
         "ambiguous": [],
         "unpinned": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "private-source",
             "a",
@@ -1241,7 +1241,7 @@
             "a"
           ]
         ],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],
@@ -1299,7 +1299,7 @@
             "a"
           ]
         ],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],
@@ -1380,7 +1380,7 @@
         ],
         "ambiguous": [],
         "unpinned": [],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [
           [
             "lint",
@@ -1448,7 +1448,7 @@
         "missing": [],
         "ambiguous": [],
         "unpinned": [],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],
@@ -1510,7 +1510,7 @@
         "missing": [],
         "ambiguous": [],
         "unpinned": [],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],
@@ -1574,7 +1574,7 @@
         "missing": [],
         "ambiguous": [],
         "unpinned": [],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [
@@ -1643,7 +1643,7 @@
             "b"
           ]
         ],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [
@@ -1701,7 +1701,7 @@
         ],
         "ambiguous": [],
         "unpinned": [],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],
@@ -1755,7 +1755,7 @@
             "b"
           ]
         ],
-        "weakenings": [],
+        "non_defaults": [],
         "not_fetched": [],
         "name_mismatch": [],
         "shadowing": [],

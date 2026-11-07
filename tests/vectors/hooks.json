@@ -1,5 +1,5 @@
 {
-  "description": "Hooks. A 'plan-' case gives a 'manifest' (or, with none, an overlay's 'files' by path and text, its manifest read from them) and the consumer's 'facts': os, files, interpreters (absent, all five), identity, scope ('overlay', the default, 'user' or 'project'), digest (the overlay's; absent, unknown), tree (for a project, every file of the directory holding its configuration, by path and text, whose tree digest is the digest), allowed (the one digest at which the user allowed its hooks), fires (the events the consumer can fire on this harness; absent, every one), partial (those it fires for only some occurrences) and limits ('timeout', the consumer's bound on a run, in seconds); 'expect' gives each hook in event order (event, path and interpreter, or null for a hook.<ext> none of which can run here; whether it 'runs' here; match, sets, timeout after the bound, on_failure, and the payload's keys), whether they are 'on', whether the overlay 'activates', the interpreters a probe 'needs', the 'reports' ([id, subject]) and 'weakenings' ([id, subject]), and the manifest's 'issues' (pointers). A 'payload-' case gives an 'event' and what the consumer knows ('known'); 'expect' is the payload. An 'output-' case gives an 'event', one 'run' ('stdout', or 'stdout_base64', or 'stdout_parts' as [text, times]; 'exit', default 0; 'timed_out'; 'not_run'; 'payload_size'; 'sets', the variables its entry declares) and optional 'limits' ('max_output', 'max_payload'); 'expect' is the 'output' that applies, or the cause it 'failed' with. An 'event-' case gives an 'event', its 'runs' in order (each with its 'source', 'on_failure', default 'report', and the 'seconds' it took), what the consumer 'applies' on this harness ('context', 'env', 'block', 'deny', 'ask', 'refuse'; absent, all the event takes, and refuse), 'limits' (also 'event_timeout') and 'os'; 'expect' gives the sources that 'ran', the 'decision' ('block', 'deny', 'ask', 'refuse' or null), the source it was 'by' and the hook's own 'reason' (null for a refusal by failure), the 'context' as [source, text], the 'env' (null unsets), the 'reports' and the 'weakenings'. A 'match-' case gives an 'event', a 'match' (or null) and the reason or tool kind ('value'); 'expect' says whether the hook 'runs'.",
+  "description": "Hooks. A 'plan-' case gives a 'manifest' (or, with none, an overlay's 'files' by path and text, its manifest read from them) and the consumer's 'facts': os, files, interpreters (absent, all five), identity, scope ('overlay', the default, 'user' or 'project'), digest (the overlay's; absent, unknown), tree (for a project, every file of the directory holding its configuration, by path and text, whose tree digest is the digest), allowed (the one digest at which the user allowed its hooks), fires (the events the consumer can fire on this harness; absent, every one), partial (those it fires for only some occurrences) and limits ('timeout', the consumer's bound on a run, in seconds); 'expect' gives each hook in event order (event, path and interpreter, or null for a hook.<ext> none of which can run here; whether it 'runs' here; match, sets, timeout after the bound, on_failure, and the payload's keys), whether they are 'on', whether the overlay 'activates', the interpreters a probe 'needs', the 'reports' ([id, subject]) and 'non_defaults' ([id, subject]), and the manifest's 'issues' (pointers). A 'payload-' case gives an 'event' and what the consumer knows ('known'); 'expect' is the payload. An 'output-' case gives an 'event', one 'run' ('stdout', or 'stdout_base64', or 'stdout_parts' as [text, times]; 'exit', default 0; 'timed_out'; 'not_run'; 'payload_size'; 'sets', the variables its entry declares) and optional 'limits' ('max_output', 'max_payload'); 'expect' is the 'output' that applies, or the cause it 'failed' with. An 'event-' case gives an 'event', its 'runs' in order (each with its 'source', 'on_failure', default 'report', and the 'seconds' it took), what the consumer 'applies' on this harness ('context', 'env', 'block', 'deny', 'ask', 'refuse'; absent, all the event takes, and refuse), 'limits' (also 'event_timeout') and 'os'; 'expect' gives the sources that 'ran', the 'decision' ('block', 'deny', 'ask', 'refuse' or null), the source it was 'by' and the hook's own 'reason' (null for a refusal by failure), the 'context' as [source, text], the 'env' (null unsets), the 'reports' and the 'non_defaults'. A 'match-' case gives an 'event', a 'match' (or null) and the reason or tool kind ('value'); 'expect' says whether the hook 'runs'.",
   "spec": "spec/v0/hooks.md",
   "cases": [
     {
@@ -126,13 +126,13 @@
             "shell-guard"
           ]
         ],
-        "weakenings": [],
+        "non_defaults": [],
         "issues": []
       }
     },
     {
       "id": "plan-default-allowed",
-      "description": "Allowed at this digest: each event is reported as the weakening hook.",
+      "description": "Allowed at this digest: each event is reported as the non_default hook.",
       "manifest": {},
       "facts": {
         "os": "linux",
@@ -250,7 +250,7 @@
           "python"
         ],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "cd"
@@ -404,7 +404,7 @@
             "shell-guard"
           ]
         ],
-        "weakenings": [],
+        "non_defaults": [],
         "issues": []
       }
     },
@@ -527,7 +527,7 @@
           "python"
         ],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "cd"
@@ -681,7 +681,7 @@
             "shell-guard"
           ]
         ],
-        "weakenings": [],
+        "non_defaults": [],
         "issues": []
       }
     },
@@ -809,7 +809,7 @@
             "shell-guard"
           ]
         ],
-        "weakenings": [],
+        "non_defaults": [],
         "issues": []
       }
     },
@@ -854,7 +854,7 @@
           "python"
         ],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "session-start"
@@ -913,7 +913,7 @@
             ""
           ]
         ],
-        "weakenings": [],
+        "non_defaults": [],
         "issues": []
       }
     },
@@ -963,7 +963,7 @@
           "python"
         ],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "session-start"
@@ -1024,7 +1024,7 @@
             ""
           ]
         ],
-        "weakenings": [],
+        "non_defaults": [],
         "issues": []
       }
     },
@@ -1181,7 +1181,7 @@
             "shell-guard"
           ]
         ],
-        "weakenings": [],
+        "non_defaults": [],
         "issues": []
       }
     },
@@ -1341,7 +1341,7 @@
             "pre-tool"
           ]
         ],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "cd"
@@ -1535,7 +1535,7 @@
           "python"
         ],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "cd"
@@ -1688,7 +1688,7 @@
           "python"
         ],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "cd"
@@ -1909,7 +1909,7 @@
           "python"
         ],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "cd"
@@ -2076,7 +2076,7 @@
           "sh"
         ],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "cd"
@@ -2198,7 +2198,7 @@
           "python"
         ],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "pre-compact"
@@ -2242,7 +2242,7 @@
         "activates": true,
         "needs": [],
         "reports": [],
-        "weakenings": [],
+        "non_defaults": [],
         "issues": []
       }
     },
@@ -2299,7 +2299,7 @@
           "python"
         ],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "pre-tool"
@@ -2483,7 +2483,7 @@
           "python"
         ],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "cd"
@@ -2591,7 +2591,7 @@
           "python"
         ],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "pre-tool"
@@ -2730,7 +2730,7 @@
           "powershell"
         ],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "cd"
@@ -2880,7 +2880,7 @@
           "sh"
         ],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "cd"
@@ -3031,7 +3031,7 @@
           "python"
         ],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "cd"
@@ -3079,7 +3079,7 @@
         "activates": true,
         "needs": [],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "script-not-run",
             "hook.ps1"
@@ -3136,7 +3136,7 @@
         "activates": true,
         "needs": [],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "pre-tool"
@@ -3195,7 +3195,7 @@
           "sh"
         ],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "pre-tool"
@@ -3227,7 +3227,7 @@
         "activates": true,
         "needs": [],
         "reports": [],
-        "weakenings": [],
+        "non_defaults": [],
         "issues": []
       }
     },
@@ -3250,7 +3250,7 @@
         "activates": true,
         "needs": [],
         "reports": [],
-        "weakenings": [],
+        "non_defaults": [],
         "issues": []
       }
     },
@@ -3433,7 +3433,7 @@
             "pre-tool"
           ]
         ],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "pre-env"
@@ -3604,7 +3604,7 @@
             "turn-end"
           ]
         ],
-        "weakenings": [],
+        "non_defaults": [],
         "issues": []
       }
     },
@@ -3645,7 +3645,7 @@
         "activates": true,
         "needs": [],
         "reports": [],
-        "weakenings": [],
+        "non_defaults": [],
         "issues": []
       }
     },
@@ -3772,7 +3772,7 @@
           "python"
         ],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "cd"
@@ -3924,7 +3924,7 @@
           "python"
         ],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "cd"
@@ -4076,7 +4076,7 @@
           "python"
         ],
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "hook",
             "cd"
@@ -5528,7 +5528,7 @@
         "context": [],
         "env": {},
         "reports": [],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -5570,7 +5570,7 @@
         ],
         "env": {},
         "reports": [],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -5602,7 +5602,7 @@
         "context": [],
         "env": {},
         "reports": [],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -5630,7 +5630,7 @@
         "context": [],
         "env": {},
         "reports": [],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -5663,7 +5663,7 @@
         ],
         "env": {},
         "reports": [],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -5691,7 +5691,7 @@
         "context": [],
         "env": {},
         "reports": [],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -5729,7 +5729,7 @@
             "pre-tool"
           ]
         ],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -5757,7 +5757,7 @@
         "context": [],
         "env": {},
         "reports": [],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -5798,7 +5798,7 @@
             "exit"
           ]
         ],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -5834,7 +5834,7 @@
             "timeout"
           ]
         ],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -5865,7 +5865,7 @@
             "output"
           ]
         ],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -5897,7 +5897,7 @@
             "not-run"
           ]
         ],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -5949,7 +5949,7 @@
             "refuse"
           ]
         ],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -5990,7 +5990,7 @@
             "exit"
           ]
         ],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -6022,7 +6022,7 @@
             "exit"
           ]
         ],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -6062,7 +6062,7 @@
             "grant"
           ]
         ],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -6093,7 +6093,7 @@
             "grant"
           ]
         ],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -6132,7 +6132,7 @@
           "Y": null
         },
         "reports": [],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -6169,7 +6169,7 @@
           "PATH": "/b"
         },
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "env-sensitive",
             "PATH"
@@ -6211,7 +6211,7 @@
           "Path": "/b"
         },
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "env-sensitive",
             "PATH"
@@ -6251,7 +6251,7 @@
         "context": [],
         "env": {},
         "reports": [],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -6293,7 +6293,7 @@
             "event-timeout"
           ]
         ],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -6336,7 +6336,7 @@
             "event-timeout"
           ]
         ],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -6370,7 +6370,7 @@
           "CLAUDE_CONFIG_DIR": "/tmp/c"
         },
         "reports": [],
-        "weakenings": [
+        "non_defaults": [
           [
             "env-sensitive",
             "CLAUDE_CONFIG_DIR"
@@ -6424,7 +6424,7 @@
             "env"
           ]
         ],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -6455,7 +6455,7 @@
             "context"
           ]
         ],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -6493,7 +6493,7 @@
             "block"
           ]
         ],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -6524,7 +6524,7 @@
         "context": [],
         "env": {},
         "reports": [],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -6567,7 +6567,7 @@
             "output"
           ]
         ],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -6604,7 +6604,7 @@
             "exit"
           ]
         ],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -6634,7 +6634,7 @@
             "grant"
           ]
         ],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -6664,7 +6664,7 @@
             "output"
           ]
         ],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {
@@ -6707,7 +6707,7 @@
             "too-large"
           ]
         ],
-        "weakenings": []
+        "non_defaults": []
       }
     },
     {

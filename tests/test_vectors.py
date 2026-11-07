@@ -150,7 +150,7 @@ def test_compose(case):
             "blocked",
             "left",
             "hook_reports",
-            "hook_weakenings",
+            "hook_non_defaults",
         ):
             if key in case["expect"]:
                 reduced[key] = result[key]
