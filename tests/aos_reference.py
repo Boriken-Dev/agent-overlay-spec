@@ -1078,9 +1078,48 @@ def source_host(location: str) -> "Optional[str]":
     return hostport.rsplit(":", 1)[0].lower() if ":" in hostport else hostport.lower()
 
 
+def _ipv4_part(part: str) -> "Optional[int]":
+    """One part of a host written as a URL parser reads it: decimal, ``0x`` hexadecimal or octal
+    with a leading zero."""
+    if part[:2] in ("0x", "0X"):
+        digits, base = part[2:] or "0", 16
+    elif len(part) > 1 and part[0] == "0":
+        digits, base = part[1:], 8
+    else:
+        digits, base = part, 10
+    allowed = {8: "01234567", 10: "0123456789", 16: "0123456789abcdefABCDEF"}[base]
+    if len(digits) > 12 or not all(char in allowed for char in digits):
+        return None
+    return int(digits, base)
+
+
+def url_ipv4(host: str) -> "Optional[Any]":
+    """The IPv4 address a URL parser reads ``host`` as, or None: one to four parts, each decimal,
+    hexadecimal or octal, the last filling the bytes the others leave (``127.1``, ``2130706433``,
+    ``0x7f.0.0.1``, ``0177.0.0.1``); one trailing dot is allowed."""
+    import ipaddress
+
+    parts = host.split(".")
+    if len(parts) > 1 and parts[-1] == "":
+        parts.pop()
+    if not 1 <= len(parts) <= 4 or "" in parts:
+        return None
+    numbers = [_ipv4_part(part) for part in parts]
+    if any(number is None for number in numbers):
+        return None
+    *head, last = numbers
+    if any(number > 255 for number in head) or last >= 256 ** (5 - len(parts)):
+        return None
+    value = last
+    for position, number in enumerate(head):
+        value += number * 256 ** (3 - position)
+    return ipaddress.IPv4Address(value)
+
+
 def host_scope(host: "Optional[str]") -> str:
     """``local`` for this machine (loopback, link-local, unspecified, ``localhost``), ``private``
-    for a private network address, ``public`` otherwise, judged on the text alone."""
+    for a private network address (the shared address space ``100.64.0.0/10`` included), ``public``
+    otherwise, judged on the text alone. An IPv4 address is read as a URL parser reads it."""
     import ipaddress
 
     if host is None:
@@ -1090,12 +1129,15 @@ def host_scope(host: "Optional[str]") -> str:
     try:
         address = ipaddress.ip_address(host)
     except ValueError:
-        return "public"
+        address = url_ipv4(host)
+        if address is None:
+            return "public"
     mapped = getattr(address, "ipv4_mapped", None)
     address = mapped or address
     if address.is_loopback or address.is_link_local or address.is_unspecified:
         return "local"
-    return "private" if address.is_private else "public"
+    shared = address.version == 4 and address in ipaddress.ip_network("100.64.0.0/10")
+    return "private" if address.is_private or shared else "public"
 
 
 def _mcp(mcp: Any) -> "list[tuple[str, str]]":
@@ -1898,10 +1940,35 @@ SCRIPT_EXTENSIONS = {
 }
 
 
+SUBJECT_LIMIT = 256
+
+
+def safe_subject(subject: str) -> str:
+    """A refusal's subject with each control, format, line- and paragraph-separator, surrogate,
+    private-use and unassigned character written as ``\\xNN``, ``\\uNNNN`` or ``\\UNNNNNNNN`` in
+    lowercase hexadecimal, and the whole cut to 256 characters, then ``...``."""
+    import unicodedata
+
+    out = []
+    for char in subject[: SUBJECT_LIMIT + 1]:
+        if unicodedata.category(char) in ("Cc", "Cf", "Zl", "Zp", "Cs", "Co", "Cn"):
+            code = ord(char)
+            out.append(
+                "\\x%02x" % code
+                if code < 0x100
+                else "\\u%04x" % code if code < 0x10000 else "\\U%08x" % code
+            )
+        else:
+            out.append(char)
+    text = "".join(out)
+    return text if len(text) <= SUBJECT_LIMIT else text[:SUBJECT_LIMIT] + "..."
+
+
 class Refused(Exception):
     """A declaration the consumer refuses to apply; ``code`` is the vectors' class."""
 
     def __init__(self, code: str, subject: str):
+        subject = safe_subject(subject)
         super().__init__("%s: %s" % (code, subject))
         self.code = code
         self.subject = subject
@@ -2132,6 +2199,34 @@ def _apply_paths(
         env.set(variable, separator.join(prepend + kept + append), env._key(variable) in env.secret)
 
 
+def require_applicable(manifest: "dict[str, Any]") -> None:
+    """Refuse a manifest that would make the consumer touch what a manifest may not name: a
+    variable whose name is not a name (``A=B``, a line break) or a path that leaves the overlay
+    (``../x``, an absolute path, a device name). Nothing else is checked here; the rest of a
+    manifest's faults are for ``validate``. Raises ``invalid-reference`` with the name or path."""
+    env = manifest.get("env")
+    for name in env if isinstance(env, dict) else ():
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
+            raise Refused("invalid-reference", name)
+
+    def check(path: Any) -> None:
+        if isinstance(path, str) and not valid_relpath(path):
+            raise Refused("invalid-reference", path)
+
+    for field in ("paths", "env_files", "env_scripts", "setup"):
+        entries = manifest.get(field)
+        for entry in entries if isinstance(entries, list) else ():
+            check(entry.get("path") if isinstance(entry, dict) else entry)
+    scripts = manifest.get("scripts")
+    for target in scripts.values() if isinstance(scripts, dict) else ():
+        check(target.get("path") if isinstance(target, dict) else target)
+    runtime = manifest.get("runtime")
+    for variants in runtime.values() if isinstance(runtime, dict) else ():
+        for variant in variants if isinstance(variants, list) else ():
+            for key in ("lock", "requirements", "package"):
+                check(variant.get(key) if isinstance(variant, dict) else None)
+
+
 def apply_overlay(
     env: Environment,
     manifest: "dict[str, Any]",
@@ -2147,6 +2242,7 @@ def apply_overlay(
     ``tree`` is the overlay's files, from which the defaults of unwritten fields follow. Its
     placeholders also see the ``AOS_OVERLAY_*`` values a step of this overlay receives.
     """
+    require_applicable(manifest)
     os_name = facts["os"]
     env.extra = {"AOS_OVERLAY_ROOT": root, "AOS_OVERLAY_NAME": normalize_name(identity)}
     if state is not None:
@@ -3569,7 +3665,7 @@ def read_fetched_skill(
         for path, value in files.items()
     ]
     try:
-        digest = digest_entries(entries)[0]
+        digest, lines = digest_entries(entries)
     except DigestError as error:
         raise ReadError(error.code, error.path)
     if pin is not None and not same_digest(pin, digest):
@@ -3590,7 +3686,11 @@ def read_fetched_skill(
     if found["data"].get("name") != name:
         raise ReadError("skill-name-mismatch", name)
     reported = sorted(key for key in found["data"] if key not in SKILL_INERT_KEYS)
-    return {"digest": digest, "reported": reported}
+    return {
+        "digest": digest,
+        "reported": reported,
+        "files": [line.split(b"\0", 1)[0].decode("utf-8") for line in lines],
+    }
 
 
 def list_catalogs(catalogs: "list[tuple[str, dict[str, Any]]]") -> "dict[str, Any]":
