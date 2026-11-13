@@ -87,6 +87,45 @@ TOOL_PROMPT='${USER}$ '
   an earlier file or line.
 - A placeholder cannot read a variable set from a secret reference. Use the reference itself.
 
+## Name your own files and settings in text
+
+Context and the skills you bundle can refer to the overlay by name instead of by a path you cannot
+know. A consumer replaces `${NAME}` when it serves the text, and nothing in the installed files changes:
+
+```markdown
+Read `${AOS_OVERLAY_ROOT}/kb/checklist.md`. Reviews are `${depth}`; keep notes in
+`${AOS_OVERLAY_STATE}`. Write `$${AOS_OVERLAY_ROOT}` for the text itself.
+```
+
+- **When:** as the context is assembled and a skill's body is served. Never when the overlay is installed,
+  so digests, pins, sync and moves are untouched, and never when the agent reads a file itself.
+- **Which names:** `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_STATE`, `AOS_OVERLAY_NAME`, `AOS_OVERLAY_SCOPE`,
+  `AOS_PROJECT_ROOT`, and the options you declare. A name with no value, such as a state directory the
+  overlay does not have, is left as written.
+- **Anything else is left as written:** `${HOME}`, `$HOME`, `${AOS_OVERLAY_ROOT:-x}`, a shell line, a
+  price. Write `$${` for a literal `${`. A `$$` that is not followed by `{` is just itself.
+- **Files the agent opens itself** (a script, a document it reads on request) are not replaced, so
+  `routing` and `rules` keep naming them as `$TEAM_REVIEW_OVERLAY_ROOT/kb/review.md`, which the
+  environment resolves.
+- **Options** are settings the user gives a value for, in the consumer's own configuration:
+
+  ```toml
+  [options.depth]
+  type = "string"          # or "integer", "boolean"
+  default = "normal"
+  description = "How thorough a review is."
+
+  [options.service_token]
+  type = "string"
+  sensitive = true         # never put in context, and has no default
+  ```
+
+  A text with `${depth}` reads the user's value, else the default, else is left as written. The value is
+  in the agent's context, so keep a secret out of an option: a sensitive one is never replaced, and a
+  process that needs a secret takes a [secret reference](spec/v0/environment.md#secret-references).
+
+See [Templating](spec/v0/harness.md#templating) for the rules.
+
 ## The manifest
 
 Start with the fields your consumers use:

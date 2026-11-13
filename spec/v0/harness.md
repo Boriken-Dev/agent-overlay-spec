@@ -34,6 +34,106 @@ consumer still marks where each file came from.
 > front matter, and expands `<NAME>_OVERLAY_ROOT` placeholders in output that is not written to a file.
 > It reads neither `context` nor the body of an `OVERLAY.md`.
 
+## Templating
+
+**Optional Extension, Proposed.** An overlay's text can name its own files and read its own settings.
+The consumer replaces `${NAME}` in the text it hands the agent, as Claude Code does for a skill's body
+and Gemini CLI and Codex do for a command's or a prompt's, once, when it loads it.
+
+**When.** A consumer replaces when it assembles the [context](#context) and when it serves a skill's body,
+each time, from the files as they are installed. It never changes an installed file: the
+[tree digest](integrity.md#tree-digest), a pin, a sync and a move of the overlay's directory stay as
+they were. It does not replace when it installs or reads a file for any other purpose, and it cannot
+replace in a file the agent opens itself, since a consumer does not intercept every read.
+
+**Where.** It replaces in:
+
+- each context file, after its front matter is dropped, and the body of `OVERLAY.md`;
+- the body of a [bundled skill](skills.md#declaring-skills)'s `SKILL.md`, which is the text after its
+  front matter. The front matter reaches the harness exactly as written. A skill from elsewhere is
+  delivered as it was fetched, since it is another overlay's text under a digest the user accepted.
+
+and nowhere else: not in `routing`, `rules`, a manifest value or an env value (which have their own
+[substitution](environment.md#substitution)), and not in any file the agent opens itself. Those files
+refer to the overlay by `$<NAME>_OVERLAY_ROOT`, which the [environment](environment.md#the-root-variable)
+resolves. The [bound](#context) on the context counts the text the agent receives, after replacing.
+
+**Which names.** These, and the overlay's [options](#options), are replaced; each is read from the
+overlay it is written in:
+
+| Name | Value |
+| --- | --- |
+| `AOS_OVERLAY_ROOT` | The absolute root the consumer exposes, as the [root variable](environment.md#the-root-variable) |
+| `AOS_OVERLAY_STATE` | The overlay's [state directory](runtime.md#what-a-step-receives); no value when it has none |
+| `AOS_OVERLAY_NAME` | The overlay's normalized identity |
+| `AOS_OVERLAY_SCOPE` | The label the consumer gives the scope the overlay is active in, such as `user` or `project`; AOS defines none, and a consumer with no labels gives no value |
+| `AOS_PROJECT_ROOT` | The absolute root of the project the session works in; no value when it has none |
+
+A path is written as the consumer holds it, with the platform's separators. `AOS_OVERLAY_SCOPE` and
+`AOS_PROJECT_ROOT` are names for text only: this section sets no variable in any environment, and the
+first three keep the meaning they have in what a [step receives](runtime.md#what-a-step-receives).
+
+**How.** Text is read from left to right. At each place:
+
+1. `$${` is `${`, and reading goes on after it, so `$${AOS_OVERLAY_ROOT}` is the text
+   `${AOS_OVERLAY_ROOT}`;
+2. `${NAME}` whose `NAME` is a name above or an option that has a value is replaced by that value;
+3. anything else is itself.
+
+A name is compared exactly, in every OS: it is text, not an environment. So an unknown name, such as
+`${HOME}` or another overlay's `${ENGINEERING_OVERLAY_ROOT}`, a name with no value, a sensitive option,
+a name with an operator (`${AOS_OVERLAY_ROOT:-x}`), a space, another case or no closing brace, a bare
+`$NAME`, `$(...)` and a backtick are **left as written**, and are no error. A `$$` not followed by `{` is
+itself. A value is inserted as it is and never read again: a `${` inside it is not a placeholder, and
+nothing runs and no file is read.
+
+This is the syntax of [env substitution](environment.md#syntax) made smaller: the same `${NAME}` and the
+same escape, but no operator and no undefined-name error, and `$$` alone is itself. The text is prose
+for an agent, which often holds shell lines and prices, and one name a consumer cannot give must not
+refuse a whole context file. A consumer MAY report the placeholders it left.
+
+### Options
+
+An overlay declares the settings its text reads in `options`, a mapping from a name to a table:
+
+```toml
+[options.depth]
+type = "string"
+default = "normal"
+description = "How thorough a review is."
+
+[options.service_token]
+type = "string"
+sensitive = true
+```
+
+A name is a [variable name](environment.md#env) that is not [reserved](environment.md#the-root-variable),
+so no option takes the place of `AOS_OVERLAY_ROOT`. A table has these keys and no other:
+
+| Key | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `type` | `string`, `integer` or `boolean` | required | The type of the value |
+| `default` | a value of that type | none | The value when the user configured none |
+| `sensitive` | boolean | `false` | The value is a secret: it is never put in context |
+| `description` | string | `""` | What the setting is for, which a consumer shows when it asks the user for a value |
+
+An option's value is the user's. It is kept in the consumer's own configuration, under the overlay's
+identity, never in the overlay, so a manifest stays static data, and how a consumer asks for it is its
+own. A configured value that is not of the declared type is refused (`invalid-option`), never
+converted; a boolean is no integer. A configured value for a name the overlay does not declare is
+ignored. The value an option takes is the configured one, else its default, else none. It is written
+as text: a string as it is, an integer in decimal, a boolean `true` or `false`.
+
+**A sensitive option is never put in context.** Whatever its value, a sensitive option's placeholder is
+left as written in context and in a skill body, since text that reaches the agent can be seen, kept and
+sent on. A sensitive option has no `default`, for a manifest is public: a validator refuses one that has
+it. This section gives such a value no other way to the agent; a secret a process needs is a
+[secret reference](environment.md#secret-references). A value that is not sensitive reaches the agent, so
+a consumer says so when it asks for it.
+
+> **Status:** no consumer templates yet. dotagents expands only `<NAME>_OVERLAY_ROOT` placeholders in
+> output that is not written to a file.
+
 ## Harness hints
 
 `harness` maps a **harness id** to hints that apply only to that harness:

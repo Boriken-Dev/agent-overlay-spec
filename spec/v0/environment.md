@@ -37,7 +37,8 @@ value. When it gives the overlay a [state directory](runtime.md#what-a-step-rece
 `<NAME>_OVERLAY_STATE` to that directory the same way. Routing lines and documents refer to files as
 `$<NAME>_OVERLAY_ROOT/<path>`; that text is not expanded when the manifest is read. An env value
 reads these variables as `${<NAME>_OVERLAY_ROOT}`, or its own overlay's as `${AOS_OVERLAY_ROOT}`
-([Substitution](#what-a-placeholder-sees)).
+([Substitution](#what-a-placeholder-sees)). Context and the bodies of bundled skills read a smaller set of
+names by [templating](harness.md#templating), at the time they are served.
 
 **Reserved variables.** Names matching `AOS_*`, `*_OVERLAY_ROOT` or `*_OVERLAY_STATE`, compared
 without regard to ASCII case, belong to the consumer. An overlay MUST NOT set one through `env`, an

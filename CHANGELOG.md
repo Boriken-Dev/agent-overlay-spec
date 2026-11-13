@@ -11,6 +11,14 @@ The first edition, `0.1.0-draft`, a development draft open for review.
 
 ### Added
 
+- Templating (Proposed): a consumer replaces `${NAME}` in the context it assembles and in the body of each
+  bundled skill it serves, when it serves them, never in an installed file. The names are
+  `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_STATE`, `AOS_OVERLAY_NAME`, `AOS_OVERLAY_SCOPE`, `AOS_PROJECT_ROOT` and the
+  overlay's options; anything else is left as written, and `$${` is a literal `${`. A new `options` field
+  declares settings (`type`, `default`, `sensitive`, `description`) whose values the user gives; a
+  sensitive option is never put in context and has no default; a value of the wrong type is refused
+  (`invalid-option`). Recorded in the design decisions as 28; vectors in `tests/vectors/templating.json`, the `options` cases of
+  `validation.json`, an example and fixtures.
 - Settled behaviours, with vectors: a fetched skill lists the files its digest covers, byte-ordered, and an
   entry under an excluded name is no refusal; a refusal's subject has its control, format and separator
   characters escaped and is cut to 256 characters; a source's IPv4 host is read as a URL parser reads it

@@ -312,6 +312,7 @@ manifest.
 | `defaults` | mapping of default to boolean | Core, **Proposed** | every default on | [Package](package.md#turning-a-default-off) |
 | `context` | array of relative paths | Optional Extension, **Proposed** | `[]`, after the [defaults](package.md#defaults) | [Context and harnesses](harness.md) |
 | `skills` | array of skill names and tables | Optional Extension, **Proposed** | `[]`, after the [defaults](package.md#defaults) | [Skills](skills.md) |
+| `options` | mapping of option name to option | Optional Extension, **Proposed** | `{}` | [Context and harnesses](harness.md#options) |
 | `env` | mapping of variable to env value | Optional Extension, **Proposed** | `{}` | [Environment](environment.md#env) |
 | `env_files` | array of env files | Optional Extension, **Proposed** | `[]`, after the [defaults](package.md#defaults) | [Environment](environment.md#env-files) |
 | `paths` | array of path additions | Optional Extension, **Proposed** | `[]`, after the [defaults](package.md#defaults) | [Environment](environment.md#path-additions) |

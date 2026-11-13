@@ -84,6 +84,10 @@ A validator that knows the files **flags** every name that is neither bundled no
 (`skill-from-catalog`), so a typo is seen before anything is looked up. A flag does not make a manifest
 invalid: only a consumer's catalogs can tell a typo from a skill.
 
+The body of a bundled skill's `SKILL.md` is [templated](harness.md#templating) when it is served: its own
+root, state directory, name, scope, the project's root and its options are written `${AOS_OVERLAY_ROOT}`,
+`${depth}` and the like, and the front matter is never read.
+
 A skill's `SKILL.md` MAY begin with [front matter](manifest.md#the-split) that names it and describes
 it (`name:`, `description:`). AOS does not require front matter; a runtime may, and the Agent Skills
 specification does.

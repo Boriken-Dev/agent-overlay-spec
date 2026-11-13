@@ -577,3 +577,34 @@ Not adopted, each with the reason it was declined:
   `on_failure = "refuse"` for a guard.
 
 **Status:** adopted; Proposed, as env scripts and hooks are.
+
+## 28 — Templating: `${NAME}` in context and skill bodies, when they are served
+
+**Decision:** three rules, with vectors.
+
+1. **When.** A consumer replaces `${NAME}` when it assembles the context and serves a bundled skill's body,
+   from the files as installed. Never at install, which would change what the digest covers and break
+   pins, sync and moves of the directory, and never at read, which a consumer cannot intercept for a file
+   the agent opens itself.
+2. **Which names.** `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_STATE`, `AOS_OVERLAY_NAME`, `AOS_OVERLAY_SCOPE`,
+   `AOS_PROJECT_ROOT`, and the overlay's options. Options are declared in a new `options` field: a name, a
+   `type` (`string`, `integer` or `boolean`), an optional `default`, `sensitive` and `description`. Their
+   values are the user's, held by the consumer, and the manifest stays static. A sensitive option is never
+   put in context and has no default, since the manifest is public.
+3. **Unknown names.** Only those names are replaced. Everything else is left as written, `$${` is a literal
+   `${`, and a `$$` alone is itself. Files the agent opens itself keep the `<NAME>_OVERLAY_ROOT` variables.
+
+**Reason:** overlays need to refer to their own location and settings in text the way skills of Claude
+Code, and commands and prompts of Gemini CLI and Codex, do: those harnesses replace names in a body when
+they load it, and none replaces in a file the agent reads itself. Doing it when serving keeps an installed
+tree byte for byte what its digest says. The set is closed and small so that a placeholder that is not
+ours (a shell line, a price, another tool's template) is never an error and never changes, and so the
+same text means the same under every consumer. The env value syntax keeps its operators and its
+undefined-name error, which a value that sets a variable needs and prose does not.
+
+Not adopted: replacing at install; replacing in `routing`, `rules` and files the agent opens; operators and
+defaults inside the placeholder (an option's `default` is declared); a placeholder that runs a command or
+includes a file, which the other harnesses offer and AOS's substitution never does; putting a sensitive
+value in context, however the user asks.
+
+**Status:** adopted; Proposed, as the context and skills extensions are.
