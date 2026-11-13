@@ -42,6 +42,7 @@ def test_every_vector_file_is_run():
         "front_matter.json",
         "skills.json",
         "hooks.json",
+        "templating.json",
     }
     assert {path.name for path in VECTORS.glob("*.json")} == run
 
@@ -369,3 +370,19 @@ def test_hooks(case):
             **extra,
         )
     assert strict(json.loads(json.dumps(got))) == strict(case["expect"])
+
+
+TEMPLATING = cases("templating.json")
+
+
+@pytest.mark.parametrize("case", TEMPLATING, ids=ids(TEMPLATING))
+def test_templating(case):
+    data = base64.b64decode(case["base64"]) if "base64" in case else case["text"].encode("utf-8")
+    serve = {"context": aos.context_text, "skill": aos.skill_text}[case["kind"]]
+    manifest = case.get("manifest", {})
+    if "error" in case["expect"]:
+        with pytest.raises(aos.ReadError) as raised:
+            serve(data, manifest, case["facts"])
+        assert raised.value.code == case["expect"]["error"]
+    else:
+        assert serve(data, manifest, case["facts"]) == case["expect"]["text"]

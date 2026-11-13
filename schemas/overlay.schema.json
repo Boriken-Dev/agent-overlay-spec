@@ -14,6 +14,7 @@
     "defaults": { "$ref": "#/$defs/defaults" },
     "context": { "description": "Added after the context default (the root CONTEXT.md); an entry naming the same file replaces that default entry.", "type": "array", "items": { "$ref": "#/$defs/relPath" } },
     "skills": { "description": "Added to the skills default (every skills/<name>/SKILL.md). A name with no such file is resolved through the consumer's catalogs; a table names where to fetch it.", "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/skillEntry" } },
+    "options": { "$ref": "#/$defs/options" },
     "env": { "$ref": "#/$defs/envMap" },
     "env_files": { "description": "Added after the env default (the root file env, read as dotenv); an entry naming env replaces that default entry.", "type": "array", "items": { "$ref": "#/$defs/envFile" } },
     "paths": { "description": "Added after the bin (bin/ to PATH) and lib (lib/python/ to PYTHONPATH) defaults; an entry naming the same directory replaces that default entry.", "type": "array", "items": { "$ref": "#/$defs/pathAddition" } },
@@ -143,6 +144,23 @@
           "additionalProperties": { "type": ["string", "integer", "boolean"] }
         }
       ]
+    },
+    "options": {
+      "description": "Settings the overlay declares for its context and skill bodies to read as ${name}. The value is the user's, kept in the consumer's own configuration, never in the overlay.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/variable" },
+      "additionalProperties": { "$ref": "#/$defs/option" }
+    },
+    "option": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["string", "integer", "boolean"] },
+        "default": { "description": "Of the declared type; a sensitive option has none.", "type": ["string", "integer", "boolean"] },
+        "sensitive": { "type": "boolean" },
+        "description": { "type": "string" }
+      },
+      "additionalProperties": false
     },
     "envMap": {
       "type": "object",

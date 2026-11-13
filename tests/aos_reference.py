@@ -850,6 +850,93 @@ def _trim(value: str, operator: str, pattern: str) -> str:
     return value[: starts[-1] if operator == "%" else starts[0]]
 
 
+# --------------------------------------------------------------------------------------------
+# Templating: ${NAME} in context and skill bodies, applied when the consumer serves them.
+# --------------------------------------------------------------------------------------------
+
+#: The names an overlay's own text can read, besides its options, and the fact giving each one.
+TEMPLATE_NAMES = (
+    ("AOS_OVERLAY_ROOT", "root"),
+    ("AOS_OVERLAY_STATE", "state"),
+    ("AOS_OVERLAY_NAME", "name"),
+    ("AOS_OVERLAY_SCOPE", "scope"),
+    ("AOS_PROJECT_ROOT", "project"),
+)
+_TEMPLATE_PLACEHOLDER = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+
+
+def _option_text(declared: "dict[str, Any]", name: str, value: Any) -> str:
+    """An option's value as text, or ``invalid-option`` when it is not of the declared type."""
+    kind = declared.get("type")
+    if kind == "string" and isinstance(value, str):
+        return value
+    if kind == "integer" and isinstance(value, int) and not isinstance(value, bool):
+        return str(value)
+    if kind == "boolean" and isinstance(value, bool):
+        return "true" if value else "false"
+    raise ReadError("invalid-option", name)
+
+
+def template_values(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str, str]":
+    """The names that are replaced and their text. A name with no value is not in it, and so is
+    left as written; a sensitive option never is. ``facts`` holds ``root``, ``state``, ``name``,
+    ``scope`` and ``project`` when known, and ``options``: the values the user configured."""
+    values = {name: facts[key] for name, key in TEMPLATE_NAMES if facts.get(key) is not None}
+    options = manifest.get("options")
+    configured = facts.get("options", {})
+    for name, declared in (options if isinstance(options, dict) else {}).items():
+        if declared.get("sensitive") is True:
+            continue
+        if name in configured:
+            values[name] = _option_text(declared, name, configured[name])
+        elif "default" in declared:
+            values[name] = _option_text(declared, name, declared["default"])
+    return values
+
+
+def template(text: str, values: "dict[str, str]") -> str:
+    """``text`` with each ``${NAME}`` whose name is in ``values`` replaced, read from left to
+    right; ``$${`` is ``${``, and everything else is itself. A value is never read again."""
+    out: "list[str]" = []
+    index = 0
+    while index < len(text):
+        if text.startswith("$${", index):
+            out.append("${")
+            index += 3
+            continue
+        found = _TEMPLATE_PLACEHOLDER.match(text, index)
+        if found and found.group(1) in values:
+            out.append(values[found.group(1)])
+            index = found.end()
+            continue
+        out.append(text[index])
+        index += 1
+    return "".join(out)
+
+
+def _utf8(data: bytes) -> str:
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise ReadError("invalid-utf8", str(error)) from None
+
+
+def context_text(data: bytes, manifest: "dict[str, Any]", facts: "dict[str, Any]") -> str:
+    """A context file as the agent receives it: its front matter dropped, then templated."""
+    return template(_utf8(context_file_text(data)), template_values(manifest, facts))
+
+
+def skill_text(data: bytes, manifest: "dict[str, Any]", facts: "dict[str, Any]") -> str:
+    """A bundled skill's ``SKILL.md`` as served: the front matter exactly as written, the body
+    templated."""
+    found = split_front_matter(data)
+    if found["case"] == "too-large":
+        raise ReadError("too-large", "front matter", 1)
+    values = template_values(manifest, facts)
+    offset = found["body_offset"]
+    return _utf8(data[:offset]) + template(_utf8(data[offset:]), values)
+
+
 def read_env_script_output(data: bytes) -> "dict[str, Optional[str]]":
     """An env script's standard output: the variables it sets (a string) or unsets (None).
 
@@ -996,6 +1083,7 @@ def _semantic(doc: "dict[str, Any]") -> "list[tuple[str, str]]":
                         found.append(
                             ("reserved-variable", "/mcp/servers/%d/env/%s" % (index, name))
                         )
+    found += _options(doc.get("options"))
     found += _mcp(doc.get("mcp"))
     about = doc.get("about")
     if isinstance(about, dict) and isinstance(about.get("license"), str):
@@ -1003,6 +1091,24 @@ def _semantic(doc: "dict[str, Any]") -> "list[tuple[str, str]]":
             found.append(("license-expression", "/about/license"))
     found += _skills(doc.get("skills"))
     found += _manifest_named(doc)
+    return found
+
+
+def _options(options: Any) -> "list[tuple[str, str]]":
+    """A default is of its option's type, and a sensitive option has none."""
+    found: "list[tuple[str, str]]" = []
+    if not isinstance(options, dict):
+        return found
+    for name, declared in options.items():
+        if not isinstance(declared, dict) or "default" not in declared:
+            continue
+        at = "/options/%s" % name
+        if declared.get("sensitive") is True:
+            found.append(("option-sensitive-default", at + "/default"))
+        try:
+            _option_text(declared, name, declared["default"])
+        except ReadError:
+            found.append(("option-default-type", at + "/default"))
     return found
 
 
