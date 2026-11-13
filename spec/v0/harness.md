@@ -131,8 +131,9 @@ it. This section gives such a value no other way to the agent; a secret a proces
 [secret reference](environment.md#secret-references). A value that is not sensitive reaches the agent, so
 a consumer says so when it asks for it.
 
-> **Status:** no consumer templates yet. dotagents expands only `<NAME>_OVERLAY_ROOT` placeholders in
-> output that is not written to a file.
+> **Status:** the coqui-aos readers (Rust, Python, Dart, TypeScript) implement templating and pass the
+> templating vectors. dotagents templates overlay context files; it serves no skill bodies, so it has
+> none to template.
 
 ## Harness hints
 
