@@ -129,8 +129,8 @@ an edition adds a runtime, as with `lib`.
 [trust decision](security.md#execution-and-dependencies), and reports each run as a
 [non-default setting](security.md#non-default-settings): `env-script` for an env script, `setup-network` for a default
 setup, `deps-network` for each dependency file installed, `hook` for each event a hook runs at, and
-`script-not-run` for a default script present that cannot run. A hook also stays off until the user
-allows it at the overlay's digest ([Hooks](hooks.md#off-until-allowed)).
+`script-not-run` for a default script present that cannot run. A hook and an env script also stay off until
+the user allows them at the overlay's digest ([Hooks](hooks.md#off-until-allowed)).
 
 No other name has a default. A `requirements.txt` or `package.json` outside `lib/<runtime>/`,
 `pre.env`, `cmds/`, a bare `lib/` and any other file or directory mean nothing by their name, and a program in `bin/` is on `PATH`, not a

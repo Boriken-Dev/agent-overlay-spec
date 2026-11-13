@@ -546,3 +546,34 @@ today; and failing every `pre-tool` hook closed by default, since the owner chos
 `refuse` for a guard, which the text now tells authors to write.
 
 **Status:** adopted; Proposed until an implementation fires hooks.
+
+## 27 — The review's open items: env scripts under the allowance, vectors for what hooks left open
+
+**Decision:** an overlay's env scripts, declared or default, are gated by the allowance hooks already
+have: the one digest per identity, checked at each activation, and the same rule for an update. While it
+is missing the overlay is otherwise applied, no env script runs, and the consumer reports
+`env-script-not-allowed`. No new list, setting or key is added. Three behaviours of the hooks text get
+vectors, and the reference reader follows them: a context part that would take the session past the
+context bound is not added, whole and never cut, and is reported `hook-not-applied`, while a later part
+that fits is added; the hooks of one event run in composition order and then the user's own and the
+project's; and a hook's environment is its own overlay's (the base environment, every root variable, its
+own declarations and `pre-env` output, `AOS_OVERLAY_*` and `AOS_HOOK_EVENT`), or the base environment and
+`AOS_HOOK_EVENT` alone for a scope's own hook, and `pre-env`'s is the base and the root and state
+variables.
+
+**Reason:** an env script is the overlay's code running each time an environment is built, outside the
+sandbox, so an update that added one ran at the next session under the decision to activate. The hooks amendment
+(decision 26) left that as it was and named it; closing it reuses the digest rule, which is the cheaper and safer change.
+
+Not adopted, each with the reason it was declined:
+
+- Refusing, instead of reporting, a variable that loads code (`NODE_OPTIONS`, `LD_*` and kin): it is a list
+  of names, and the specification should not grow lists of them.
+- A network rule for hooks: no consumer can enforce one on a harness's own hooks today.
+- Checks of shared Python environments that could shadow a hook's imports, and of the front matter keys of
+  bundled skills: they defend against what an agent can already do through its own configuration, which is
+  more than hardening proportionate to the threat asks of a format.
+- Failing every `pre-tool` hook closed by default: already decided in 26, report by default and
+  `on_failure = "refuse"` for a guard.
+
+**Status:** adopted; Proposed, as env scripts and hooks are.

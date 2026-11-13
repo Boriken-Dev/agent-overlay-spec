@@ -107,12 +107,12 @@ denied unless declared, and with the overlay root read-only where it can. Depend
 installed before setup, from a lock in hash-checking mode where the file is pinned, into
 [environments](runtime.md#environments) outside every root that are read-only in the sandbox.
 
-Starting an MCP server, running a command and running an env script are the same decision as
-setup: code from the overlay runs. A hook is that decision and one more, [below](#hooks). Overlays an overlay `requires` are shown and accepted like the
-ones asked for, never installed silently.
+Starting an MCP server and running a command are the same decision as setup: code from the overlay runs.
+An env script is that decision and one more, as a hook is, [below](#hooks): the allowance of its digest.
+Overlays an overlay `requires` are shown and accepted like the ones asked for, never installed silently.
 
 `env.<ext>` and `setup.<ext>` [run by default](runtime.md#default-scripts), without a manifest.
-That moves no decision: a default script runs only in an overlay the consumer has activated, never
+That moves no decision: a default script runs only in an overlay the consumer has activated (and, for an env script, whose digest the user allowed), never
 in one it fetched or only read, with the same timeout, process group and state directory as a
 declared one, and every run is reported. A default setup is taken to need the network and reported
 as such, since nothing in it says otherwise. Dependencies install by default only from
@@ -131,12 +131,13 @@ A [hook](hooks.md) is the overlay's code running at every session, outside the s
 tell it what the user typed or what a tool is about to do. Activating an overlay is therefore not enough
 to run one:
 
-- **Off until allowed at a digest.** Hooks run only while the overlay's tree digest is the one at which
-  the user allowed them. Any change of a file turns them off again, so an update cannot start running a
-  changed hook at the next session; an overlay with a guard that fails closed is not activated meanwhile.
-  Nothing an overlay, a catalog or a project holds allows them; the user's own configuration needs no
-  allowance. The allowance covers hooks alone: an update that adds an env script or a setup runs under
-  the decision to activate the overlay, which is why every run of either is reported.
+- **Off until allowed at a digest.** Hooks and env scripts run only while the overlay's tree digest is the one
+  at which the user allowed them, by one allowance. Any change of a file turns them off again, so an update
+  cannot start running a changed hook or env script at the next session; an overlay with a guard that
+  fails closed is not activated meanwhile. Nothing an overlay, a catalog or a project holds allows them;
+  the user's own configuration needs no allowance. The allowance covers hooks and env scripts alone: an
+  update that adds a setup runs under the decision to activate the overlay, which is why every run of it
+  is reported.
 - **Reach is the user's.** A hook runs outside the sandbox with the user's access and the network, so it
   can read what a harness keeps on disk, transcripts included, whatever its payload says. Its listing
   says so; a hook is code the user trusts, and the payload rules bound only what it is handed.

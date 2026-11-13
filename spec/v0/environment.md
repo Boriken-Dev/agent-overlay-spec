@@ -435,9 +435,11 @@ by variable name. Setting a [sensitive variable](security.md#sensitive-variables
 `env_scripts` [default](package.md#defaults), one `env.<ext>` at the overlay root chosen as
 [Default scripts](runtime.md#default-scripts) says, runs first, then the declared scripts; a
 declared entry naming a root `env.<ext>` configures that file in the default choice. They execute
-code each time an environment is built: a consumer runs them for an overlay it has activated,
-reports `env-script` every time it does, and MAY turn them off by its own policy, in which case none
-runs, declared or default.
+code each time an environment is built: a consumer runs them for an overlay it has activated and whose
+[allowance](hooks.md#off-until-allowed) names its digest, the one the user gives its hooks, and reports
+`env-script` every time it runs one. Until the user allows that digest none runs, declared or default, the
+overlay is otherwise applied, and the consumer reports `env-script-not-allowed`. It MAY also turn them off
+by its own policy, in which case none runs either.
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |

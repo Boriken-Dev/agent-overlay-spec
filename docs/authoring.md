@@ -16,7 +16,7 @@ a consumer looks for them, and they work with no manifest:
 | a skill in `skills/<name>/SKILL.md` | offers the skill |
 | a skill from elsewhere, named in `skills` | shows it with its source, and fetches it if you accept the overlay |
 | `NAME=value` lines in `env` | sets them in order, substituting `${NAME}` placeholders |
-| a script in `env.py` (or `.js`, `.ps1`, `.sh`, ...) | runs it to compute environment values, and reports it |
+| a script in `env.py` (or `.js`, `.ps1`, `.sh`, ...) | runs it to compute environment values once the user allows it, and reports it |
 | a script in `setup.py` (or `.ps1`, `.sh`, ...) | runs it with its phase (`install` on the first add, `sync` on every sync, `remove`), with the network, and reports it |
 | a script in `hook.py` (or `.ps1`, `.sh`, ...) | runs it at a session's events once the user allows it, telling it the event, and reports it |
 
@@ -224,7 +224,7 @@ anything**: an `allow`, or any decision but those, fails the run. A hook that fa
 session goes on; write `on_failure = "refuse"` on a guard, so that a crash or a timeout refuses the call
 instead of letting it through.
 
-Your users allow your hooks at your overlay's digest, so every release asks them again, and an overlay
+Your users allow your hooks and env scripts at your overlay's digest, so every release asks them again, and an overlay
 with a `refuse` guard is not activated until they do. Keep a hook
 small and quick (30 seconds by default, and a consumer may allow less), and expect `prompt` and the tool
 events to be missing on some harnesses: a consumer reports what it cannot fire, but cannot fire it.

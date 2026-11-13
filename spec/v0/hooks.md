@@ -177,8 +177,9 @@ A hook runs as a [step](runtime.md#what-a-step-receives) does, with `AOS_HOOK_EV
 
 - with the overlay root as its working directory, and the environment of that overlay's own processes
   ([which environment](environment.md#order-of-application)): never the session's, so a value another
-  overlay was granted never reaches it. A `pre-env` hook runs before any declaration is applied, with the
-  base environment and the root and state variables;
+  overlay was granted never reaches it, nor what another overlay's declarations or `pre-env` hook set.
+  A `pre-env` hook runs before any declaration is applied, with the base environment, the root variable
+  of every overlay in play and the state variable of each that has one, and no other variable;
 - **outside the agent's sandbox**, in its own process group (a job object on Windows), every process it
   started ended when it ends or is stopped;
 - the script found and its interpreter run as [Interpreters](runtime.md#interpreters) says: an absolute
@@ -256,8 +257,11 @@ A consumer bounds every hook by settings with defaults, and names the setting wh
 | The standard error it keeps, for the user's log only | 64 KiB | The rest is dropped; standard error never reaches the agent |
 | The payload | 1 MiB | The hook is not run, and that is a failure (`payload-too-large`) |
 
-Context a hook adds counts toward the [context bound](harness.md#context) of the session; context past it
-is not added, and is reported as `hook-not-applied`.
+Context a hook adds counts toward the [context bound](harness.md#context) of the session, in the bytes of
+its UTF-8 text, together with what the session already holds. Each part is checked in run order: one that
+would take the total past the bound is not added, whole and never cut, and is reported as
+`hook-not-applied`; a later, smaller part that fits is still added. A part that reaches the bound exactly
+fits.
 
 ### Failures
 
@@ -317,31 +321,35 @@ set, so a `pre-env` hook does not compute a secret into a variable: a secret is 
 
 ## Off until allowed
 
-**An overlay's hooks are off until the user allows them at its digest.** A hook is the overlay's code
-running at every session, outside the sandbox, told what the user typed, so activating an overlay is not
-enough:
+**An overlay's hooks and [env scripts](environment.md#env-scripts) are off until the user allows them at
+its digest.** A hook is the overlay's code running at every session, outside the sandbox, told what the
+user typed, and an env script is its code running each time an environment is built, so activating an
+overlay is not enough for either. One allowance covers both, by one rule:
 
 - the consumer keeps, per identity, **one** [tree digest](integrity.md#tree-digest) at which its user
-  allowed that overlay's hooks: the digest of what the user was shown. They fire only while the
-  overlay's digest is that one, which the consumer checks each time it activates the overlay, as it
-  checks a pin. An update to any file, the manifest or a script, turns them off until the user allows the
-  new digest; a changed digest is never allowed by itself, and allowing one replaces the last, so going
-  back to an earlier digest needs a new yes;
+  allowed that overlay's hooks and env scripts: the digest of what the user was shown. They run only
+  while the overlay's digest is that one, which the consumer checks each time it activates the overlay,
+  as it checks a pin. An update to any file, the manifest or a script, turns them off until the user
+  allows the new digest; a changed digest is never allowed by itself, and allowing one replaces the last,
+  so going back to an earlier digest needs a new yes;
 - the user allows them after seeing them [listed](catalog.md#before-installing), or by the consumer's own
   configuration naming that digest, which is the user's and never a file under a project's tree. Nothing
   in an overlay, a catalog or a project's files allows them. An allowance is not a
   [pin](integrity.md#pins), and a pin is not an allowance;
-- while they are off, the overlay is otherwise applied as it would be, and the consumer reports
-  `hook-not-allowed` with the overlay, each time it activates it. A hook that is off does not fail, so
-  `on_failure = "refuse"` does not apply to it. **An overlay with a hook that has `on_failure = "refuse"`
-  is not activated while its hooks are off**, since its guard would be missing without a word: the
-  consumer keeps the digest it last activated with hooks allowed, if it keeps one active across an
-  update, or activates none until the user allows;
+- while they are off, the overlay is otherwise applied as it would be: no hook fires and no env script
+  runs, declared or default, and the consumer reports `hook-not-allowed` for an overlay that has a hook
+  and `env-script-not-allowed` for one that has an env script, each with the overlay, each time it
+  activates it. Something that is off does not fail, so `on_failure = "refuse"` does not apply to it.
+  **An overlay with a hook that has `on_failure = "refuse"` is not activated while its allowance is
+  missing**, since its guard would be missing without a word: the consumer keeps the digest it last
+  activated with the allowance, if it keeps one active across an update, or activates none until the user
+  allows;
 - while they are on, each event with a hook is reported as the [non-default setting](security.md#non-default-settings)
-  `hook`, with the event as its subject, each time the overlay is activated.
+  `hook`, with the event as its subject, and each env script that runs as `env-script`, each time the
+  overlay is activated.
 
-The allowance covers an overlay's hooks and nothing else of it: its env scripts, setup and servers run
-under the decision to activate it, as [Security](security.md#execution-and-dependencies) says.
+The allowance covers an overlay's hooks and env scripts and nothing else of it: its setup and servers
+run under the decision to activate it, as [Security](security.md#execution-and-dependencies) says.
 
 ## Hooks outside overlays
 
@@ -349,7 +357,7 @@ A scope's own configuration, a user's or a project's, may declare hooks in the s
 events, payloads, outputs, limits, failures and combination, and the same rule that a hook never grants.
 A `run` is relative to the directory that holds that configuration, which the consumer documents. Such a
 hook receives `AOS_HOOK_EVENT` and none of the `AOS_OVERLAY_*` variables, and runs with the base
-environment only, never the session's.
+environment only, with no overlay's root variable and never the session's.
 
 - **The user's own configuration** needs no allowance: its author is the user.
 - **Any other** (a project's, which arrives with a checkout anyone may have written, and which the agent

@@ -75,10 +75,10 @@ to `lib/python/requirements.txt`, and a `bin/*.py` becomes a command only throug
 
 ## Does an overlay run code without a manifest?
 
-Yes, when it ships `env.<ext>` or `setup.<ext>` and the consumer has activated it: those run by
-default, and every run is reported. Set `env_scripts = false` or `setup = false` in `[defaults]`
-to turn them off. A `hook.<ext>` also runs by default, at the events that carry no content, but only
-once the user has allowed the overlay's hooks at its digest.
+Yes, when it ships `env.<ext>`, `setup.<ext>` or `hook.<ext>` and the consumer has activated it: those run by
+default, and every run is reported. Set `env_scripts = false`, `setup = false` or `hooks = false` in
+`[defaults]` to turn them off. A `hook.<ext>` runs by default only at the events that carry no content, and
+an `env.<ext>` and a `hook.<ext>` only once the user has allowed the overlay's digest.
 
 ## Can a hook approve a tool call?
 

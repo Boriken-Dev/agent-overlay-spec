@@ -312,7 +312,7 @@ activating, never from catalog claims**:
 
 - the [defaults](package.md#defaults) present and on: `bin/` and `lib/` additions, the `env` file,
   and the `env.<ext>` and `setup.<ext>` that would run;
-- its env scripts; its setup, the variant that would run on this OS and its network need; its
+- its env scripts, which run only once the user allows its digest; its setup, the variant that would run on this OS and its network need; its
   dependency files, their environments and whether each is pinned;
 - the overlays it `requires`, each shown and accepted the same way;
 - its context: the [body](manifest.md#overlaymd) of `OVERLAY.md` or `CONTEXT.md`, and a `CONTEXT.md`

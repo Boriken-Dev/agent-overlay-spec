@@ -54,6 +54,14 @@ The first edition, `0.1.0-draft`, a development draft open for review.
   bidirectional character, and a reason at most 1024 code points; a call of kind `other` runs every hook;
   an event has its own time bound (`event-timeout`); an event fired in part is reported `hook-partial`,
   and no decision is never an approval. `CLAUDE_CONFIG_DIR` and `CODEX_HOME` are sensitive variables.
+- Env scripts are gated by the hooks' allowance: an overlay's env scripts, declared or default, run only
+  while its digest is the one the user allowed, by the same rule and the same single digest, and are
+  reported `env-script-not-allowed` until then. No list is added; setup and servers stay under the
+  decision to activate.
+- Vectors for what the hooks text left open: a context part past the context bound is not added, whole and
+  never cut, and a later part that fits still is; the order of an event's hooks (overlays in composition
+  order, then the user's, then the project's); and the environment a hook is given (its own overlay's
+  declarations only, `AOS_*` variables, the base environment for a scope's own).
 
 - The package format, manifest fields, composition, dependencies, sources, skills, commands, MCP
   declarations, security and conformance, grounded in the dotagents overlay format.

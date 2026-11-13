@@ -139,6 +139,12 @@ the permission system decides, and a call asks unless `PowerShell` is allowed wh
 [Hooks](spec/v0/hooks.md#variables) requires. A store's own `pre.env*` files still run before
 every overlay's environment, which is what a scope's own `pre-env` hook will replace.
 
+**Env scripts are gated by the same allowance as hooks** ([Env scripts](spec/v0/environment.md#env-scripts)).
+dotagents 0.9.1 and Canoa run an overlay's `env.py` as soon as it is activated, with no allowance; a consumer
+that follows this edition runs none until the user allows the overlay's digest, and reports
+`env-script-not-allowed` meanwhile. An author whose overlay computes its environment in a script should expect
+the extra yes on first use and on every update.
+
 ## dotagents conventions that are not defaults
 
 - **`bin/` when absent.** dotagents puts every overlay's `bin/` on `PATH` even when it does not
