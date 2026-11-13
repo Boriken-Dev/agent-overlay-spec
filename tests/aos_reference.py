@@ -2016,6 +2016,9 @@ class Environment:
         self.values = dict(values)
         self.secret = {key for key in (self._key(name) for name in secret) if key is not None}
         self.extra = dict(extra or {})
+        #: Every ``set``, as ``(name, value, secret, join)``, so a caller can replay one overlay's
+        #: writes onto another environment; ``join`` is a path addition's parts.
+        self.writes: "list[tuple[str, str, bool, Any]]" = []
 
     def _key(self, name: str) -> "Optional[str]":
         if name in self.values:
@@ -2042,7 +2045,8 @@ class Environment:
             raise SubstitutionError("secret-placeholder", name)
         return self.values[key]
 
-    def set(self, name: str, value: str, secret: bool = False) -> None:
+    def set(self, name: str, value: str, secret: bool = False, join: Any = None) -> None:
+        self.writes.append((name, value, secret, join))
         key = self._key(name) or name
         self.values[key] = value
         if secret:
@@ -2196,7 +2200,12 @@ def _apply_paths(
             (append if entry.get("position") == "append" else prepend).append(resolved)
         current = env.get(variable) or ""
         kept = [c for c in current.split(separator) if c and c not in seen]
-        env.set(variable, separator.join(prepend + kept + append), env._key(variable) in env.secret)
+        env.set(
+            variable,
+            separator.join(prepend + kept + append),
+            env._key(variable) in env.secret,
+            (separator, prepend, seen, append),
+        )
 
 
 def require_applicable(manifest: "dict[str, Any]") -> None:
@@ -2308,6 +2317,11 @@ def _apply_overlay(
         chosen, _configured, present, others = default_script(
             manifest, "env_scripts", "env", tree, os_name, facts.get("interpreters", INTERPRETERS)
         )
+        if not env_scripts_allowed(facts):
+            # Off until the user allows the digest: the overlay is otherwise applied.
+            if chosen or present or any(os_matches(script, os_name) for script in others):
+                non_defaults.append(["env-script-not-allowed", facts.get("identity", "")])
+            return scripts
         if chosen is None:
             non_defaults.extend(["script-not-run", path] for path in present)
         for script in ([chosen] if chosen else []) + others:
@@ -2322,8 +2336,26 @@ def _apply_overlay(
     return scripts
 
 
+#: Report ids that ``effective`` gives under ``reports`` rather than ``non_defaults``.
+REPORT_IDS = ("env-script-not-allowed",)
+
+
+def env_scripts_allowed(facts: "dict[str, Any]") -> bool:
+    """Whether the overlay's env scripts may run: its ``digest`` is the one ``allowed``, which is
+    the allowance of its hooks. A case that states no ``allowed`` leaves the allowance out of play
+    (``null`` is a consumer that allowed nothing)."""
+    if "allowed" not in facts:
+        return True
+    digest, allowed = facts.get("digest"), facts["allowed"]
+    return digest is not None and allowed is not None and same_digest(digest, allowed)
+
+
 def effective(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str, Any]":
-    """What a consumer applies for one overlay: environment, setup, runtime, needs, non_defaults."""
+    """What a consumer applies for one overlay: environment, setup, runtime, needs, non_defaults.
+
+    An env script the allowance does not cover is not selected, and the result's ``reports``
+    (present only when there is one) say so.
+    """
     os_name = facts["os"]
     windows = os_name == "windows"
     root = facts["root"]
@@ -2454,8 +2486,11 @@ def effective(manifest: "dict[str, Any]", facts: "dict[str, Any]") -> "dict[str,
         "node": node,
         "dependencies": dependencies,
         "needs": {"interpreters": sorted(interpreters), "commands": sorted(set(commands))},
-        "non_defaults": sorted({tuple(w) for w in non_defaults}),
+        "non_defaults": sorted({tuple(w) for w in non_defaults if w[0] not in REPORT_IDS}),
     }
+    reports = sorted({tuple(w) for w in non_defaults if w[0] in REPORT_IDS})
+    if reports:
+        result["reports"] = reports
     if "change" in facts:
         result.update(
             preparation(
@@ -2829,6 +2864,7 @@ TOOL_KEYS = ("kind", "name", "input")
 HOOK_OUTPUT_KEYS = ("context", "decision", "reason", "env")
 DEFAULT_HOOK_TIMEOUT = 30
 DEFAULT_HOOK_LIMITS = {
+    "context_bytes": 1024 * 1024,
     "timeout": 60,
     "event_timeout": 120,
     "max_output": 64 * 1024,
@@ -3111,6 +3147,7 @@ def fire_event(
     applies: "Optional[Iterable[str]]" = None,
     limits: "Optional[dict[str, int]]" = None,
     windows: bool = False,
+    context_used: int = 0,
 ) -> "dict[str, Any]":
     """Every hook of one event, in the order given, combined to the tightest result.
 
@@ -3118,10 +3155,13 @@ def fire_event(
     run as :func:`hook_result` reads it); ``applies`` the outputs the consumer can apply on this
     harness (``context``, ``env``, ``block``, ``deny``, ``ask``, ``refuse``; absent, every one).
     A hook that would start after the event's own bound has passed fails as ``event-timeout``.
+    ``context_used`` is what the session's context already holds, in bytes; a part of a hook's
+    context that would take the total past ``limits["context_bytes"]`` is not added.
     """
     _class, _default, outputs, refusal, _match = HOOK_EVENTS[event]
     can = set(applies) if applies is not None else set(outputs) | {"refuse"}
-    bound = dict(DEFAULT_HOOK_LIMITS, **(limits or {}))["event_timeout"]
+    bounds = dict(DEFAULT_HOOK_LIMITS, **(limits or {}))
+    bound = bounds["event_timeout"]
     spent = 0
     result: "dict[str, Any]" = {
         "ran": [],
@@ -3161,7 +3201,11 @@ def fire_event(
             result["env"] = {}
             break
         if out.get("context"):
-            if "context" in can:
+            size = len(out["context"].encode("utf-8"))
+            if "context" in can and context_used + size > bounds["context_bytes"]:
+                result["reports"].append(["hook-not-applied", source, event, "context"])
+            elif "context" in can:
+                context_used += size
                 result["context"].append([source, out["context"]])
             else:
                 result["reports"].append(["hook-not-applied", source, event, "context"])
@@ -3177,6 +3221,121 @@ def fire_event(
                 result["env"][key] = value
     result["non_defaults"] = sorted(["env-sensitive", n] for n in result["env"] if is_sensitive(n))
     return result
+
+
+def hook_order(
+    overlays: "dict[str, dict[str, Any]]",
+    requested: "list[str]",
+    has: "Iterable[str]",
+    scopes: "Iterable[str]" = (),
+) -> "list[list[str]]":
+    """The order the hooks of one event run in, as ``[scope, source]`` pairs.
+
+    Every active overlay that has a hook (``has``) in composition order, then the user's own, then
+    the project's, whichever order ``scopes`` (the scopes that have one) names them in.
+    """
+    visited, _missing = resolve(overlays, requested)
+    present = set(has)
+    order = [["overlay", i] for i in composition_order(overlays, visited) if i in present]
+    return order + [[scope, ""] for scope in ("user", "project") if scope in set(scopes)]
+
+
+def _state_variable(identity: str) -> str:
+    return root_variable(identity)[: -len("ROOT")] + "STATE"
+
+
+def _base_environment(active: "list[str]", facts: "dict[str, Any]") -> Environment:
+    """The base environment, every overlay's root variable and the state variable of each that has
+    a state directory: the first step of the order of application."""
+    env = Environment(facts.get("base_env", {}), facts["os"] == "windows")
+    for identity in active:
+        env.set(root_variable(identity), facts["roots"][identity])
+        if identity in facts.get("states", {}):
+            env.set(_state_variable(identity), facts["states"][identity])
+    return env
+
+
+def _set_or_unset(env: Environment, name: str, value: "Optional[str]") -> None:
+    if value is None:
+        key = env._key(name)
+        if key is not None:
+            del env.values[key]
+    else:
+        env.set(name, value)
+
+
+def hook_environment(
+    event: str,
+    overlays: "dict[str, dict[str, Any]]",
+    requested: "list[str]",
+    files: "dict[str, Any]",
+    facts: "dict[str, Any]",
+    scope: str = "overlay",
+    identity: "Optional[str]" = None,
+) -> "dict[str, str]":
+    """The environment a hook of ``event`` runs with.
+
+    An overlay's hook gets what that overlay's own processes get: the base environment, every
+    overlay's root variable, and that overlay's own ``pre-env`` output and declarations, with the
+    values they had in the session's order of application; and ``AOS_OVERLAY_ROOT``,
+    ``AOS_OVERLAY_NAME``, ``AOS_OVERLAY_STATE`` (when it has a state directory) and
+    ``AOS_HOOK_EVENT``. A ``pre-env`` hook gets the base, the root and the state variables and
+    nothing of any declaration. A user's or a project's hook gets the base environment and
+    ``AOS_HOOK_EVENT`` alone. ``facts`` are compose's (``os``, ``base_env``, ``roots``, ``states``,
+    ``pre_env``, grants and secrets).
+    """
+    windows = facts["os"] == "windows"
+    if scope != "overlay":
+        env = Environment(facts.get("base_env", {}), windows)
+        env.set("AOS_HOOK_EVENT", event)
+        return env.values
+    visited, _missing = resolve(overlays, requested)
+    active = composition_order(overlays, visited)
+    assert identity in active
+    own = _base_environment(active, facts)
+    if event != "pre-env":
+        session = _base_environment(active, facts)
+        owned = {i: _base_environment(active, facts) for i in active}
+        limits = facts.get("hook_limits", {})
+        for name in active:
+            if name in facts.get("pre_env", {}):
+                run = dict(facts["pre_env"][name], source=name)
+                fired = fire_event("pre-env", [run], None, limits, windows)
+                for variable, value in fired["env"].items():
+                    _set_or_unset(session, variable, value)
+                    _set_or_unset(owned[name], variable, value)
+        for name in active:
+            session.writes.clear()
+            tree = files.get(name, [])
+            texts = tree if isinstance(tree, dict) else {}
+            apply_overlay(
+                session,
+                overlays[name],
+                dict(facts, files=texts, packages={}),
+                facts["roots"][name],
+                [],
+                tree,
+                name,
+                facts.get("states", {}).get(name),
+            )
+            for variable, value, secret, join in session.writes:
+                if join is None:
+                    owned[name].set(variable, value, secret)
+                    continue
+                separator, prepend, seen, append = join
+                kept = [
+                    c
+                    for c in (owned[name].get(variable) or "").split(separator)
+                    if c and c not in seen
+                ]
+                owned[name].set(variable, separator.join(prepend + kept + append), False)
+        own = owned[identity]
+    own.set("AOS_OVERLAY_ROOT", facts["roots"][identity])
+    own.set("AOS_OVERLAY_NAME", normalize_name(identity))
+    if identity in facts.get("states", {}):
+        own.set("AOS_OVERLAY_STATE", facts["states"][identity])
+    own.set("AOS_HOOK_EVENT", event)
+    return own.values
 
 
 # --------------------------------------------------------------------------------------------

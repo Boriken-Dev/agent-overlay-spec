@@ -340,12 +340,32 @@ def test_hooks(case):
             got = {"failed": failure.cause}
     elif kind == "match":
         got = {"runs": aos.hook_matches(case["event"], case["match"], case["value"])}
+    elif kind == "order":
+        got = {
+            "order": aos.hook_order(
+                case["overlays"], case["requested"], case["has"], case["scopes"]
+            )
+        }
+    elif kind == "environment":
+        got = {
+            "env": aos.hook_environment(
+                case["event"],
+                case["overlays"],
+                case["requested"],
+                case.get("files", {}),
+                case["facts"],
+                case.get("scope", "overlay"),
+                case.get("identity"),
+            )
+        }
     else:
+        extra = {"context_used": case["context_used"]} if "context_used" in case else {}
         got = aos.fire_event(
             case["event"],
             case["runs"],
             case.get("applies"),
             case.get("limits"),
             case.get("os") == "windows",
+            **extra,
         )
     assert strict(json.loads(json.dumps(got))) == strict(case["expect"])
