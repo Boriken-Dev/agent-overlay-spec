@@ -197,8 +197,9 @@ The first edition, `0.1.0-draft`, a development draft open for review.
 - **Hooks run like a harness's own.** A `pre-tool` hook may print `decision = "allow"`; hooks combine to the
   tightest (a deny beats an ask, an ask beats an allow) and an allow never lifts the user's own refusals, so
   "tightens, never grants" and the failure cause `grant` are gone and any other decision value is an
-  `output` failure. An allow carries no rewritten input. A hook runs in the session's working directory with
-  the session's environment, so a hook reads what another overlay declared; a `pre-env` hook sees what earlier
+  `output` failure. An allow may carry a rewritten `input`, which later hooks see and a deny or ask beats. A hook runs
+  in the session's working directory, and every overlay's setup, env scripts, hooks, servers and commands
+  get the session's environment (overlays stack, a later one on top of an earlier), so one overlay reads what another declared; a `pre-env` hook sees what earlier
   `pre-env` hooks set; the consumer stops only the hook's own process at its timeout, with no process group
   or job object. Recorded in the design decisions as 29; new and changed vectors in
   `tests/vectors/hooks.json`.

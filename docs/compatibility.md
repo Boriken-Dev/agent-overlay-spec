@@ -44,7 +44,7 @@ the table below is the list an implementation works from.
 | Reserved variables | An overlay's `env.py` can set any variable, another overlay's root included | `AOS_*`, `*_OVERLAY_ROOT`, `*_OVERLAY_STATE` cannot be set by an overlay |
 | Relative paths | `[scripts]` paths checked; rules paths checked for containment | One rule for every path and digest member: no excluded or device names in any case, no trailing dot or space, no `:` or control characters |
 | Source safety | Refuses a location or ref starting with `-` | Also refuses `::`, a host starting with `-`, other schemes, and a `#path` that is not a relative path |
-| Processes per overlay | One environment for every overlay's processes | Each overlay's setup, scripts and servers get only that overlay's declarations |
+| Processes per overlay | One environment for every overlay's processes | The same: every overlay's setup, scripts, hooks and servers get the session's environment |
 
 ## `OVERLAY.md`, YAML and named skills
 

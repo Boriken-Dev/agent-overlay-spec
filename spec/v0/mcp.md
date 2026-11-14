@@ -64,7 +64,7 @@ anyone to read, so a credential never goes there; a secret reference does.
 Starting a stdio server runs the overlay's code, so it is a
 [trust decision](security.md#execution-and-dependencies) like setup. A consumer says whether it runs
 servers inside the agent's sandbox or outside it, shows each server, its transport and the
-variables it reads before starting it, and gives it only that overlay's environment.
+variables it reads before starting it, and gives it the session's environment.
 
 ## Gateway behaviour
 

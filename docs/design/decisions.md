@@ -618,10 +618,11 @@ value in context, however the user asks.
 
 **Status:** adopted; Proposed, as the context and skills extensions are.
 
-## 29 — Hooks run like a harness's own: they may allow, in the session's folder and environment
+## 29 — Hooks run like a harness's own, and every overlay's processes get the session's environment
 
-**Decision:** supersedes the part of 25, 26 and 27 that said a hook tightens and never grants, that a hook
-runs with its own overlay's environment in the overlay's root, and that a run's process group is ended.
+**Decision:** supersedes the part of 25, 26 and 27 that said a hook tightens and never grants, that a
+rewritten input has no place in a hook's output, that a hook (or any overlay process) runs with its own
+overlay's environment, and that a run's process group is ended.
 
 - A `pre-tool` hook may print `decision = "allow"`. Hooks combine to the tightest: a deny beats an ask, an
   ask beats an allow, and the first deny still ends the event. An allow answers the question the user would
@@ -629,31 +630,37 @@ runs with its own overlay's environment in the overlay's root, and that a run's 
   consumer protects, a mode that refuses); a consumer answers it only where it has checked that those still
   win, and otherwise reports `hook-not-applied`. Any other decision value is an `output` failure, and the
   failure cause `grant` is gone. No decision still leaves the call to the user.
-- An allow carries no rewritten input. Harness hooks can return one (Claude Code's `updatedInput`), but the
-  measurements in 25 show a harness taking an allow with a rewrite as an approval of text nobody listed, and
-  Codex rewriting only with an allow, so a hook's own rewrite would approve unseen command text. A hook that
-  wants a call changed denies it with a reason; a variable still reaches a shell only through the consumer's
-  loader, whose values never enter the command's text, and which now carries the allow the hooks combined to
-  and no other.
-- No new permission event is added. Where a harness has one (Claude Code's `PermissionRequest`), a consumer
-  that sees the call itself answers the harness's approval from the `pre-tool` hooks' combined decision, and
-  an ACP consumer's `session/request_permission` is that approval.
-- A hook runs in the session's working directory with the session's environment: every overlay's
-  declarations, what every overlay's `pre-env` hook set, and what earlier hooks of the event set. The
-  `AOS_OVERLAY_*` variables still name its own overlay. A `pre-env` hook sees the base environment, the root
-  and state variables and what the `pre-env` hooks before it in composition order set. The hooks of a user's
-  or a project's configuration run the same way. Setup, env scripts, servers and commands keep their own
-  overlay's environment.
-- A hook is a child process, and the consumer stops that process at its timeout. No process group or job
-  object, and what it started is its own business.
+- An allow may carry `input`, the call's arguments as rewritten, as a harness's own hook can (Claude Code's
+  `updatedInput`). The consumer approves the call as rewritten; a later hook is given the rewritten input
+  and a deny or an ask from any hook still wins, an ask dropping the rewrite (reported) so that the user
+  approves what they are shown. The loader's rule stands: variables reach a shell through it and never in
+  the command's text. This replaces the measured reason in 25 for giving a hook no rewrite.
+- No new permission event is added: a consumer answers the harness's approval (Claude Code's
+  `PermissionRequest`, an ACP consumer's `session/request_permission`) from the `pre-tool` hooks' combined
+  decision.
+- **Overlays stack, and the stack is what every process gets.** Each overlay's `env_files`, `env`, `paths`
+  and env scripts apply in composition order and each sees what the earlier steps left, a later overlay's
+  value on top of an earlier one's, as the layers of a filesystem overlay do; the order of application is
+  unchanged. A process that runs while the stack is built gets it as it stands at its step (an env script,
+  a `pre-env` hook, which sees the base environment, the root and state variables and the earlier `pre-env`
+  output); a hook, a setup, a server and a command run once it is complete and get the finished session
+  environment, every overlay's layer with the top one winning, secrets granted to any overlay included.
+  `AOS_OVERLAY_*` still name the process's own overlay. The hooks of a user's or a project's configuration
+  run the same way.
+- A hook runs in the session's working directory. It is a child process, and the consumer stops that
+  process at its timeout: no process group or job object, and what it started is its own business.
 
 **Reason:** the owner, 2026-11-14. On the rule that a hook tightens and never grants: "Hook should be able to
-do the same as any hook is able to do. So it should be able to allow." On the isolated environment, the
+do the same as any hook is able to do. So it should be able to allow." On the isolated hook environment, the
 overlay root as working directory and the process-group sweep: "this is overkill, they should run the same as
-agent srun it today, overlays can depend on each other so they can expect info from others."
+agent srun it today, overlays can depend on each other so they can expect info from others." On setup and env
+scripts: "All setup adn env should getsesion env , dont overengineer this". On stacking: "Did you see how
+dotagents worked? Where env of one overlay could be used by the next overlay? dont break functionality /spirit
+of the overlay just like fs overlay they can stak on top of each other. The goal is to stack".
 
 Unchanged: hooks and env scripts stay off until the user allows them at the overlay's digest, the payload,
-output and time bounds, the reports, and the marking of context. What the allowance covers grows: a hook now
-reads every overlay's declarations and every secret granted to any overlay, which the listing says.
+output and time bounds, the reports, and the marking of context. What the allowance covers grows: an
+overlay's code now reads every overlay's values and every secret granted to any overlay, which the listing
+says.
 
 **Status:** adopted; Proposed until an implementation fires hooks.

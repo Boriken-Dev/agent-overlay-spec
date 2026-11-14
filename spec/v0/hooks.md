@@ -3,8 +3,8 @@
 **Optional Extension, Proposed.** A hook is a program an overlay runs at a named moment of a session:
 before the environment is built, when a session starts or ends, when the user sends a prompt, before a
 tool runs. It can add to the agent's context, block, deny, ask or allow, and set variables where the consumer
-can. **A hook may do what a harness's own hook may, allowing a tool call included**: where the user would
-have been asked, an allow answers as approved. Hooks combine to the tightest, so a deny beats an ask and
+can. **A hook may do what a harness's own hook may, allowing a tool call included, even as rewritten**:
+where the user would have been asked, an allow answers as approved. Hooks combine to the tightest, so a deny beats an ask and
 an ask beats an allow, and an allow never lifts the user's own refusals: their deny rules, the list of
 paths a consumer protects and a mode that refuses.
 
@@ -41,7 +41,7 @@ skips one silently.
 | `turn-end` | Core | The agent ends its turn | `session` | none | none | none | Yes |
 | `cd` | Extended | The agent's working directory changes | `session`, `previous` | `env` where the consumer can | none | none | Yes |
 | `pre-compact` | Extended | Before the harness compacts the context | `session`, `trigger` | `context`, as instructions to the summary; `decision = "block"` | The compaction | none | Yes |
-| `pre-tool` | Extended | Before a tool call runs | `session`, `tool` | `context`, `decision = "deny"`, `"ask"` or `"allow"`; `env` for an `execute` call where the consumer can | The call, which is denied | tool kinds | No: declared only |
+| `pre-tool` | Extended | Before a tool call runs | `session`, `tool` | `context`, `decision = "deny"`, `"ask"` or `"allow"`, `input` with an allow; `env` for an `execute` call where the consumer can | The call, which is denied | tool kinds | No: declared only |
 | `post-tool` | Extended | After a tool call ends | `session`, `tool`, `status` | `context` | none | tool kinds | No: declared only |
 
 `session-start` gives a `reason`:
@@ -166,7 +166,7 @@ The payload is a JSON object, the same for every hook of one event, and holds ex
 | `prompt` | For `prompt`, the text the user sent, as it will reach the model; attachments are not included |
 | `previous` | For `cd`, the directory before, absolute |
 | `trigger` | For `pre-compact`, `"manual"` when the user asked, `"auto"` otherwise |
-| `tool` | For `pre-tool` and `post-tool`, an object: `kind`, `name` (the harness's own name for the tool) and `input` (the call's arguments as the harness gives them, a JSON value) |
+| `tool` | For `pre-tool` and `post-tool`, an object: `kind`, `name` (the harness's own name for the tool) and `input` (the call's arguments as the harness gives them, a JSON value; for a later `pre-tool` hook, as an earlier hook rewrote them) |
 | `status` | For `post-tool`, `"completed"` or `"failed"` |
 
 A payload never holds the environment, a variable, a resolved secret the consumer holds, another
@@ -222,6 +222,7 @@ holds only these keys, and only those the event's Outputs column gives:
 | `context` | string | Text added to the agent's context, marked as this overlay's hook; an empty string adds nothing |
 | `decision` | `"block"` for `prompt` and `pre-compact`; `"deny"`, `"ask"` or `"allow"` for `pre-tool` | The prompt or the compaction does not go ahead; the call is refused, goes to the user for approval, or is approved |
 | `reason` | string of at most 1024 code points | Why, shown to the user and, where the harness passes one, to the agent. Only with `decision` |
+| `input` | object | For `pre-tool`, only with `decision = "allow"`: the call's arguments, in place of `tool.input`, as the call is approved |
 | `env` | mapping of variable name to string, or to `null` to unset it | Variables, each one the entry's `sets` lists, no two equal without regard to ASCII case, with the checks of an env script's output: no [reserved](environment.md#the-root-variable) name, no zero byte, and `env-sensitive` reported for a [sensitive](security.md#sensitive-variables) one that is set |
 
 `context` and `reason` are shown to a person or an agent beside other text, so they hold no control
@@ -235,12 +236,16 @@ A `decision` with any other value, on any event, is an `output` failure, whateve
 `continue`, an empty string, `allow` on an event that does not take it. So is a `decision` on an event that
 takes none.
 
-**An allow carries no rewritten input.** A harness's own hook may return the call it wants run
-(Claude Code's `updatedInput`), and the measured harnesses take that together with an approval, so a
-rewrite by a hook would approve a command text that nobody listed and the user never saw. A hook's
-`updatedInput` or any other key is an `output` failure, a hook that wants a call changed denies it with a
-reason, and a variable reaches a shell only through the loader below, which holds values and never command
-text.
+**An allow may carry the call as rewritten.** A harness's own hook may return the call it wants run
+(Claude Code's `updatedInput`), and so may this one: `input` is the whole object that replaces `tool.input`,
+and the consumer approves the call as rewritten. `input` without `decision = "allow"`, a value that is not
+an object, and a harness's own spelling of it are `output` failures. A later hook of the event is given the
+rewritten input as its `tool.input` (so it can still deny it, and a payload past the bound is
+`payload-too-large` as any), and may rewrite it again. Only a combined allow applies a rewrite: with a deny
+nothing runs, and with an ask the user is asked about the call as the harness gave it, since what they are
+shown must be what they approve, and the rewrite is reported as `hook-not-applied` (`input`). What `input`
+holds is the hook's own text and is bounded as any output; it is not the loader's: a variable reaches a
+shell only through the loader below, which holds values and never writes them into the command's text.
 
 The exit status says only whether the hook succeeded: 0 applies its output, any other is a failure. A
 hook blocks or denies by its output, never by its exit status.
@@ -257,10 +262,11 @@ the manifest; on Windows a name set under another case keeps the spelling it alr
 For a shell tool the values reach the command through a **loader**: the call is rewritten to read them
 from a data file the consumer wrote, outside the root, created anew in a directory only the user can
 write, and holding values, never a script, before it runs the command as given. Values are never
-written into the command's text, where they would be read as shell syntax. **A rewrite carries no
-decision of its own**: the consumer gives the harness the rewritten call with the answer the hooks of the
-event combined to, an allow only where one hook allowed and none asked or denied, and otherwise none, so
-the harness's rules and prompts judge it as they would the call without the rewrite. A harness that
+written into the command's text, where they would be read as shell syntax. **The loader's rewrite carries no
+decision of its own**: the consumer gives the harness the rewritten call (a hook's `input` first, then the
+loader's) with the answer the hooks of the event combined to, an allow only where one hook allowed and none
+asked or denied, and otherwise none, so the harness's rules and prompts judge it as they would the call
+without the rewrite. A harness that
 rewrites a call only with an approval gets no rewrite unless the hooks allowed the call, and the
 variables are reported as not applied. A consumer rewrites on a harness only where it
 has checked that the harness's deny and ask rules still match the rewritten call; a rewrite may make a
@@ -330,6 +336,9 @@ tightest: a block or a deny beats an ask, and an ask beats an allow.
   still win over that answer, and its own protected paths still refuse; where it cannot, the allow is
   reported as `hook-not-applied` (`allow`) and the call goes as it would without it. Over ACP the answer
   is the option that allows this once, never one that remembers the choice.
+- **A rewritten `input`** is given to every later hook as `tool.input`, and the call runs with the last
+  one only if the event is combined to an allow; the first deny or ask beats a rewrite as it beats any
+  allow.
 - **Context** from each hook is added in run order, each part marked with the overlay it came from.
 - **Variables** apply in run order; a later hook's value replaces an earlier one's.
 - **An output the consumer cannot apply on the harness is reported, never dropped** silently:

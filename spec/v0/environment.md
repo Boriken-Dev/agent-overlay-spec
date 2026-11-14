@@ -420,14 +420,16 @@ overlay's value replaces an earlier one's, and a later overlay's `prepend` entri
 earlier one's. So the overlay with the higher `priority` wins a conflict and is found first on a
 search path.
 
-**Which environment.** The agent session gets the environment of every active overlay. A process
-that one overlay runs (its setup, its env scripts, its MCP servers, its commands) gets the base
-environment, every overlay's root variable, and that overlay's own declarations only, each with the
-value it was substituted to in the order of application, so a secret one overlay was granted never
-reaches another overlay's code. **A [hook](hooks.md#running-a-hook) is the exception: it runs with the
-session's environment**, every overlay's declarations and the `pre-env` output included, since overlays
-can depend on each other. A value is substituted once; it is the same in the session and in a hook, and
-in the overlay's own processes.
+**Which environment.** Overlays **stack**, as the layers of a filesystem overlay do: the layers apply in
+composition order, each sees what the earlier ones left, and a later layer's value sits on top of an earlier
+one's. The agent session gets the finished stack, and so does every process an overlay runs once the stack
+is complete: its setup, its [hooks](hooks.md#running-a-hook), its MCP servers and its commands, each with
+the top layer's value of a variable two overlays set, and a secret granted to one overlay included. A
+process that runs while the stack is being built gets the stack as it stands at its step: an env script,
+after its overlay's `env_files`, `env` and `paths` and every earlier overlay's layer and env scripts; a
+`pre-env` hook, after the root and state variables and the `pre-env` hooks before it. Besides it, a process
+gets its own overlay's `AOS_OVERLAY_*` variables and its own phase or event. A value is substituted once,
+and is the same everywhere.
 
 A consumer MAY refuse to let an overlay set a variable (its own policy), and MUST report each refusal
 by variable name. Setting a [sensitive variable](security.md#sensitive-variables) is a
@@ -460,8 +462,10 @@ path = "env/compute.py"
 timeout = 10
 ```
 
-The script runs as a [step](runtime.md#what-a-step-receives) does, with the environment built so far
-for this overlay. Its standard output is UTF-8 JSON objects, read under the manifest's JSON rules
+The script runs as a [step](runtime.md#what-a-step-receives) does, with the environment built so far:
+the base, every overlay's root and state variable, every overlay's `pre-env` output, what the overlays
+before it set (their `env_files`, `env`, `paths` and env scripts) and this overlay's own `env_files`, `env`
+and `paths`, so a script reads what an earlier overlay set and its output goes on top of it. Its standard output is UTF-8 JSON objects, read under the manifest's JSON rules
 (no duplicate keys, no `NaN`), in one of two shapes:
 
 - the whole output, without surrounding spaces, tabs and line breaks, is one JSON object, which

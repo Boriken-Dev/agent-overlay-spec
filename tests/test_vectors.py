@@ -347,6 +347,17 @@ def test_hooks(case):
                 case["overlays"], case["requested"], case["has"], case["scopes"]
             )
         }
+    elif kind == "process":
+        got = {
+            "env": aos.process_environment(
+                case["process"],
+                case["overlays"],
+                case["requested"],
+                case.get("files", {}),
+                case["facts"],
+                case["identity"],
+            )
+        }
     elif kind == "environment":
         got = {
             "env": aos.hook_environment(
@@ -361,6 +372,8 @@ def test_hooks(case):
         }
     else:
         extra = {"context_used": case["context_used"]} if "context_used" in case else {}
+        if "input" in case:
+            extra["tool_input"] = case["input"]
         got = aos.fire_event(
             case["event"],
             case["runs"],

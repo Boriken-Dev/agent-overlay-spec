@@ -147,8 +147,8 @@ to run one:
 - **Told little.** A payload holds the event's own keys and nothing else: never the environment, a
   variable, a secret or another overlay's data. Events that carry the user's words or a tool's input
   (`prompt`, `pre-tool`, `post-tool`) reach a hook only when its manifest names them. What a hook learns
-  from its environment is another matter: it runs with the session's, as the agent's own hooks do, so it
-  reads every overlay's declarations and every secret granted to an overlay, which is part of what the
+  from its environment is another matter: it runs with the session's, as every overlay's process does, so
+  it reads every overlay's declarations and every secret granted to an overlay, which is part of what the
   allowance covers and the listing says.
 - **May allow, and never past the user's refusals.** A hook adds context, blocks, denies, asks or allows,
   as a harness's own hook does, and combined they give the tightest: a deny beats an ask and an ask beats
@@ -156,8 +156,8 @@ to run one:
   their deny rules, the paths a consumer protects or a mode that refuses, a consumer answers it only where
   it has checked that those still win, and over ACP it is a one-time approval. Any other decision value is
   an `output` failure. A consumer never hands a harness the hook's own output or exit status, so a
-  harness's own approval vocabulary cannot pass through it, and an output carries no rewritten call.
-  Variables are only those the manifest's `sets` names, and reach a shell through a loader, never in the
+  harness's own approval vocabulary cannot pass through it. An allow may carry the call as rewritten,
+  as a harness's own hook may, and only an allow that nothing asked or denied applies it. Variables are only those the manifest's `sets` names, and reach a shell through a loader, never in the
   command's text. Text a hook shows holds no control or reordering character, and a tool of a kind the
   consumer cannot place runs every guard.
 - **Project hooks run from a copy.** A project's hooks are allowed at the digest of every file beside
@@ -183,9 +183,11 @@ normalization (NFC), which some filesystems hold as one file.
 
 An overlay never holds a secret value: it holds [secret references](environment.md#secret-references),
 and reads only what the consumer's configuration grants it. A consumer never logs, displays or
-stores a resolved value, gives each overlay's setup, env scripts, servers and commands only that
-overlay's environment (a [hook](hooks.md#running-a-hook) gets the session's, which an allowance of the
-hooks covers), and SHOULD start them from an environment it chose rather than everything it inherited.
+stores a resolved value, and SHOULD start every process from an environment it chose rather than
+everything it inherited. That environment is the session's for every overlay's setup, env scripts, hooks,
+servers and commands, so an overlay's code can read a secret granted to another overlay: the decision to
+activate an overlay, and the allowance of its hooks and env scripts, are the user's choice to run its
+code with that environment.
 [Substitution](environment.md#secrets-and-substitution) never reads a variable that holds a
 resolved secret, so no part of one is copied into another variable, and a consumer shows a
 substituted value as written, never its result. Substitution runs nothing and reads no file.

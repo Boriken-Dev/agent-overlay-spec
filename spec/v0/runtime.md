@@ -438,12 +438,11 @@ esac
 ## What a step receives
 
 A setup variant, an env script and a [hook](hooks.md#running-a-hook) run with the following. A hook
-differs in two things: its working directory is the session's and its environment is the session's, as
-[Running a hook](hooks.md#running-a-hook) says.
+differs in its working directory, which is the session's, as [Running a hook](hooks.md#running-a-hook)
+says.
 
 - the **working directory** set to the overlay root, which MAY be read-only;
-- the environment of that overlay's own processes
-  ([Environment](environment.md#order-of-application)), plus:
+- the session's environment ([which environment](environment.md#order-of-application)), plus:
     - `AOS_OVERLAY_ROOT`: the absolute root, as the root variable;
     - `AOS_OVERLAY_NAME`: the normalized identity;
     - `AOS_OVERLAY_STATE`: an absolute, writable directory outside the root that belongs to this

@@ -86,8 +86,8 @@ Yes, as a harness's own hook can: a `pre-tool` hook may print `decision = "allow
 would have been asked the consumer answers as approved. Hooks combine to the tightest (a deny beats an ask,
 an ask beats an allow), and an allow never lifts the user's own refusals, such as their deny rules or a
 mode that refuses. A consumer reads the hook's output itself and never hands the harness the hook's own
-words, so a harness's own approval vocabulary means nothing from a hook, and a hook cannot return a
-rewritten call. To make a guard fail closed, give it `on_failure = "refuse"`.
+words, so a harness's own approval vocabulary means nothing from a hook. An allow may carry the call as
+rewritten (`input`); a deny or an ask from any hook still wins. To make a guard fail closed, give it `on_failure = "refuse"`.
 
 ## What does a hook learn?
 

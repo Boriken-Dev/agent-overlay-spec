@@ -2937,7 +2937,13 @@ HOOK_EVENTS: "dict[str, tuple[str, bool, tuple[str, ...], Optional[str], Optiona
     "turn-end": ("core", True, (), None, None),
     "cd": ("extended", True, ("env",), None, None),
     "pre-compact": ("extended", True, ("context", "block"), "block", None),
-    "pre-tool": ("extended", False, ("context", "deny", "ask", "allow", "env"), "deny", "kind"),
+    "pre-tool": (
+        "extended",
+        False,
+        ("context", "deny", "ask", "allow", "input", "env"),
+        "deny",
+        "kind",
+    ),
     "post-tool": ("extended", False, ("context",), None, "kind"),
 }
 SESSION_REASONS = ("new", "resume", "clear", "compact", "fork")
@@ -2967,7 +2973,7 @@ PAYLOAD_KEYS = {
     "post-tool": ("session", "tool", "status"),
 }
 TOOL_KEYS = ("kind", "name", "input")
-HOOK_OUTPUT_KEYS = ("context", "decision", "reason", "env")
+HOOK_OUTPUT_KEYS = ("context", "decision", "reason", "input", "env")
 DEFAULT_HOOK_TIMEOUT = 30
 DEFAULT_HOOK_LIMITS = {
     "context_bytes": 1024 * 1024,
@@ -2982,6 +2988,7 @@ MAX_HOOK_REASON = 1024
 #: and the bidirectional overrides and isolates, which change how the text around them reads.
 _HOOK_TEXT_REFUSED = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f‪-‮⁦-⁩]")
 #: Combined decisions, loosest first.
+_UNSET: Any = object()
 _DECISION_RANK = {None: 0, "allow": 1, "ask": 2, "deny": 3, "block": 3, "refuse": 3}
 
 
@@ -3199,6 +3206,15 @@ def read_hook_output(event: str, data: bytes, sets: "Iterable[str]" = ()) -> "di
         if "decision" not in value or not _hook_text(reason) or len(reason) > MAX_HOOK_REASON:
             raise HookFailure("output")
         out["reason"] = reason
+    if "input" in value:
+        # A rewritten call: an object, and only an allow carries it.
+        if (
+            "input" not in outputs
+            or value.get("decision") != "allow"
+            or not isinstance(value["input"], dict)
+        ):
+            raise HookFailure("output")
+        out["input"] = value["input"]
     if "context" in value:
         if "context" not in outputs or not _hook_text(value["context"]):
             raise HookFailure("output")
@@ -3254,6 +3270,7 @@ def fire_event(
     limits: "Optional[dict[str, int]]" = None,
     windows: bool = False,
     context_used: int = 0,
+    tool_input: Any = _UNSET,
 ) -> "dict[str, Any]":
     """Every hook of one event, in the order given, combined to the tightest result.
 
@@ -3263,8 +3280,14 @@ def fire_event(
     A hook that would start after the event's own bound has passed fails as ``event-timeout``.
     ``context_used`` is what the session's context already holds, in bytes; a part of a hook's
     context that would take the total past ``limits["context_bytes"]`` is not added.
+    ``tool_input`` is the call's input as the harness gave it (a ``pre-tool`` case that tests
+    rewriting): the result then says what each hook ``seen`` and the ``input`` the call runs with,
+    ``None`` for the one it was given. A hook's ``input`` replaces it for the hooks after; it
+    applies only when the combined decision is an allow.
     """
     _class, _default, outputs, refusal, _match = HOOK_EVENTS[event]
+    current = tool_input
+    rewriter: "Optional[str]" = None
     can = set(applies) if applies is not None else set(outputs) | {"refuse"}
     bounds = dict(DEFAULT_HOOK_LIMITS, **(limits or {}))
     bound = bounds["event_timeout"]
@@ -3279,12 +3302,16 @@ def fire_event(
         "reports": [],
         "non_defaults": [],
     }
+    if tool_input is not _UNSET:
+        result["seen"] = []
     for run in runs:
         source = run["source"]
         try:
             if spent >= bound:
                 raise HookFailure("event-timeout")
             result["ran"].append(source)
+            if tool_input is not _UNSET:
+                result["seen"].append([source, current])
             spent += run.get("seconds", 0)
             out = hook_result(event, run, limits or {})
         except HookFailure as failure:
@@ -3299,6 +3326,13 @@ def fire_event(
         if decision is not None and decision not in can:
             result["reports"].append(["hook-not-applied", source, event, decision])
             decision = None
+        if "input" in out and decision == "allow":
+            if "input" in can:
+                current, rewriter = out["input"], source
+            else:
+                # An allow that cannot be applied as asked, the rewrite, is not applied at all.
+                result["reports"].append(["hook-not-applied", source, event, "input"])
+                decision = None
         if _DECISION_RANK[decision] > _DECISION_RANK[result["decision"]]:
             result.update(decision=decision, by=source, reason=out.get("reason"))
         if _DECISION_RANK[decision] == 3:
@@ -3326,6 +3360,13 @@ def fire_event(
                 )
                 result["env"][key] = value
     result["non_defaults"] = sorted(["env-sensitive", n] for n in result["env"] if is_sensitive(n))
+    if tool_input is not _UNSET:
+        if rewriter is not None and result["decision"] == "allow":
+            result["input"] = current
+        else:
+            result["input"] = None
+            if rewriter is not None and result["decision"] == "ask":
+                result["reports"].append(["hook-not-applied", rewriter, event, "input"])
     return result
 
 
@@ -3370,36 +3411,29 @@ def _set_or_unset(env: Environment, name: str, value: "Optional[str]") -> None:
         env.set(name, value)
 
 
-def hook_environment(
+def _session_environment(
     event: str,
     overlays: "dict[str, dict[str, Any]]",
     requested: "list[str]",
     files: "dict[str, Any]",
     facts: "dict[str, Any]",
-    scope: str = "overlay",
-    identity: "Optional[str]" = None,
-) -> "dict[str, str]":
-    """The environment a hook of ``event`` runs with.
+    until: "Optional[str]" = None,
+    through: "Optional[str]" = None,
+) -> "tuple[Environment, list[str]]":
+    """The session's environment as it stands at one point of the order of application.
 
-    A hook gets the session's environment: the base environment, every overlay's root variable
-    (and state variable), what every overlay's ``pre-env`` hook set, every overlay's declarations
-    in the order of application, and what earlier hooks of the event set (``facts["earlier"]``,
-    in run order). An overlay's hook also gets that overlay's ``AOS_OVERLAY_ROOT``,
-    ``AOS_OVERLAY_NAME`` and ``AOS_OVERLAY_STATE`` (when it has a state directory); every hook
-    gets ``AOS_HOOK_EVENT``. A ``pre-env`` hook runs before any declaration: it gets the base
-    environment, the root and state variables, and the output of the ``pre-env`` hooks before it
-    in composition order (a user's or a project's, of every overlay's). ``facts`` are compose's
-    (``os``, ``base_env``, ``roots``, ``states``, ``pre_env``, grants and secrets).
+    The base environment, every overlay's root and state variable, then the ``pre-env`` output of
+    the overlays before ``until`` (every one when ``until`` is None), then, unless ``event`` is
+    ``pre-env``, every overlay's declarations in composition order up to and including
+    ``through`` (every one when None), then what earlier hooks of the event set.
     """
     windows = facts["os"] == "windows"
     visited, _missing = resolve(overlays, requested)
     active = composition_order(overlays, visited)
     env = _base_environment(active, facts)
     limits = facts.get("hook_limits", {})
-    if scope == "overlay":
-        assert identity in active
     for name in active:
-        if event == "pre-env" and name == identity:
+        if name == until:
             break
         if name in facts.get("pre_env", {}):
             fired = fire_event(
@@ -3422,15 +3456,74 @@ def hook_environment(
                 name,
                 facts.get("states", {}).get(name),
             )
+            if name == through:
+                break
         for earlier in facts.get("earlier", []):
             for variable, value in earlier.items():
                 _set_or_unset(env, variable, value)
+    return env, active
+
+
+def _own_variables(env: Environment, identity: str, facts: "dict[str, Any]") -> None:
+    env.set("AOS_OVERLAY_ROOT", facts["roots"][identity])
+    env.set("AOS_OVERLAY_NAME", normalize_name(identity))
+    if identity in facts.get("states", {}):
+        env.set("AOS_OVERLAY_STATE", facts["states"][identity])
+
+
+def hook_environment(
+    event: str,
+    overlays: "dict[str, dict[str, Any]]",
+    requested: "list[str]",
+    files: "dict[str, Any]",
+    facts: "dict[str, Any]",
+    scope: str = "overlay",
+    identity: "Optional[str]" = None,
+) -> "dict[str, str]":
+    """The environment a hook of ``event`` runs with.
+
+    A hook gets the session's environment: the base environment, every overlay's root variable
+    (and state variable), what every overlay's ``pre-env`` hook set, every overlay's declarations
+    in the order of application, and what earlier hooks of the event set (``facts["earlier"]``,
+    in run order). An overlay's hook also gets that overlay's ``AOS_OVERLAY_ROOT``,
+    ``AOS_OVERLAY_NAME`` and ``AOS_OVERLAY_STATE`` (when it has a state directory); every hook
+    gets ``AOS_HOOK_EVENT``. A ``pre-env`` hook runs before any declaration: it gets the base
+    environment, the root and state variables, and the output of the ``pre-env`` hooks before it
+    in composition order (a user's or a project's, of every overlay's). ``facts`` are compose's
+    (``os``, ``base_env``, ``roots``, ``states``, ``pre_env``, grants and secrets).
+    """
+    env, active = _session_environment(
+        event, overlays, requested, files, facts, until=identity if event == "pre-env" else None
+    )
     if scope == "overlay":
-        env.set("AOS_OVERLAY_ROOT", facts["roots"][identity])
-        env.set("AOS_OVERLAY_NAME", normalize_name(identity))
-        if identity in facts.get("states", {}):
-            env.set("AOS_OVERLAY_STATE", facts["states"][identity])
+        assert identity in active
+        _own_variables(env, identity, facts)
     env.set("AOS_HOOK_EVENT", event)
+    return env.values
+
+
+def process_environment(
+    process: str,
+    overlays: "dict[str, dict[str, Any]]",
+    requested: "list[str]",
+    files: "dict[str, Any]",
+    facts: "dict[str, Any]",
+    identity: str,
+) -> "dict[str, str]":
+    """The environment a process of one overlay runs with: ``setup``, ``server`` or ``command``
+    get the session's, whole; ``env-script`` gets it as it stands when the script runs, which is
+    every earlier overlay's declarations and this overlay's own. Each also gets the overlay's
+    ``AOS_OVERLAY_*`` variables."""
+    assert process in ("setup", "server", "command", "env-script")
+    env, _active = _session_environment(
+        "session-start",
+        overlays,
+        requested,
+        files,
+        facts,
+        through=identity if process == "env-script" else None,
+    )
+    _own_variables(env, identity, facts)
     return env.values
 
 

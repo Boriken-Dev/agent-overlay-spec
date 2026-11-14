@@ -1,5 +1,5 @@
 {
-  "description": "Hooks. A 'plan-' case gives a 'manifest' (or, with none, an overlay's 'files' by path and text, its manifest read from them) and the consumer's 'facts': os, files, interpreters (absent, all five), identity, scope ('overlay', the default, 'user' or 'project'), digest (the overlay's; absent, unknown), tree (for a project, every file of the directory holding its configuration, by path and text, whose tree digest is the digest), allowed (the one digest at which the user allowed its hooks), fires (the events the consumer can fire on this harness; absent, every one), partial (those it fires for only some occurrences) and limits ('timeout', the consumer's bound on a run, in seconds); 'expect' gives each hook in event order (event, path and interpreter, or null for a hook.<ext> none of which can run here; whether it 'runs' here; match, sets, timeout after the bound, on_failure, and the payload's keys), whether they are 'on', whether the overlay 'activates', the interpreters a probe 'needs', the 'reports' ([id, subject]) and 'non_defaults' ([id, subject]), and the manifest's 'issues' (pointers). A 'payload-' case gives an 'event' and what the consumer knows ('known'); 'expect' is the payload. An 'output-' case gives an 'event', one 'run' ('stdout', or 'stdout_base64', or 'stdout_parts' as [text, times]; 'exit', default 0; 'timed_out'; 'not_run'; 'payload_size'; 'sets', the variables its entry declares) and optional 'limits' ('max_output', 'max_payload'); 'expect' is the 'output' that applies, or the cause it 'failed' with. An 'event-' case gives an 'event', its 'runs' in order (each with its 'source', 'on_failure', default 'report', and the 'seconds' it took), what the consumer 'applies' on this harness ('context', 'env', 'block', 'deny', 'ask', 'allow', 'refuse'; absent, all the event takes, and refuse), 'limits' (also 'event_timeout') and 'os'; 'expect' gives the sources that 'ran', the 'decision' ('block', 'deny', 'ask', 'allow', 'refuse' or null), the source it was 'by' and the hook's own 'reason' (null for a refusal by failure), the 'context' as [source, text], the 'env' (null unsets), the 'reports' and the 'non_defaults'. A 'match-' case gives an 'event', a 'match' (or null) and the reason or tool kind ('value'); 'expect' says whether the hook 'runs'. An 'event-' case may give 'context_used', the bytes the session's context already holds, and 'limits' may give 'context_bytes' (default 1 MiB). An 'order-' case gives 'overlays', 'requested', the overlays that 'has' a hook for the event and the 'scopes' (user, project) that have one; 'expect' is the 'order' of [scope, source] pairs. An 'environment-' case gives an 'event', 'overlays', 'requested', optional 'files' (an overlay's env file texts), the compose 'facts' (os, base_env, roots, states, pre_env, grants, secrets, and 'earlier': the 'env' outputs earlier hooks of the event set, in run order, null unsetting) and the hook, an 'identity' or a 'scope' of user or project; 'expect' is the 'env' it runs with.",
+  "description": "Hooks. A 'plan-' case gives a 'manifest' (or, with none, an overlay's 'files' by path and text, its manifest read from them) and the consumer's 'facts': os, files, interpreters (absent, all five), identity, scope ('overlay', the default, 'user' or 'project'), digest (the overlay's; absent, unknown), tree (for a project, every file of the directory holding its configuration, by path and text, whose tree digest is the digest), allowed (the one digest at which the user allowed its hooks), fires (the events the consumer can fire on this harness; absent, every one), partial (those it fires for only some occurrences) and limits ('timeout', the consumer's bound on a run, in seconds); 'expect' gives each hook in event order (event, path and interpreter, or null for a hook.<ext> none of which can run here; whether it 'runs' here; match, sets, timeout after the bound, on_failure, and the payload's keys), whether they are 'on', whether the overlay 'activates', the interpreters a probe 'needs', the 'reports' ([id, subject]) and 'non_defaults' ([id, subject]), and the manifest's 'issues' (pointers). A 'payload-' case gives an 'event' and what the consumer knows ('known'); 'expect' is the payload. An 'output-' case gives an 'event', one 'run' ('stdout', or 'stdout_base64', or 'stdout_parts' as [text, times]; 'exit', default 0; 'timed_out'; 'not_run'; 'payload_size'; 'sets', the variables its entry declares) and optional 'limits' ('max_output', 'max_payload'); 'expect' is the 'output' that applies, or the cause it 'failed' with. An 'event-' case gives an 'event', its 'runs' in order (each with its 'source', 'on_failure', default 'report', and the 'seconds' it took), what the consumer 'applies' on this harness ('context', 'env', 'block', 'deny', 'ask', 'allow', 'refuse'; absent, all the event takes, and refuse), 'limits' (also 'event_timeout') and 'os'; 'expect' gives the sources that 'ran', the 'decision' ('block', 'deny', 'ask', 'allow', 'refuse' or null), the source it was 'by' and the hook's own 'reason' (null for a refusal by failure), the 'context' as [source, text], the 'env' (null unsets), the 'reports' and the 'non_defaults'. A 'match-' case gives an 'event', a 'match' (or null) and the reason or tool kind ('value'); 'expect' says whether the hook 'runs'. A 'pre-tool' 'event-' case may give the call's 'input' (an object), and 'expect' then also gives what each hook 'seen' as [source, input] and the 'input' the call runs with (null: the one it was given). An 'event-' case may give 'context_used', the bytes the session's context already holds, and 'limits' may give 'context_bytes' (default 1 MiB). An 'order-' case gives 'overlays', 'requested', the overlays that 'has' a hook for the event and the 'scopes' (user, project) that have one; 'expect' is the 'order' of [scope, source] pairs. A 'process-' case gives a 'process' ('setup', 'server', 'command' or 'env-script') and the same 'overlays', 'requested', 'files', 'facts' and 'identity' as an 'environment-' case; 'expect' is the 'env' that process runs with: the session's, and for an env script the environment as it stands when it runs. An 'environment-' case gives an 'event', 'overlays', 'requested', optional 'files' (an overlay's env file texts), the compose 'facts' (os, base_env, roots, states, pre_env, grants, secrets, and 'earlier': the 'env' outputs earlier hooks of the event set, in run order, null unsetting) and the hook, an 'identity' or a 'scope' of user or project; 'expect' is the 'env' it runs with.",
   "spec": "spec/v0/hooks.md",
   "cases": [
     {
@@ -4805,10 +4805,71 @@
     },
     {
       "id": "output-allow-with-updated-input",
-      "description": "A hook carries no rewritten input: updatedInput is another key, and the whole output fails.",
+      "description": "updatedInput is Claude Code's name for it, another key here: the whole output fails.",
       "event": "pre-tool",
       "run": {
         "stdout": "{\"decision\": \"allow\", \"updatedInput\": {\"command\": \"true\"}}"
+      },
+      "expect": {
+        "failed": "output"
+      }
+    },
+    {
+      "id": "output-allow-input",
+      "description": "An allow may carry the call it approves, as rewritten.",
+      "event": "pre-tool",
+      "run": {
+        "stdout": "{\"decision\": \"allow\", \"input\": {\"command\": \"git push\"}, \"reason\": \"Without --force.\"}"
+      },
+      "expect": {
+        "output": {
+          "decision": "allow",
+          "input": {
+            "command": "git push"
+          },
+          "reason": "Without --force."
+        }
+      }
+    },
+    {
+      "id": "output-input-without-allow",
+      "description": "A rewritten input comes only with an allow.",
+      "event": "pre-tool",
+      "run": {
+        "stdout": "{\"decision\": \"ask\", \"input\": {\"command\": \"git push\"}}"
+      },
+      "expect": {
+        "failed": "output"
+      }
+    },
+    {
+      "id": "output-input-alone",
+      "description": "An input with no decision is no approval, and fails.",
+      "event": "pre-tool",
+      "run": {
+        "stdout": "{\"input\": {\"command\": \"git push\"}}"
+      },
+      "expect": {
+        "failed": "output"
+      }
+    },
+    {
+      "id": "output-input-not-object",
+      "description": "The input is an object, as a call's arguments are.",
+      "event": "pre-tool",
+      "run": {
+        "stdout": "{\"decision\": \"allow\", \"input\": \"git push\"}"
+      },
+      "expect": {
+        "failed": "output"
+      }
+    },
+    {
+      "id": "output-input-on-post-tool",
+      "description": "post-tool takes no input.",
+      "event": "post-tool",
+      "run": {
+        "stdout": "{\"decision\": \"allow\", \"input\": {}}"
       },
       "expect": {
         "failed": "output"
@@ -6357,6 +6418,321 @@
           ]
         ],
         "non_defaults": []
+      }
+    },
+    {
+      "id": "event-rewrite",
+      "description": "An allow with an input: the call is approved as rewritten.",
+      "event": "pre-tool",
+      "input": {
+        "command": "git push --force",
+        "description": "push"
+      },
+      "runs": [
+        {
+          "source": "a",
+          "stdout": "{\"decision\": \"allow\", \"reason\": \"rewritten\", \"input\": {\"command\": \"git push\"}}"
+        }
+      ],
+      "expect": {
+        "ran": [
+          "a"
+        ],
+        "decision": "allow",
+        "by": "a",
+        "reason": "rewritten",
+        "context": [],
+        "env": {},
+        "reports": [],
+        "non_defaults": [],
+        "seen": [
+          [
+            "a",
+            {
+              "command": "git push --force",
+              "description": "push"
+            }
+          ]
+        ],
+        "input": {
+          "command": "git push"
+        }
+      }
+    },
+    {
+      "id": "event-rewrite-seen-by-later",
+      "description": "A later hook is given the rewritten input, and rewrites it again; the call runs with the last.",
+      "event": "pre-tool",
+      "input": {
+        "command": "git push --force",
+        "description": "push"
+      },
+      "runs": [
+        {
+          "source": "a",
+          "stdout": "{\"decision\": \"allow\", \"reason\": \"rewritten\", \"input\": {\"command\": \"git push\"}}"
+        },
+        {
+          "source": "b",
+          "stdout": "{\"decision\": \"allow\", \"reason\": \"again\", \"input\": {\"command\": \"git push origin main\"}}"
+        },
+        {
+          "source": "c",
+          "stdout": ""
+        }
+      ],
+      "expect": {
+        "ran": [
+          "a",
+          "b",
+          "c"
+        ],
+        "decision": "allow",
+        "by": "a",
+        "reason": "rewritten",
+        "context": [],
+        "env": {},
+        "reports": [],
+        "non_defaults": [],
+        "seen": [
+          [
+            "a",
+            {
+              "command": "git push --force",
+              "description": "push"
+            }
+          ],
+          [
+            "b",
+            {
+              "command": "git push"
+            }
+          ],
+          [
+            "c",
+            {
+              "command": "git push origin main"
+            }
+          ]
+        ],
+        "input": {
+          "command": "git push origin main"
+        }
+      }
+    },
+    {
+      "id": "event-rewrite-then-deny",
+      "description": "A deny after a rewrite wins: the call does not run, and nothing is rewritten.",
+      "event": "pre-tool",
+      "input": {
+        "command": "git push --force",
+        "description": "push"
+      },
+      "runs": [
+        {
+          "source": "a",
+          "stdout": "{\"decision\": \"allow\", \"reason\": \"rewritten\", \"input\": {\"command\": \"git push\"}}"
+        },
+        {
+          "source": "b",
+          "stdout": "{\"decision\": \"deny\", \"reason\": \"no\"}"
+        },
+        {
+          "source": "c",
+          "stdout": ""
+        }
+      ],
+      "expect": {
+        "ran": [
+          "a",
+          "b"
+        ],
+        "decision": "deny",
+        "by": "b",
+        "reason": "no",
+        "context": [],
+        "env": {},
+        "reports": [],
+        "non_defaults": [],
+        "seen": [
+          [
+            "a",
+            {
+              "command": "git push --force",
+              "description": "push"
+            }
+          ],
+          [
+            "b",
+            {
+              "command": "git push"
+            }
+          ]
+        ],
+        "input": null
+      }
+    },
+    {
+      "id": "event-rewrite-then-ask",
+      "description": "An ask after a rewrite wins: the user is asked about the call as the harness gave it, and the rewrite is reported, never dropped silently.",
+      "event": "pre-tool",
+      "input": {
+        "command": "git push --force",
+        "description": "push"
+      },
+      "runs": [
+        {
+          "source": "a",
+          "stdout": "{\"decision\": \"allow\", \"reason\": \"rewritten\", \"input\": {\"command\": \"git push\"}}"
+        },
+        {
+          "source": "b",
+          "stdout": "{\"decision\": \"ask\", \"reason\": \"check\"}"
+        }
+      ],
+      "expect": {
+        "ran": [
+          "a",
+          "b"
+        ],
+        "decision": "ask",
+        "by": "b",
+        "reason": "check",
+        "context": [],
+        "env": {},
+        "reports": [
+          [
+            "hook-not-applied",
+            "a",
+            "pre-tool",
+            "input"
+          ]
+        ],
+        "non_defaults": [],
+        "seen": [
+          [
+            "a",
+            {
+              "command": "git push --force",
+              "description": "push"
+            }
+          ],
+          [
+            "b",
+            {
+              "command": "git push"
+            }
+          ]
+        ],
+        "input": null
+      }
+    },
+    {
+      "id": "event-ask-then-rewrite",
+      "description": "An ask before a rewrite wins as well.",
+      "event": "pre-tool",
+      "input": {
+        "command": "git push --force",
+        "description": "push"
+      },
+      "runs": [
+        {
+          "source": "a",
+          "stdout": "{\"decision\": \"ask\", \"reason\": \"check\"}"
+        },
+        {
+          "source": "b",
+          "stdout": "{\"decision\": \"allow\", \"reason\": \"rewritten\", \"input\": {\"command\": \"git push\"}}"
+        }
+      ],
+      "expect": {
+        "ran": [
+          "a",
+          "b"
+        ],
+        "decision": "ask",
+        "by": "a",
+        "reason": "check",
+        "context": [],
+        "env": {},
+        "reports": [
+          [
+            "hook-not-applied",
+            "b",
+            "pre-tool",
+            "input"
+          ]
+        ],
+        "non_defaults": [],
+        "seen": [
+          [
+            "a",
+            {
+              "command": "git push --force",
+              "description": "push"
+            }
+          ],
+          [
+            "b",
+            {
+              "command": "git push --force",
+              "description": "push"
+            }
+          ]
+        ],
+        "input": null
+      }
+    },
+    {
+      "id": "event-rewrite-not-applied",
+      "description": "Where the consumer cannot apply a rewritten input, the allow is not applied either, and that is reported.",
+      "event": "pre-tool",
+      "input": {
+        "command": "git push --force",
+        "description": "push"
+      },
+      "runs": [
+        {
+          "source": "a",
+          "stdout": "{\"decision\": \"allow\", \"reason\": \"rewritten\", \"input\": {\"command\": \"git push\"}}"
+        }
+      ],
+      "applies": [
+        "context",
+        "env",
+        "deny",
+        "ask",
+        "allow",
+        "refuse"
+      ],
+      "expect": {
+        "ran": [
+          "a"
+        ],
+        "decision": null,
+        "by": null,
+        "reason": null,
+        "context": [],
+        "env": {},
+        "reports": [
+          [
+            "hook-not-applied",
+            "a",
+            "pre-tool",
+            "input"
+          ]
+        ],
+        "non_defaults": [],
+        "seen": [
+          [
+            "a",
+            {
+              "command": "git push --force",
+              "description": "push"
+            }
+          ]
+        ],
+        "input": null
       }
     },
     {
@@ -8216,6 +8592,52 @@
       }
     },
     {
+      "id": "environment-stack-top-wins",
+      "description": "Overlays stack: the later overlay's value reads the earlier one's (LEVEL, SHARED) and sits on top, so the earlier overlay's own hook sees the finished stack.",
+      "event": "session-start",
+      "overlays": {
+        "low": {
+          "priority": 100,
+          "env": {
+            "BASE": "low",
+            "SHARED": "from-low"
+          }
+        },
+        "high": {
+          "priority": 900,
+          "env": {
+            "SHARED": "${SHARED}+high",
+            "LEVEL": "${BASE}-high"
+          }
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "facts": {
+        "os": "linux",
+        "base_env": {},
+        "roots": {
+          "low": "/ov/low",
+          "high": "/ov/high"
+        }
+      },
+      "identity": "low",
+      "expect": {
+        "env": {
+          "LOW_OVERLAY_ROOT": "/ov/low",
+          "HIGH_OVERLAY_ROOT": "/ov/high",
+          "BASE": "low",
+          "SHARED": "from-low+high",
+          "LEVEL": "low-high",
+          "AOS_OVERLAY_ROOT": "/ov/low",
+          "AOS_OVERLAY_NAME": "low",
+          "AOS_HOOK_EVENT": "session-start"
+        }
+      }
+    },
+    {
       "id": "environment-steps-variables",
       "description": "AOS_OVERLAY_ROOT, AOS_OVERLAY_NAME and AOS_OVERLAY_STATE, as a step has them, and AOS_HOOK_EVENT; every overlay's root and state variable is set in each overlay's process.",
       "event": "turn-end",
@@ -8630,6 +9052,298 @@
           "AOS_OVERLAY_ROOT": "C:\\ov\\low",
           "AOS_OVERLAY_NAME": "low",
           "AOS_HOOK_EVENT": "session-start"
+        }
+      }
+    },
+    {
+      "id": "process-setup-sees-session",
+      "description": "An overlay's setup gets the session's environment: another overlay's declarations too.",
+      "process": "setup",
+      "overlays": {
+        "low": {
+          "priority": 100,
+          "env": {
+            "LOW_TOKEN_URL": "https://low.example/api"
+          }
+        },
+        "high": {
+          "priority": 900,
+          "env": {
+            "MODE": "ci"
+          }
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "facts": {
+        "os": "linux",
+        "base_env": {
+          "HOME": "/home/u"
+        },
+        "roots": {
+          "low": "/ov/low",
+          "high": "/ov/high"
+        },
+        "states": {
+          "low": "/st/low"
+        }
+      },
+      "identity": "high",
+      "expect": {
+        "env": {
+          "HOME": "/home/u",
+          "LOW_OVERLAY_ROOT": "/ov/low",
+          "HIGH_OVERLAY_ROOT": "/ov/high",
+          "LOW_OVERLAY_STATE": "/st/low",
+          "LOW_TOKEN_URL": "https://low.example/api",
+          "MODE": "ci",
+          "AOS_OVERLAY_ROOT": "/ov/high",
+          "AOS_OVERLAY_NAME": "high"
+        }
+      }
+    },
+    {
+      "id": "process-server-sees-session",
+      "description": "So does an MCP server it starts.",
+      "process": "server",
+      "overlays": {
+        "low": {
+          "priority": 100,
+          "env": {
+            "LOW_TOKEN_URL": "https://low.example/api"
+          }
+        },
+        "high": {
+          "priority": 900,
+          "env": {
+            "MODE": "ci"
+          }
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "facts": {
+        "os": "linux",
+        "base_env": {
+          "HOME": "/home/u"
+        },
+        "roots": {
+          "low": "/ov/low",
+          "high": "/ov/high"
+        },
+        "states": {
+          "low": "/st/low"
+        }
+      },
+      "identity": "low",
+      "expect": {
+        "env": {
+          "HOME": "/home/u",
+          "LOW_OVERLAY_ROOT": "/ov/low",
+          "HIGH_OVERLAY_ROOT": "/ov/high",
+          "LOW_OVERLAY_STATE": "/st/low",
+          "LOW_TOKEN_URL": "https://low.example/api",
+          "MODE": "ci",
+          "AOS_OVERLAY_ROOT": "/ov/low",
+          "AOS_OVERLAY_NAME": "low",
+          "AOS_OVERLAY_STATE": "/st/low"
+        }
+      }
+    },
+    {
+      "id": "process-command-sees-session",
+      "description": "So does a command it exposes.",
+      "process": "command",
+      "overlays": {
+        "low": {
+          "priority": 100,
+          "env": {
+            "LOW_TOKEN_URL": "https://low.example/api"
+          }
+        },
+        "high": {
+          "priority": 900,
+          "env": {
+            "MODE": "ci"
+          }
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "facts": {
+        "os": "linux",
+        "base_env": {
+          "HOME": "/home/u"
+        },
+        "roots": {
+          "low": "/ov/low",
+          "high": "/ov/high"
+        },
+        "states": {
+          "low": "/st/low"
+        }
+      },
+      "identity": "low",
+      "expect": {
+        "env": {
+          "HOME": "/home/u",
+          "LOW_OVERLAY_ROOT": "/ov/low",
+          "HIGH_OVERLAY_ROOT": "/ov/high",
+          "LOW_OVERLAY_STATE": "/st/low",
+          "LOW_TOKEN_URL": "https://low.example/api",
+          "MODE": "ci",
+          "AOS_OVERLAY_ROOT": "/ov/low",
+          "AOS_OVERLAY_NAME": "low",
+          "AOS_OVERLAY_STATE": "/st/low"
+        }
+      }
+    },
+    {
+      "id": "process-env-script-sees-earlier",
+      "description": "An env script gets the environment as it stands when it runs: an earlier overlay's declarations and its own, not a later overlay's.",
+      "process": "env-script",
+      "overlays": {
+        "low": {
+          "priority": 100,
+          "env": {
+            "LOW_TOKEN_URL": "https://low.example/api"
+          }
+        },
+        "high": {
+          "priority": 900,
+          "env": {
+            "MODE": "ci"
+          }
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "facts": {
+        "os": "linux",
+        "base_env": {
+          "HOME": "/home/u"
+        },
+        "roots": {
+          "low": "/ov/low",
+          "high": "/ov/high"
+        },
+        "states": {
+          "low": "/st/low"
+        }
+      },
+      "identity": "high",
+      "expect": {
+        "env": {
+          "HOME": "/home/u",
+          "LOW_OVERLAY_ROOT": "/ov/low",
+          "HIGH_OVERLAY_ROOT": "/ov/high",
+          "LOW_OVERLAY_STATE": "/st/low",
+          "LOW_TOKEN_URL": "https://low.example/api",
+          "MODE": "ci",
+          "AOS_OVERLAY_ROOT": "/ov/high",
+          "AOS_OVERLAY_NAME": "high"
+        }
+      }
+    },
+    {
+      "id": "process-env-script-not-later",
+      "description": "The first overlay's env script does not see a later overlay's declarations.",
+      "process": "env-script",
+      "overlays": {
+        "low": {
+          "priority": 100,
+          "env": {
+            "LOW_TOKEN_URL": "https://low.example/api"
+          }
+        },
+        "high": {
+          "priority": 900,
+          "env": {
+            "MODE": "ci"
+          }
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "facts": {
+        "os": "linux",
+        "base_env": {
+          "HOME": "/home/u"
+        },
+        "roots": {
+          "low": "/ov/low",
+          "high": "/ov/high"
+        },
+        "states": {
+          "low": "/st/low"
+        }
+      },
+      "identity": "low",
+      "expect": {
+        "env": {
+          "HOME": "/home/u",
+          "LOW_OVERLAY_ROOT": "/ov/low",
+          "HIGH_OVERLAY_ROOT": "/ov/high",
+          "LOW_OVERLAY_STATE": "/st/low",
+          "LOW_TOKEN_URL": "https://low.example/api",
+          "AOS_OVERLAY_ROOT": "/ov/low",
+          "AOS_OVERLAY_NAME": "low",
+          "AOS_OVERLAY_STATE": "/st/low"
+        }
+      }
+    },
+    {
+      "id": "process-stack-env-script",
+      "description": "An env script of the later overlay gets the stack as it stands at its step: the earlier overlay's values and its own declarations over them.",
+      "process": "env-script",
+      "overlays": {
+        "low": {
+          "priority": 100,
+          "env": {
+            "BASE": "low",
+            "SHARED": "from-low"
+          }
+        },
+        "high": {
+          "priority": 900,
+          "env": {
+            "SHARED": "${SHARED}+high",
+            "LEVEL": "${BASE}-high"
+          }
+        }
+      },
+      "requested": [
+        "high",
+        "low"
+      ],
+      "facts": {
+        "os": "linux",
+        "base_env": {},
+        "roots": {
+          "low": "/ov/low",
+          "high": "/ov/high"
+        }
+      },
+      "identity": "high",
+      "expect": {
+        "env": {
+          "LOW_OVERLAY_ROOT": "/ov/low",
+          "HIGH_OVERLAY_ROOT": "/ov/high",
+          "BASE": "low",
+          "SHARED": "from-low+high",
+          "LEVEL": "low-high",
+          "AOS_OVERLAY_ROOT": "/ov/high",
+          "AOS_OVERLAY_NAME": "high"
         }
       }
     }

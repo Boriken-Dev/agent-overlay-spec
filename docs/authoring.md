@@ -255,7 +255,7 @@ turn-end = false                                                         # nothi
 ```
 
 What a hook may print, as one JSON object: `context`; `decision` (`block` for `prompt` and
-`pre-compact`, `deny`, `ask` or `allow` for `pre-tool`) with a `reason`; and `env`, which a consumer applies
+`pre-compact`, `deny`, `ask` or `allow` for `pre-tool`, an `allow` with an `input` that replaces the call's) with a `reason`; and `env`, which a consumer applies
 where the harness lets it, for the variables the entry lists in `sets`
 (`session-start = { sets = ["TOOL_MODE"] }`). Text holds no terminal escapes or other control
 characters but tabs and line ends. `pre-env` prints what an env script prints. **An `allow` approves the call
