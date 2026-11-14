@@ -194,6 +194,14 @@ The first edition, `0.1.0-draft`, a development draft open for review.
 
 ### Changed
 
+- **Hooks run like a harness's own.** A `pre-tool` hook may print `decision = "allow"`; hooks combine to the
+  tightest (a deny beats an ask, an ask beats an allow) and an allow never lifts the user's own refusals, so
+  "tightens, never grants" and the failure cause `grant` are gone and any other decision value is an
+  `output` failure. An allow carries no rewritten input. A hook runs in the session's working directory with
+  the session's environment, so a hook reads what another overlay declared; a `pre-env` hook sees what earlier
+  `pre-env` hooks set; the consumer stops only the hook's own process at its timeout, with no process group
+  or job object. Recorded in the design decisions as 29; new and changed vectors in
+  `tests/vectors/hooks.json`.
 - **Breaking: a weakening is now a non-default setting.** The word goes from the security section, the glossary, the
   site and the reference reader; the vectors' keys `weakenings` and `hook_weakenings` become `non_defaults` and
   `hook_non_defaults`. The identifiers (`unpinned`, `env-passthrough`, ...) and the pairs are unchanged.

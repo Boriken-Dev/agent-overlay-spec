@@ -175,5 +175,5 @@ choice, and a consumer that ignores one is still conforming.
 
 An overlay's code runs at a session's events by one route, [Hooks](hooks.md): the `hooks` field and
 `hook.<ext>`, listed before installing, off until the user allows them at the overlay's digest, bounded,
-reported, and unable to grant. A `hooks` key in a harness table is that harness's own data like any
+reported, and answering the harness only through the consumer. A `hooks` key in a harness table is that harness's own data like any
 other, and is never applied.

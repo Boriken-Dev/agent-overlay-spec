@@ -402,7 +402,8 @@ MUST give the same result for the same inputs:
    directory.
 2. Apply the output of every overlay's [`pre-env` hook](hooks.md#events) that is allowed, in
    composition order, each as that overlay's own, as an env script's output applies: nothing in it is
-   substituted.
+   substituted. A `pre-env` hook runs with the environment as step 1 and the `pre-env` hooks before it
+   left it, so it reads what an earlier overlay's `pre-env` hook set.
 3. For each overlay in [composition order](composition.md#deterministic-ordering), each field
    with its [defaults](package.md#defaults) first:
     1. its `env_files` that apply to this OS, in order, a `dotenv` file line by line;
@@ -420,11 +421,13 @@ earlier one's. So the overlay with the higher `priority` wins a conflict and is 
 search path.
 
 **Which environment.** The agent session gets the environment of every active overlay. A process
-that one overlay runs (its setup, its env scripts, its hooks, its MCP servers, its commands) gets the base
+that one overlay runs (its setup, its env scripts, its MCP servers, its commands) gets the base
 environment, every overlay's root variable, and that overlay's own declarations only, each with the
 value it was substituted to in the order of application, so a secret one overlay was granted never
-reaches another overlay's code. A value is substituted once; it is the same in the session and in
-the overlay's own processes.
+reaches another overlay's code. **A [hook](hooks.md#running-a-hook) is the exception: it runs with the
+session's environment**, every overlay's declarations and the `pre-env` output included, since overlays
+can depend on each other. A value is substituted once; it is the same in the session and in a hook, and
+in the overlay's own processes.
 
 A consumer MAY refuse to let an overlay set a variable (its own policy), and MUST report each refusal
 by variable name. Setting a [sensitive variable](security.md#sensitive-variables) is a

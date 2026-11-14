@@ -82,17 +82,21 @@ an `env.<ext>` and a `hook.<ext>` only once the user has allowed the overlay's d
 
 ## Can a hook approve a tool call?
 
-No. A hook adds context, blocks a prompt or a compaction, and denies a tool call or sends it to the user
-to approve; there is no output that approves, and a hook that tries is a failure. A consumer reads the
-hook's output itself and never hands the harness the hook's own words, so a harness's own approval
-vocabulary means nothing from a hook. To make a guard fail closed, give it `on_failure = "refuse"`.
+Yes, as a harness's own hook can: a `pre-tool` hook may print `decision = "allow"`, and where the user
+would have been asked the consumer answers as approved. Hooks combine to the tightest (a deny beats an ask,
+an ask beats an allow), and an allow never lifts the user's own refusals, such as their deny rules or a
+mode that refuses. A consumer reads the hook's output itself and never hands the harness the hook's own
+words, so a harness's own approval vocabulary means nothing from a hook, and a hook cannot return a
+rewritten call. To make a guard fail closed, give it `on_failure = "refuse"`.
 
 ## What does a hook learn?
 
 The event, and that event's payload: the harness, the working directory and a session id, plus a
-reason, a directory, a prompt's text or a tool's input for the events that have them. Never the
-environment, a secret or another overlay's data. The prompt and tool events reach a hook only when
-its manifest names them, and a consumer lists every hook and what it is told before installing.
+reason, a directory, a prompt's text or a tool's input for the events that have them. The payload never
+holds the environment, a secret or another overlay's data. The prompt and tool events reach a hook only
+when its manifest names them, and a consumer lists every hook and what it is told before installing. A
+hook also runs in the session's folder with the session's environment, so it reads what any overlay
+declared, as the agent does.
 
 ## Why is `pre.env` gone, and what replaces it?
 

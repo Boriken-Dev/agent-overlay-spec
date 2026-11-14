@@ -437,7 +437,9 @@ esac
 
 ## What a step receives
 
-A setup variant, an env script and a [hook](hooks.md#running-a-hook) run with:
+A setup variant, an env script and a [hook](hooks.md#running-a-hook) run with the following. A hook
+differs in two things: its working directory is the session's and its environment is the session's, as
+[Running a hook](hooks.md#running-a-hook) says.
 
 - the **working directory** set to the overlay root, which MAY be read-only;
 - the environment of that overlay's own processes

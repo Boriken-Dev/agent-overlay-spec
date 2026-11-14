@@ -255,11 +255,13 @@ turn-end = false                                                         # nothi
 ```
 
 What a hook may print, as one JSON object: `context`; `decision` (`block` for `prompt` and
-`pre-compact`, `deny` or `ask` for `pre-tool`) with a `reason`; and `env`, which a consumer applies
+`pre-compact`, `deny`, `ask` or `allow` for `pre-tool`) with a `reason`; and `env`, which a consumer applies
 where the harness lets it, for the variables the entry lists in `sets`
 (`session-start = { sets = ["TOOL_MODE"] }`). Text holds no terminal escapes or other control
-characters but tabs and line ends. `pre-env` prints what an env script prints. **Nothing a hook prints approves
-anything**: an `allow`, or any decision but those, fails the run. A hook that fails is reported and the
+characters but tabs and line ends. `pre-env` prints what an env script prints. **An `allow` approves the call
+only where the user would have been asked**: it never lifts their own refusals, an `ask` or a `deny` from
+another hook beats it, and any decision but those fails the run. A hook runs in the session's folder with the
+session's environment, so it can read a variable another overlay declared. A hook that fails is reported and the
 session goes on; write `on_failure = "refuse"` on a guard, so that a crash or a timeout refuses the call
 instead of letting it through.
 

@@ -34,9 +34,10 @@ consumer pins the whole tree by one digest. See the
   need, a minimum runtime version and a lockfile; packages from `lib/python/requirements.txt` and
   `lib/node/package.json` in shared, named or isolated environments; setup told its phase on
   every add, sync and removal.
-- **Hooks that only tighten.** `hook.py` or a `hooks` table runs at a session's events (before the
-  environment, a session's start and end, a prompt, a tool call), adds context, blocks or denies, and
-  never approves; off until the user allows it at the overlay's digest.
+- **Hooks like the harness's own.** `hook.py` or a `hooks` table runs at a session's events (before the
+  environment, a session's start and end, a prompt, a tool call) in the session's folder and environment,
+  adds context, blocks, denies, asks or allows, the tightest of them winning and the user's own refusals
+  never lifted; off until the user allows it at the overlay's digest.
 - **Integrity.** A canonical tree digest with test vectors, a source and pin form, and non-default settings
   an implementation must report rather than apply silently.
 - **Conformance vectors as data**, so implementations in any language test against the same files.

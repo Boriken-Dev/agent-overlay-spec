@@ -2,9 +2,11 @@
 
 **Optional Extension, Proposed.** A hook is a program an overlay runs at a named moment of a session:
 before the environment is built, when a session starts or ends, when the user sends a prompt, before a
-tool runs. It can add to the agent's context, block or deny, and set variables where the consumer can.
-**A hook tightens and never grants**: nothing it outputs approves a tool, a prompt or a session that
-would not have gone ahead without it.
+tool runs. It can add to the agent's context, block, deny, ask or allow, and set variables where the consumer
+can. **A hook may do what a harness's own hook may, allowing a tool call included**: where the user would
+have been asked, an allow answers as approved. Hooks combine to the tightest, so a deny beats an ask and
+an ask beats an allow, and an allow never lifts the user's own refusals: their deny rules, the list of
+paths a consumer protects and a mode that refuses.
 
 ```toml
 [hooks]
@@ -39,7 +41,7 @@ skips one silently.
 | `turn-end` | Core | The agent ends its turn | `session` | none | none | none | Yes |
 | `cd` | Extended | The agent's working directory changes | `session`, `previous` | `env` where the consumer can | none | none | Yes |
 | `pre-compact` | Extended | Before the harness compacts the context | `session`, `trigger` | `context`, as instructions to the summary; `decision = "block"` | The compaction | none | Yes |
-| `pre-tool` | Extended | Before a tool call runs | `session`, `tool` | `context`, `decision = "deny"` or `"ask"`; `env` for an `execute` call where the consumer can | The call, which is denied | tool kinds | No: declared only |
+| `pre-tool` | Extended | Before a tool call runs | `session`, `tool` | `context`, `decision = "deny"`, `"ask"` or `"allow"`; `env` for an `execute` call where the consumer can | The call, which is denied | tool kinds | No: declared only |
 | `post-tool` | Extended | After a tool call ends | `session`, `tool`, `status` | `context` | none | tool kinds | No: declared only |
 
 `session-start` gives a `reason`:
@@ -173,15 +175,25 @@ programs it can reach, as any code of the overlay can.
 
 ## Running a hook
 
-A hook runs as a [step](runtime.md#what-a-step-receives) does, with `AOS_HOOK_EVENT` besides:
+A hook runs as the agent's own hooks do, and gets what a [step](runtime.md#what-a-step-receives) gets in
+`AOS_OVERLAY_ROOT`, `AOS_OVERLAY_NAME`, `AOS_OVERLAY_STATE` and `AOS_HOOK_EVENT`, with the session's folder
+and environment in place of the overlay's, since overlays can depend on each other and a hook may expect
+what another one provides:
 
-- with the overlay root as its working directory, and the environment of that overlay's own processes
-  ([which environment](environment.md#order-of-application)): never the session's, so a value another
-  overlay was granted never reaches it, nor what another overlay's declarations or `pre-env` hook set.
-  A `pre-env` hook runs before any declaration is applied, with the base environment, the root variable
-  of every overlay in play and the state variable of each that has one, and no other variable;
-- **outside the agent's sandbox**, in its own process group (a job object on Windows), every process it
-  started ended when it ends or is stopped;
+- in the session's working directory, the `cwd` of its payload; for `pre-env`, which runs before there is a
+  session, the directory the session will start in;
+- with the session's environment: the base environment, every overlay's root and state variable, every
+  overlay's declarations as they stand after the
+  [order of application](environment.md#order-of-application), what every overlay's `pre-env` hook set,
+  and what earlier hooks of the event set, in run order, where the consumer applies it. A hook of one
+  overlay therefore reads a variable another overlay declared. `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_NAME`
+  and `AOS_OVERLAY_STATE` name the hook's own overlay, as the root and state variables of each overlay
+  do for it. A `pre-env` hook runs before any declaration is applied, so it sees the base environment, the
+  root and state variables, and what the `pre-env` hooks before it in composition order set, and no
+  declaration; the hook of a scope's own configuration has no `AOS_OVERLAY_*`;
+- **outside the agent's sandbox**, as a child process of the consumer. At its timeout the consumer stops
+  that process; what it started is its own business, as with a harness's own hooks, and the consumer
+  needs no process group or job object;
 - the script found and its interpreter run as [Interpreters](runtime.md#interpreters) says: an absolute
   path and arguments as a list, never through a shell's parsing. A `run` whose interpreter the consumer
   lacks is a requirement a [probe](runtime.md#runtime) checks, as any script's is, so such a target is
@@ -208,7 +220,7 @@ holds only these keys, and only those the event's Outputs column gives:
 | Key | Value | Means |
 | --- | --- | --- |
 | `context` | string | Text added to the agent's context, marked as this overlay's hook; an empty string adds nothing |
-| `decision` | `"block"` for `prompt` and `pre-compact`; `"deny"` or `"ask"` for `pre-tool` | The prompt or the compaction does not go ahead; the call is refused, or goes to the user for approval |
+| `decision` | `"block"` for `prompt` and `pre-compact`; `"deny"`, `"ask"` or `"allow"` for `pre-tool` | The prompt or the compaction does not go ahead; the call is refused, goes to the user for approval, or is approved |
 | `reason` | string of at most 1024 code points | Why, shown to the user and, where the harness passes one, to the agent. Only with `decision` |
 | `env` | mapping of variable name to string, or to `null` to unset it | Variables, each one the entry's `sets` lists, no two equal without regard to ASCII case, with the checks of an env script's output: no [reserved](environment.md#the-root-variable) name, no zero byte, and `env-sensitive` reported for a [sensitive](security.md#sensitive-variables) one that is set |
 
@@ -219,9 +231,16 @@ U+2066–U+2069): a terminal escape or a reordering in a reason could make an ap
 else. A consumer marks where each part of the context came from in a way the text cannot imitate (its own
 message, block or field, never a line of text the hook could also print).
 
-A `decision` with any other value, on any event, is refused as an attempt to grant (`grant`), whatever it
-says: `allow`, `approve`, `continue`, an empty string. So is a `decision` on an event that takes none.
-There is no output that approves.
+A `decision` with any other value, on any event, is an `output` failure, whatever it says: `approve`,
+`continue`, an empty string, `allow` on an event that does not take it. So is a `decision` on an event that
+takes none.
+
+**An allow carries no rewritten input.** A harness's own hook may return the call it wants run
+(Claude Code's `updatedInput`), and the measured harnesses take that together with an approval, so a
+rewrite by a hook would approve a command text that nobody listed and the user never saw. A hook's
+`updatedInput` or any other key is an `output` failure, a hook that wants a call changed denies it with a
+reason, and a variable reaches a shell only through the loader below, which holds values and never command
+text.
 
 The exit status says only whether the hook succeeded: 0 applies its output, any other is a failure. A
 hook blocks or denies by its output, never by its exit status.
@@ -239,9 +258,11 @@ For a shell tool the values reach the command through a **loader**: the call is 
 from a data file the consumer wrote, outside the root, created anew in a directory only the user can
 write, and holding values, never a script, before it runs the command as given. Values are never
 written into the command's text, where they would be read as shell syntax. **A rewrite carries no
-decision**: the consumer gives the harness the rewritten call with no approval of its own, so the
-harness's rules and prompts judge it. A harness that rewrites a call only with an approval gets no
-rewrite, and the variables are reported as not applied. A consumer rewrites on a harness only where it
+decision of its own**: the consumer gives the harness the rewritten call with the answer the hooks of the
+event combined to, an allow only where one hook allowed and none asked or denied, and otherwise none, so
+the harness's rules and prompts judge it as they would the call without the rewrite. A harness that
+rewrites a call only with an approval gets no rewrite unless the hooks allowed the call, and the
+variables are reported as not applied. A consumer rewrites on a harness only where it
 has checked that the harness's deny and ask rules still match the rewritten call; a rewrite may make a
 call ask that a narrow allow rule would have let through, which is tighter, and is documented.
 
@@ -273,9 +294,9 @@ A run **fails** when, checked in this order, the first of these holds, which is 
 4. its time runs out (`timeout`);
 5. its output is past the bound (`too-large`);
 6. it exits other than 0 (`exit`);
-7. its output tries to grant (`grant`);
-8. its output is not what this section defines (`output`: not UTF-8, not one object, another key, a
-   wrong type, a reserved or undeclared variable, a control character).
+7. its output is not what this section defines (`output`: not UTF-8, not one object, another key, a
+   wrong type, a decision that is not the event's own, a reserved or undeclared variable, a control
+   character).
 
 A failure is reported as `hook-failed`, with the overlay, the event and the cause, never quoting the
 output, and **nothing of that run applies**. Then:
@@ -296,22 +317,29 @@ the agent's hands (a tool input past the payload bound, an input that is slow to
 Every active overlay's hook for an event runs, one at a time, in
 [composition order](composition.md#deterministic-ordering), then the scope's own hooks
 ([below](#hooks-outside-overlays)), each given the same payload. Their results combine to the
-tightest:
+tightest: a block or a deny beats an ask, and an ask beats an allow.
 
 - **A block or a deny ends the event.** Later hooks do not run, its `reason` is given, and the event's
   context and variables do not apply, since the prompt, compaction or call does not happen.
-- **`ask` stays `ask`** unless a later hook denies. The call goes to the harness's approval, with the
-  reason of the first hook that asked. On a harness that cannot ask, `ask` is applied as `deny`, which is
-  tighter, and reported as `hook-ask-denied`.
+- **`ask` stays `ask`** unless a later hook denies, even after an allow. The call goes to the harness's
+  approval, with the reason of the first hook that asked. On a harness that cannot ask, `ask` is applied
+  as `deny`, which is tighter, and reported as `hook-ask-denied`.
+- **`allow` lets the event go on**, so a later hook may still ask or deny, and the call is approved only
+  if none did, with the reason of the first hook that allowed. The consumer answers the harness's
+  approval as approved only where it has checked that the harness's deny rules and any mode that refuses
+  still win over that answer, and its own protected paths still refuse; where it cannot, the allow is
+  reported as `hook-not-applied` (`allow`) and the call goes as it would without it. Over ACP the answer
+  is the option that allows this once, never one that remembers the choice.
 - **Context** from each hook is added in run order, each part marked with the overlay it came from.
 - **Variables** apply in run order; a later hook's value replaces an earlier one's.
 - **An output the consumer cannot apply on the harness is reported, never dropped** silently:
   `hook-not-applied`, with the overlay, the event and the output (`context`, `env`, `block`). The rest
   of that hook's output still applies.
 
-**No decision is not an approval.** Where the consumer's own answer to the harness is itself an approval
-(over ACP, the answer to `session/request_permission`), hooks that decide nothing leave the call to the
-user, as it would have gone without them; the consumer never approves a call because no hook objected.
+**No decision leaves the call to the user; an allow approves it.** Where the consumer's own answer to the
+harness is itself an approval (over ACP, the answer to `session/request_permission`), hooks that decide
+nothing leave the call to the user, as it would have gone without them, and the consumer never approves a
+call because no hook objected. Only a hook's `allow` approves one, and only as above.
 
 A `pre-env` hook's output applies in the [order of application](environment.md#order-of-application),
 after the root variables and before any overlay's declarations, every overlay's in composition order, as
@@ -354,10 +382,10 @@ run under the decision to activate it, as [Security](security.md#execution-and-d
 ## Hooks outside overlays
 
 A scope's own configuration, a user's or a project's, may declare hooks in the same shape, with the same
-events, payloads, outputs, limits, failures and combination, and the same rule that a hook never grants.
-A `run` is relative to the directory that holds that configuration, which the consumer documents. Such a
-hook receives `AOS_HOOK_EVENT` and none of the `AOS_OVERLAY_*` variables, and runs with the base
-environment only, with no overlay's root variable and never the session's.
+events, payloads, outputs, limits, failures and combination. A `run` is relative to the directory that
+holds that configuration, which the consumer documents. Such a hook receives `AOS_HOOK_EVENT` and none of
+the `AOS_OVERLAY_*` variables, and runs, as an overlay's does, in the session's folder with the session's
+environment.
 
 - **The user's own configuration** needs no allowance: its author is the user.
 - **Any other** (a project's, which arrives with a checkout anyone may have written, and which the agent
@@ -376,4 +404,4 @@ consumer documents another order.
 A [harness hint](harness.md#harness-hints) never adds a hook: a `hooks` key under `[harness.<id>]` is that
 harness's own data, preserved and never applied, as any other key there. This section is the one route
 by which an overlay's code runs at a session's events, and it is the visible one: declared statically,
-listed before installing, off until allowed at a digest, bounded, reported, and unable to grant.
+listed before installing, off until allowed at a digest, bounded, reported, and answering the harness only through the consumer.
