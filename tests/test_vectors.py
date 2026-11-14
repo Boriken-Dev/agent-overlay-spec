@@ -374,6 +374,8 @@ def test_hooks(case):
         extra = {"context_used": case["context_used"]} if "context_used" in case else {}
         if "input" in case:
             extra["tool_input"] = case["input"]
+        if "kind" in case:
+            extra["kind"] = case["kind"]
         got = aos.fire_event(
             case["event"],
             case["runs"],

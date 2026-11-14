@@ -201,7 +201,9 @@ The first edition, `0.1.0-draft`, a development draft open for review.
   in the session's working directory, and every overlay's setup, env scripts, hooks, servers and commands
   get the session's environment (overlays stack, a later one on top of an earlier), so one overlay reads what another declared; a `pre-env` hook sees what earlier
   `pre-env` hooks set; the consumer stops only the hook's own process at its timeout, with no process group
-  or job object. Recorded in the design decisions as 29; new and changed vectors in
+  or job object. On a call of kind `other`, a hook whose `match` does not name `other` still runs and its deny
+  and ask count, but its allow and input do not (`hook-not-applied`, `allow`); a hook with no `match`, or one
+  that names `other`, may allow it. Recorded in the design decisions as 29 and 30; new and changed vectors in
   `tests/vectors/hooks.json`.
 - **Breaking: a weakening is now a non-default setting.** The word goes from the security section, the glossary, the
   site and the reference reader; the vectors' keys `weakenings` and `hook_weakenings` become `non_defaults` and

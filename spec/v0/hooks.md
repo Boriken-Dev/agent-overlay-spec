@@ -149,7 +149,11 @@ gives a tool call: `read`, `edit`, `delete`, `move`, `search`, `execute`, `think
 how: a shell is `execute`, a file write `edit`, a web request `fetch`; a tool it cannot place is `other`.
 `match = ["execute"]` therefore means every shell tool of every harness. **A call of kind `other` runs
 every hook of its event, whatever its `match`**, so a tool that runs commands under a name the consumer
-does not know (an MCP server's, say) never slips past a guard by its kind.
+does not know (an MCP server's, say) never slips past a guard by its kind. **Such a hook may only
+tighten it unless it names `other`:** a hook whose `match` is given and does not name `other` still runs,
+and its deny and ask count, but its allow and any `input` it carries do not, and are reported as
+`hook-not-applied` (`allow`), so a hook scoped to `read` cannot approve an MCP tool or a call of a kind
+the consumer cannot place. A hook with no `match`, or one that names `other`, may allow it.
 
 ## The payload
 
@@ -335,7 +339,9 @@ tightest: a block or a deny beats an ask, and an ask beats an allow.
   approval as approved only where it has checked that the harness's deny rules and any mode that refuses
   still win over that answer, and its own protected paths still refuse; where it cannot, the allow is
   reported as `hook-not-applied` (`allow`) and the call goes as it would without it. Over ACP the answer
-  is the option that allows this once, never one that remembers the choice.
+  is the option that allows this once, never one that remembers the choice. On a call of kind `other`,
+  only a hook with no `match` or one that names `other` may allow ([tool kinds](#tool-kinds)); another's
+  allow is reported and does not count.
 - **A rewritten `input`** is given to every later hook as `tool.input`, and the call runs with the last
   one only if the event is combined to an allow; the first deny or ask beats a rewrite as it beats any
   allow.

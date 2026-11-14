@@ -3271,6 +3271,7 @@ def fire_event(
     windows: bool = False,
     context_used: int = 0,
     tool_input: Any = _UNSET,
+    kind: "Optional[str]" = None,
 ) -> "dict[str, Any]":
     """Every hook of one event, in the order given, combined to the tightest result.
 
@@ -3283,7 +3284,9 @@ def fire_event(
     ``tool_input`` is the call's input as the harness gave it (a ``pre-tool`` case that tests
     rewriting): the result then says what each hook ``seen`` and the ``input`` the call runs with,
     ``None`` for the one it was given. A hook's ``input`` replaces it for the hooks after; it
-    applies only when the combined decision is an allow.
+    applies only when the combined decision is an allow. ``kind`` is the call's tool kind: on
+    ``other`` a run whose ``match`` is given and does not name ``other`` still runs, but its allow
+    (and its input) does not count.
     """
     _class, _default, outputs, refusal, _match = HOOK_EVENTS[event]
     current = tool_input
@@ -3326,6 +3329,15 @@ def fire_event(
         if decision is not None and decision not in can:
             result["reports"].append(["hook-not-applied", source, event, decision])
             decision = None
+        if (
+            decision == "allow"
+            and kind == "other"
+            and run.get("match") is not None
+            and "other" not in run["match"]
+        ):
+            result["reports"].append(["hook-not-applied", source, event, "allow"])
+            decision = None
+            out = {key: value for key, value in out.items() if key != "input"}
         if "input" in out and decision == "allow":
             if "input" in can:
                 current, rewriter = out["input"], source

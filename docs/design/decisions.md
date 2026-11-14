@@ -664,3 +664,17 @@ overlay's code now reads every overlay's values and every secret granted to any 
 says.
 
 **Status:** adopted; Proposed until an implementation fires hooks.
+
+## 30 — A call of kind `other` takes an allow only from a hook that names it
+
+**Decision:** 25 and 29 together would let a hook scoped to `match = ["read"]` approve every MCP tool and any
+call of an unknown kind, since a call of kind `other` runs every hook so that no guard is bypassed. Now a hook
+whose `match` does not name `other` still runs on such a call, and its deny and ask still count, but its allow
+and any `input` it carries do not: they are reported as `hook-not-applied` (`allow`). A hook with no `match`,
+or one that names `other`, may allow it.
+
+**Reason:** a harness's own matchers never fire on a tool they do not name, so an allow from a hook scoped to
+reads cannot reach a tool it was never written for; running the hook there stays right, because a deny is
+safe to give wherever it fires.
+
+**Status:** adopted; Proposed until an implementation fires hooks.
