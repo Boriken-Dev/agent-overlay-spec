@@ -145,6 +145,18 @@ Everything else of [reading](manifest.md#reading-overlaycfg) holds: UTF-8, the d
 reading, and limits on size and depth, as settings with defaults (4 MiB and 64 are RECOMMENDED,
 since a catalog lists many overlays).
 
+### A directory as a catalog
+
+When a catalog's location names a **directory** (a directory of the machine, or a `#path` that is a
+directory of a Git repository or archive) instead of a file, the directory is a catalog in the minimal form:
+each immediate subdirectory is an overlay entry, named by the subdirectory, whose source is that subdirectory
+at the same location, and for a Git repository at the same ref. A manifest is optional for an overlay, so
+none is required. Files, and subdirectories a consumer does not read as overlays, are ignored. A
+subdirectory whose name is not a valid overlay name (`.git`, `__pycache__`) is skipped and reported
+(`invalid-name`), and two names that compare equal refuse both (`duplicate-name`), as in a file. A directory
+with no entry lists nothing, and a store says that the directory holds no overlays, not that no catalog was
+found. Such a catalog has no `name`, `description`, `skills` or full entry.
+
 ### Entries and forms
 
 ```toml

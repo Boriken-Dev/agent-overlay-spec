@@ -11,6 +11,7 @@ The first edition, `0.1.0-draft`, a development draft open for review.
 
 ### Added
 
+- A catalog's location may name a directory: each immediate subdirectory is an overlay entry named by the directory, with that subdirectory as its source, as dotagents reads a repo that is a directory of overlays. Recorded in the design decisions as 31.
 - Templating (Proposed): a consumer replaces `${NAME}` in the context it assembles and in the body of each
   bundled skill it serves, when it serves them, never in an installed file. The names are
   `AOS_OVERLAY_ROOT`, `AOS_OVERLAY_STATE`, `AOS_OVERLAY_NAME`, `AOS_OVERLAY_SCOPE`, `AOS_PROJECT_ROOT` and the

@@ -678,3 +678,15 @@ reads cannot reach a tool it was never written for; running the hook there stays
 safe to give wherever it fires.
 
 **Status:** adopted; Proposed until an implementation fires hooks.
+
+## 31 — A directory is a catalog in the minimal form
+
+**Decision:** a catalog whose location names a directory lists each immediate subdirectory as an overlay,
+named by the directory, with that subdirectory as its source at the same location and commit. Nothing else in
+the directory is read.
+
+**Reason:** dotagents reads a repo that is a directory of overlays (its own overlay repository is one), so a
+store reading the same location lists the same overlays. It is what a registry file would say, written by the
+layout, and a directory with no manifest is an overlay for the same reason it is in dotagents.
+
+**Status:** adopted; Proposed with the rest of the catalog extension.
