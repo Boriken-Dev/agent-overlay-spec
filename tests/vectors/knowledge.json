@@ -7689,108 +7689,6 @@
       }
     },
     {
-      "id": "mustache-too-deep",
-      "description": "A server limit, not part of the language: sections and partials nested past max_template_depth are refused.",
-      "tool": "kb_read",
-      "overlays": [
-        {
-          "identity": "team-docs",
-          "manifest": {},
-          "served": false,
-          "facts": {
-            "root": "/o/team-docs",
-            "state": "/s/team-docs",
-            "scope": "user",
-            "project": "/work/app",
-            "options": {
-              "strict": true,
-              "token": "secret"
-            }
-          },
-          "tree": [
-            {
-              "path": "kb/t.md",
-              "text": "#!mustache\n{{#context.a}}{{#context.a}}{{#context.a}}{{/context.a}}{{/context.a}}{{/context.a}}\n"
-            }
-          ]
-        }
-      ],
-      "arguments": {
-        "path": "kb/t.md",
-        "context": {
-          "a": true
-        }
-      },
-      "facts": {},
-      "limits": {
-        "max_template_depth": 3
-      },
-      "expect": {
-        "result": {
-          "overlay": "team-docs",
-          "path": "kb/t.md",
-          "from_line": 1,
-          "to_line": 1,
-          "total_lines": 1,
-          "truncated": false,
-          "text": "",
-          "template": "mustache",
-          "rendered": true
-        }
-      }
-    },
-    {
-      "id": "mustache-at-depth",
-      "description": "At the limit: the document itself is not a level.",
-      "tool": "kb_read",
-      "overlays": [
-        {
-          "identity": "team-docs",
-          "manifest": {},
-          "served": false,
-          "facts": {
-            "root": "/o/team-docs",
-            "state": "/s/team-docs",
-            "scope": "user",
-            "project": "/work/app",
-            "options": {
-              "strict": true,
-              "token": "secret"
-            }
-          },
-          "tree": [
-            {
-              "path": "kb/t.md",
-              "text": "#!mustache\n{{#context.a}}{{#context.a}}{{/context.a}}{{/context.a}}\n"
-            }
-          ]
-        }
-      ],
-      "arguments": {
-        "path": "kb/t.md",
-        "context": {
-          "a": true
-        }
-      },
-      "facts": {},
-      "limits": {
-        "max_template_depth": 3
-      },
-      "expect": {
-        "result": {
-          "overlay": "team-docs",
-          "path": "kb/t.md",
-          "from_line": 1,
-          "to_line": 1,
-          "total_lines": 1,
-          "truncated": false,
-          "text": "",
-          "template": "mustache",
-          "rendered": true
-        }
-      }
-    },
-    {
       "id": "mustache-output-too-large",
       "description": "Output past max_rendered_bytes, here from a list of ten.",
       "tool": "kb_read",
@@ -15990,7 +15888,7 @@
     },
     {
       "id": "mustache-partial-recursion",
-      "description": "A partial may name itself: the data ends it.",
+      "description": "A partial may name itself: the data ends it (here three levels, within the limit).",
       "tool": "kb_read",
       "overlays": [
         {
@@ -16055,7 +15953,7 @@
     },
     {
       "id": "mustache-partial-endless-recursion-is-a-limit",
-      "description": "One that nothing ends is stopped by the server's limit on nesting, an error of the server and not of the language.",
+      "description": "One that nothing ends is stopped by the server's limit on nesting, max_include_depth (the same as for includes), an error of the server and not of the language.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -16089,10 +15987,10 @@
       },
       "facts": {},
       "limits": {
-        "max_template_depth": 5
+        "max_include_depth": 5
       },
       "expect": {
-        "error": "template-error"
+        "error": "include-error"
       }
     },
     {
@@ -17374,6 +17272,280 @@
           "total_lines": 1,
           "truncated": false,
           "text": "$ $x $x team-docs ${AOS_OVERLAY_NAME} ${NOPE} ${NOPE}"
+        }
+      }
+    },
+    {
+      "id": "format-extension-ascii-case-only",
+      "description": "A name ends in .markdown only with ASCII letters: with the Kelvin sign (U+212A) for the k it does not, though a Unicode lower-casing would make it so. The file is not markdown, so its first line is text and nothing is expanded.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/page.marKdown",
+              "text": "#!raw\n${AOS_OVERLAY_NAME}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/page.marKdown"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/page.marKdown",
+          "from_line": 1,
+          "to_line": 2,
+          "total_lines": 2,
+          "truncated": false,
+          "text": "#!raw\n${AOS_OVERLAY_NAME}"
+        }
+      }
+    },
+    {
+      "id": "format-extension-ascii-upper-is-markdown",
+      "description": "'.MARKDOWN' in ASCII capitals is markdown.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/page.MARKDOWN",
+              "text": "#!raw\n${AOS_OVERLAY_NAME}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/page.MARKDOWN"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/page.MARKDOWN",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "${AOS_OVERLAY_NAME}"
+        }
+      }
+    },
+    {
+      "id": "list-bad-format-option-is-render",
+      "description": "A file whose first-line option has a value it does not have cannot be served without a context to fail on: it is listed apart, with the reason 'render'; kb_read gives the error.",
+      "tool": "kb_list",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n"
+            },
+            {
+              "path": "kb/bad.md",
+              "text": "#!envsubst dialect=posix\nx\n"
+            },
+            {
+              "path": "kb/bad2.md",
+              "text": "#!mustache escape=maybe\nx\n"
+            },
+            {
+              "path": "kb/fine.md",
+              "text": "#!mustache escape=none\nx\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {},
+      "expect": {
+        "result": {
+          "overlays": [
+            {
+              "overlay": "team-docs",
+              "served": false,
+              "files": [
+                {
+                  "path": "kb/fine.md",
+                  "lines": 1,
+                  "bytes": 2,
+                  "template": "mustache",
+                  "rendered": true
+                },
+                {
+                  "path": "kb/intro.md",
+                  "lines": 1,
+                  "bytes": 8
+                }
+              ],
+              "skipped": [
+                {
+                  "path": "kb/bad.md",
+                  "reason": "render"
+                },
+                {
+                  "path": "kb/bad2.md",
+                  "reason": "render"
+                }
+              ]
+            }
+          ],
+          "engines": [
+            "envsubst",
+            "mustache"
+          ]
+        }
+      }
+    },
+    {
+      "id": "read-bad-format-option-says-why",
+      "description": "And reading it says why.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/bad.md",
+              "text": "#!envsubst dialect=posix\nx\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/bad.md"
+      },
+      "expect": {
+        "error": "template-error"
+      }
+    },
+    {
+      "id": "aos-dollar-dollar-is-a-dollar-before-text",
+      "description": "In the expanded format '$$' is '$' before anything, a name or not: '$$x' is '$x', '$$AOS_OVERLAY_NAME' is '$AOS_OVERLAY_NAME'.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!aos\n$$x $$AOS_OVERLAY_NAME $$$ $$\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "$x $AOS_OVERLAY_NAME $$ $"
         }
       }
     },

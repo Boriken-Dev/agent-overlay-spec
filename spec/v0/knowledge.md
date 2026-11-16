@@ -85,7 +85,8 @@ error is `{"error": {"class", "message"}}` returned the same way with `isError` 
   whether this server renders that engine.
 - `skipped` holds the skipped files in the same order, each with its `reason`: `name`, `too-large` or `not-text`
   as above, or `render` for a file whose served text cannot be made without a `context` (a cycle of includes, an
-  option of the wrong type, a Mustache body refused: `kb_read` says which). A path in it is written out as
+  option of the wrong type, a format option with a value it does not have, a template a library refuses: `kb_read` says
+  which). A path in it is written out as
   [served text](#served-text) is.
 - `engines` are the [template engines](#formats-and-templates) this server renders with, in the order `envsubst`, `mustache`
   and then any others of its own by their names' bytes; possibly none.
@@ -220,8 +221,9 @@ extension, as a program in `bin/` is not knowledge.
 
 A markdown file whose first line names `aos` (or its alias `agentic`), or which names no format, is **expanded**. The
 format is AOS's own, since no other has includes in the manner of `CLAUDE.md`: an **include pass** over the text, and
-[envsubst](#envsubst) with its options fixed: the `braced` pattern, the `escape` feature, and `undefined=debug`. What
-is specific to AOS is the include pass and that code is left alone. Specifically,
+[envsubst](#envsubst) with its options fixed: the `braced` pattern, the `escape` feature, and `undefined=debug`
+(tplx's `DollarTemplate` with `PATTERN="braced"`, `FEATURES={"escape"}` and the `debug` undefined mode, which a stock
+tplx meets unmodified). What is specific to AOS is the include pass and that code is left alone. Specifically,
 the text after the first line (the whole file when it names nothing) is read from left to right,
 one line at a time, and two things in it are replaced: **`${NAME}`** and **`@path`**. Nothing else is changed: the
 file's own front matter, headings, links, `{{…}}` text and every other character stay, and a file with neither is
@@ -231,8 +233,8 @@ served as it is. (`agentic` is a second name for the same format; both are liste
   facts: `${AOS_OVERLAY_NAME}`, an option's name, `${AOS_CALLER_ROLE}`, `${AOS_ENV_<NAME>}`, `${AOS_ARG_<key>}`
   and the rest. A `${NAME}` whose name has no value, or is none of these, stays as written: no error, and not the
   empty string, so a prose mention never makes a file unreadable (envsubst's `undefined=debug`). `$$` is a dollar
-  (its `escape` feature), so `$${AOS_OVERLAY_NAME}` is the text `${AOS_OVERLAY_NAME}`; `$x` is read by no one (the
-  `braced` pattern). Nothing is replaced **in code** (below):
+  **everywhere outside code**, before a brace or not (its `escape` feature: `$$x` is `$x` and `$$` is `$`), so
+  `$${AOS_OVERLAY_NAME}` is the text `${AOS_OVERLAY_NAME}`; `$x` is read by no one (the `braced` pattern). Nothing is replaced **in code** (below):
   a shell line's `${HOME}` or `${VAR:-x}` is safe, and so is `$$` there, which stays `$$`. An option of the wrong
   type is `invalid-option`, but only where a `${…}` outside code that would read it is met.
 - **`@path`** includes a file of the same overlay, in the manner of the `@path` imports of Claude Code's
@@ -401,7 +403,8 @@ name in it is worse for an agent than a blank. Each dialect is the named impleme
 of them, or fewer features: a file whose options it cannot honour is served as a file for an engine it does not render
 ([below](#an-engine-this-server-does-not-render)). The vectors check the common core of the three dialects, `$$`, the
 patterns, `default` and the undefined modes, and the GNU defaults. tplx matches names without regard to case, as
-a departure it documents; whether a name matches in another case is the consumer's, and no vector asks.
+a departure it documents, and so does its `aos` engine: whether a name matches in another case (`${aos_overlay_name}`, an
+option written in capitals) is the consumer's, and no vector asks.
 
 ### `mustache`
 
@@ -423,9 +426,11 @@ never read as a template. Options, on the first line:
   partial that names no such file renders as nothing, as the specification says of a missing one. A partial's text is the
   file's text after its first line when that line names a format, and all of it when it does not (a file that is not
   markdown never has such a line); it is read as Mustache whatever it names, with the default delimiters, and is rendered with the
-  contexts at the tag and indented by the tag's indentation when the tag is alone on its line. A partial may name itself:
-  nesting is a server's limit (`max_template_depth`, an error of the server and not of the language), and a library's own
-  limit may come first.
+  contexts at the tag and indented by the tag's indentation when the tag is alone on its line. A partial may name itself,
+  as the specification's recursion test has it, and the data ends it. Partials nest at most `max_include_depth` deep
+  (`include-error`), as includes do: a server's limit and not the language's, so a server whose engine has its own
+  depth limit may stop sooner. A template and its sections have none, and the size of what they build is bounded by
+  `max_rendered_bytes`, also a server's limit.
 - **Lambdas** cannot arise: the data is JSON. Any other optional module (inheritance, blocks) is left to the server, and
   a file that uses it is the server's to read or to refuse; no vector asks.
 - **Consumer-defined**, because the specification leaves them to the language: whether an empty string and `0` are
@@ -491,6 +496,10 @@ may say why in a `note`); it chooses `llm` only if the person has asked for that
   there is none; it is written out.
 - `score` is a finite number, higher meaning a better match. It is comparable only within one entry, and means
   what the mode makes it mean; it has no scale, and a client does not compare it across modes, overlays or calls.
+- **Templates are searchable.** A file that names an engine is searched as it is served with no `context`, like any
+  other: a rendered template by its rendered text, one for an engine the server lacks by the text it is served with,
+  its context block included. A file whose served text cannot be made is not searched (it is skipped in `kb_list` with
+  the reason `render`).
 - **Order.** Within an entry, passages are ordered by `score`, highest first; then by `path`, as UTF-8 bytes; then
   by `from_line`; then by `to_line`, each ascending. Passages equal in all four keep the order they have in the
   file. At most `top` are given.
@@ -530,8 +539,7 @@ Every limit is a setting of the consumer with a default, and no floor: a person 
 | `max_top` | 100 | `top` |
 | `max_context_bytes` | 16 KiB | strings and keys of a `context` |
 | `max_context_depth` | 8 | a `context`'s nesting |
-| `max_template_depth` | 32 | Mustache sections and partials one in another (a server limit) |
-| `max_include_depth` | 5 | `@path` includes one in another |
+| `max_include_depth` | 5 | `@path` includes, and Mustache partials, one in another |
 
 ## Errors
 
@@ -547,7 +555,7 @@ Every limit is a setting of the consumer with a default, and no floor: a person 
 | `too-large` | the file is past `max_file_bytes`, or a rendered text past `max_rendered_bytes` |
 | `invalid-option` | a configured option, or a default, is not of its declared type |
 | `template-error` | a template the library refuses, a format option with a value it does not have, or a name with no value under `undefined=strict` |
-| `include-error` | an `@path` that names a served file and cannot be included: a cycle, or nesting past `max_include_depth` |
+| `include-error` | an `@path` that names a served file and cannot be included: a cycle, or nesting of includes or partials past `max_include_depth` |
 | `line-range` | `to` before `from`, or `from` past the last line |
 | `unavailable`, `mode-unavailable` | in a search entry: no answer now, or not by that mode |
 

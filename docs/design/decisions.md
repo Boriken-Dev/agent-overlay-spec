@@ -822,6 +822,13 @@ coordinator's rulings on code and unknown names keep shell-heavy knowledge intac
 - **`aos` stays AOS's own**: an include pass over envsubst with fixed options (braced pattern, `escape`, `undefined=debug`),
   and code left alone. `$$` is a dollar in it, as the escape feature makes it.
 - **Other names** are unchanged: a server's own, or served as written with the context.
+- **Limits are the server's, not the language's.** Mustache has no depth limit of its own here: partials nest as
+  `@path` includes do (`max_include_depth`, `include-error`), and what a template builds is bounded by
+  `max_rendered_bytes`. The one-line-tag rule is gone with the subset.
+- **`aos`'s `${}` is tplx's dollar engine** with the braced pattern, the `escape` feature and the `debug` undefined mode,
+  so `$$` is `$` before anything outside code. Names match in the engine's own way (tplx without regard to case): the
+  consumer's, and no vector asks.
+- **A file that names an engine is searched** as it is served with no context, rendered or not.
 
 **Reason:** the owner, 2026-11-16: "Coqui-aos can support its own doesnt need to rewrite the one in tplx, especially if
 its no longer msutache and custom to it. Also we should support as much of the tempalte as possible not be changing the

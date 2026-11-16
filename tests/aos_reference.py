@@ -4190,7 +4190,6 @@ KB_LIMITS = {
     "max_top": 100,
     "max_context_bytes": 16384,
     "max_context_depth": 8,
-    "max_template_depth": 32,
     "max_include_depth": 5,
 }
 KB_MAX_INTEGER = 9007199254740991
@@ -4457,6 +4456,10 @@ def kb_shebang(data: bytes) -> "Optional[str]":
     return found[0] if found else None
 
 
+def _kb_ascii_lower(text: str) -> str:
+    return "".join(c.lower() if "A" <= c <= "Z" else c for c in text)
+
+
 def kb_after_shebang(text: str) -> str:
     """A text after its first line, the line end (LF, or CR LF) with it."""
     end = text.find("\n")
@@ -4487,7 +4490,7 @@ def kb_set(
             except UnicodeDecodeError:
                 skipped.append((path, "not-text"))
                 continue
-            markdown = path.lower().endswith(KB_MARKDOWN_SUFFIXES)
+            markdown = _kb_ascii_lower(path).endswith(KB_MARKDOWN_SUFFIXES)
             line = kb_format_line(data) if markdown else None
             name = line[0] if line else None
             engine = None if name in (None,) + KB_AS_WRITTEN + KB_EXPANDED else name
@@ -5249,8 +5252,6 @@ def mustache(
         return parsed[source]
 
     def walk(nodes: "list", stack: "list", depth: int) -> None:
-        if _kb_over(depth, limit["max_template_depth"]):
-            raise KnowledgeError("template-error", "sections and partials nest too deep")
         for node in nodes:
             if node[0] == "text":
                 emit(node[1])
@@ -5265,16 +5266,18 @@ def mustache(
                     source = "".join(
                         node[2] + part for part in re.findall(r"[^\n]*\n|[^\n]+", source)
                     )
+                if _kb_over(depth + 1, limit["max_include_depth"]):
+                    raise KnowledgeError("include-error", "partials are nested too deep")
                 walk(tree(source), stack, depth + 1)
             else:
                 value = _m_lookup(node[1], stack)
                 falsy = value is _MISSING or value is None or value is False or value == []
                 if node[2]:
                     if falsy:
-                        walk(node[3], stack, depth + 1)
+                        walk(node[3], stack, depth)
                 elif not falsy:
                     for item in value if isinstance(value, list) else [value]:
-                        walk(node[3], stack + [item], depth + 1)
+                        walk(node[3], stack + [item], depth)
 
     walk(tree(text), [data], 0)
     return "".join(out)
