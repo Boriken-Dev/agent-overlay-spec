@@ -838,3 +838,9 @@ escape option and others". A subset that is neither the engine nor a library's i
 thing in every language; the real engine with a few named options is one a library already has.
 
 **Status:** adopted; Proposed until an implementation serves knowledge.
+
+**Amended 2026-11-16, by the owner:** "Make ti the same for both libs but aos default to the $name". The default
+`undefined` of `#!envsubst` is `debug`, not `lenient`: a name with no value stays as written, as it does in `aos`, so
+both engines read an unknown name alike. `lenient` (empty, GNU's own) and `strict` remain options. The reasoning above
+for `lenient` as the default, that a name never makes a file unreadable, holds for `debug` too, and a blank no longer
+changes what a sentence says.

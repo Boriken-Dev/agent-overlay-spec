@@ -24,7 +24,7 @@ The first edition, `0.1.0-draft`, a development draft open for review.
   to the including file, never above the root, five hops, no cycle, none of it in code, an unknown name or a path
   that names no file left as written); `#!markdown`, `#!md` and `#!raw` serve the file as it is, the line dropped, and
   are synonyms; any other file is served as it is. The served text is what `kb_read` ranges, `kb_list` counts and
-  search indexes. `envsubst` is envsubst, GNU's at its defaults, and `mustache` is Mustache as its specification
+  search indexes. `envsubst` is envsubst, GNU's at its defaults but that a name with no value stays as written (`undefined=debug`), and `mustache` is Mustache as its specification
   defines it (partials resolved inside the overlay like `@path`), each with options on the first line spelled as tplx
   spells its own (`#!envsubst dialect=drone undefined=debug`, `#!mustache escape=none`); an unknown option is ignored
   and a bad value is an error; any other name is the server's own, and an engine a server does not render is no error: the file is served as it is, the

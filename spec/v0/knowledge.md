@@ -383,9 +383,9 @@ The text after the first line is the real thing: **envsubst**, with the options 
 engine of that name, so that a template written for one is read by the other. The names it replaces are the first column
 of the table above, as the variables of an environment are in a shell.
 
-**At its defaults** it is **GNU gettext's** `envsubst`: `$NAME` and `${NAME}` are replaced by the value of `NAME` (a name
+**At its defaults** it is **GNU gettext's** `envsubst`, but for what a name with no value becomes: `$NAME` and `${NAME}` are replaced by the value of `NAME` (a name
 is a letter or `_`, then letters, digits and `_`, as long as it goes: `$AOS_OVERLAY_NAME-x` is the value and `-x`); a name
-with no value is replaced by nothing; it has **no operators** (`${NAME:-word}` is text), **no `$$` escape** (`$$NAME` is a
+with no value is **kept as written** (the `undefined=debug` below, where GNU's gives nothing); it has **no operators** (`${NAME:-word}` is text), **no `$$` escape** (`$$NAME` is a
 dollar and the value), and anything that is not a reference, such as `$1`, a `$` before a space, and `${NAME` with its
 brace never closed, is text. A value is inserted as it is and never read again.
 
@@ -396,10 +396,11 @@ brace never closed, is text. A value is inserted as it is and never read again.
 | `dialect` | `gnu` (default), `a8m`, `drone` | The behaviour to follow: GNU envsubst's; [a8m/envsubst](https://github.com/a8m/envsubst)'s (`$$` escape, defaults, `=`, `+`, nested words, bare and braced names); [drone/envsubst](https://github.com/drone/envsubst)'s (braced names only, `$$` escape, defaults, slices, replacements, trims, case, length) |
 | `pattern` | `braced`, `unbraced`, `all` | Which references are read, the dialect's by default (`all` for `gnu` and `a8m`, `braced` for `drone`) |
 | `features` | a comma-separated list of `escape`, `default`, `assign`, `alternate`, `nested`, `unquote`, `slice`, `replace`, `trim`, `case`, `length` | The operators read, replacing the dialect's; `escape` is `$$`, `default` is `${NAME:-word}` and `${NAME-word}` (`:-` also where the value is empty), and the rest are tplx's shell features, as that engine defines them |
-| `undefined` | `lenient` (default), `strict`, `debug` | What a name with no value is: nothing; an error (`template-error`); or kept as it was written, as the nginx image's envsubst keeps `$request_uri` |
+| `undefined` | `debug` (default), `lenient`, `strict` | What a name with no value is: kept as it was written, as the nginx image's envsubst keeps `$request_uri` (`$NAME` and `${NAME}` stay); nothing, as GNU's own gives; or an error (`template-error`) |
 
-Why `lenient` and not tplx's loader default of `strict`: GNU's own is empty, and a file that cannot be read because of a
-name in it is worse for an agent than a blank. Each dialect is the named implementation's, and a server MAY implement fewer
+Why `debug` and not tplx's loader default of `strict` or GNU's own empty: it is what `aos` does, so that both engines read a
+name alike, and a prose mention of `$NAME` that no fact answers is neither an error that makes the file unreadable nor a
+blank that changes what the sentence says. `undefined=lenient` gives GNU's empty. Each dialect is the named implementation's, and a server MAY implement fewer
 of them, or fewer features: a file whose options it cannot honour is served as a file for an engine it does not render
 ([below](#an-engine-this-server-does-not-render)). The vectors check the common core of the three dialects, `$$`, the
 patterns, `default` and the undefined modes, and the GNU defaults. tplx matches names without regard to case, as

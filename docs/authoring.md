@@ -135,7 +135,7 @@ path, with a search where the consumer has one, so a long convention need not si
 file of the overlay, as Claude Code's `CLAUDE.md` imports do, never from a code block and never from outside the
 overlay. Neither is touched in code. Give a file the first line `#!markdown` (or `#!raw`) to serve it exactly as
 written. To make one depend on who asks, give it a first line `#!envsubst` (`${AOS_CALLER_ROLE}`) or
-`#!mustache` (`{{caller.role}}`), the real engines, with options after the name (`#!envsubst undefined=debug`,
+`#!mustache` (`{{caller.role}}`), the real engines, with options after the name (`#!envsubst undefined=lenient`,
 `#!mustache escape=none`); a server without that engine serves it as written with the context in a front
 matter after the line. Only `.md` and `.markdown` files read a first line. See [Knowledge](spec/v0/knowledge.md).
 

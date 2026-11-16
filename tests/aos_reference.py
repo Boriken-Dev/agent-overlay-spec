@@ -4703,7 +4703,7 @@ def _kb_envsubst_options(options: "dict[str, str]") -> "tuple[str, frozenset, st
         if not asked <= set(KB_SHELL_FEATURES):
             raise KnowledgeError("template-error", "a feature that is not defined")
         features = asked
-    undefined = options.get("undefined", "lenient")
+    undefined = options.get("undefined", "debug")
     if undefined not in KB_UNDEFINED:
         raise KnowledgeError("template-error", "undefined is strict, lenient or debug")
     return pattern, features, undefined
@@ -5037,7 +5037,7 @@ def kb_envsubst(
     values: "dict[str, str]",
     pattern: str = "all",
     features: "frozenset[str]" = frozenset(),
-    undefined: str = "lenient",
+    undefined: str = "debug",
 ) -> str:
     """``envsubst``: ``$NAME`` and ``${NAME}`` (as ``pattern`` allows) replaced by the value of
     NAME; a name with no value follows ``undefined``; with the ``escape`` feature ``$$`` is ``$``,
