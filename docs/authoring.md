@@ -130,12 +130,13 @@ See [Templating](spec/v0/harness.md#templating) for the rules.
 
 Files under `kb/`, `flows/`, `references/`, `rules/` and `context/`, and `CONTEXT.md`, are served to the agent by
 path, with a search where the consumer has one, so a long convention need not sit in every context. Say so with
-`[knowledge] serve = true` and leave a routing line that names the path. A file is markdown: `${AOS_OVERLAY_NAME}`
-is replaced (write `$${` for a literal one), and `@part.md` on its own line includes another file of the overlay,
-as Claude Code's `CLAUDE.md` imports do, never from a code block and never from outside the overlay. Give a file
-the first line `#!raw` to serve it as written. To make one depend on who asks, give it a first line `#!envsubst` (`${AOS_CALLER_ROLE}`) or
+`[knowledge] serve = true` and leave a routing line that names the path. A `.md` file is expanded by default:
+`${AOS_OVERLAY_NAME}` is replaced (write `$${` for a literal one), and `@part.md` on its own line includes another
+file of the overlay, as Claude Code's `CLAUDE.md` imports do, never from a code block and never from outside the
+overlay. Neither is touched in code. Give a file the first line `#!markdown` (or `#!raw`) to serve it exactly as
+written. To make one depend on who asks, give it a first line `#!envsubst` (`${AOS_CALLER_ROLE}`) or
 `#!mustache` (`{{caller.role}}`); a server without that engine serves it as written with the context in a front
-matter after the line, and and `#!raw` serves it unchanged. See [Knowledge](spec/v0/knowledge.md).
+matter after the line. Only `.md` and `.markdown` files read a first line. See [Knowledge](spec/v0/knowledge.md).
 
 ## The manifest
 

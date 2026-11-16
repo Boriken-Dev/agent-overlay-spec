@@ -761,32 +761,39 @@ skipped reason `template` are gone with it.
 
 **Status:** adopted; Proposed until an implementation serves knowledge. Amended by 34: a markdown file is no longer served byte for byte.
 
-## 34 — Markdown is the default format: `${}` and `@path`; `#!raw` is the way out
+## 34 — Markdown is expanded by default: `${}` and `@path`; `#!markdown` and `#!raw` are the way out
 
-**Decision:** amends 33, which made a file with no shebang or a markdown one byte for byte.
+**Decision:** amends 33, which made a file with no shebang byte for byte, and its rule that a markdown line is kept.
 
-- **A file with no first line naming a format is markdown**, and every server implements it. `${NAME}` is replaced
-  by the existing envsubst grammar over the same facts, `$${` being a literal `${`; `@path` includes a file, as
-  the imports of Claude Code's `CLAUDE.md` do and as AGENTS.md readers read them.
+- **A markdown file (`.md`, `.markdown`) is expanded unless its first line says otherwise**, and every server
+  implements it. The first line may name it: `aos`, with `agentic` as a second name (the owner, "Both, aos first").
+  `${NAME}` is replaced by the existing envsubst grammar over the same facts, `$${` being a literal `${`, an unknown
+  name staying as written; `@path` includes a file, as the imports of Claude Code's `CLAUDE.md` do and as AGENTS.md
+  readers read them.
+- **`#!markdown`, `#!md` and `#!raw` serve the file byte for byte**, the line dropped, and are synonyms: three
+  names for the one behaviour, kept so an author can write the one that reads naturally and so that no edition has to
+  say which of them an unmarked file is.
+- **Only markdown files read a first line.** A script, a `.json`, a file with no extension is served as stored, so a
+  `#!/bin/bash` is never mistaken for a format.
 - **An `@` is an include only if it names a served file of the same overlay**, from the including file's folder,
-  rising to the root and no further, and is not in code, and follows white space or the start of a line. What
-  names nothing (a handle, an address, a path outside the root, a link, a file not in the knowledge) is text and no
-  error; what names a served file and cannot be included (a cycle, past five hops) is an error. A prose mention
-  must never make a file unreadable; an include the author meant must never fail silently.
-- **The included file's own format applies**: a template is rendered, a raw file is as it is, a markdown file is
-  expanded with its front matter dropped; one for an engine the server lacks is not included, since pasting its
-  context block into a document would corrupt it, and stays written for the agent to read by path.
-- **`${}` is replaced in code, `@` is not**: the names are a closed set, so replacing in a code span is harmless
-  and wanted (a path in backticks); an `@` in code is a decorator, a command or an example.
-- **`#!raw`** is a format every server has: the file after that line, with nothing replaced and its front matter
-  kept. The `#!raw` and `#!markdown` lines are not served: the server understood them. (33's rule that a markdown
-  line is kept is replaced.)
+  rising to the root and no further, not in code, after white space or at the start of a line. What names nothing (a
+  handle, an address, a path outside the root, a link, a file not in the knowledge) is text and no error; what names a
+  served file and cannot be included (a cycle, past five hops) is an error. A prose mention must never make a file
+  unreadable; an include the author meant must never fail silently.
+- **The included file's own format applies**: a template is rendered, a file marked as written is as written, an
+  expanded one is expanded with its front matter dropped; one for an engine the server lacks is not included, since
+  pasting its context block into a document would corrupt it, and stays written for the agent to read by path.
+- **Code is left alone** by both: an `@` in a fenced block or code span is a decorator, a command or an example, and a
+  `${HOME}` or `${VAR:-x}` in a shell snippet is not ours. Outside code, `${NAME}` of the closed set is replaced and
+  anything else stays.
 - **The served text is the one text** that `kb_read` numbers, `kb_list` counts and `kb_search` indexes, with no
   `context`, so an included file is found through its includer and a line number means one thing.
+- **Mustache comments may span lines**, as in the Mustache specification; every other tag is on one line.
 
 **Reason:** the owner, 2026-11-16: "Markdown should work with @ for include only include up to overlay root and ${}
-for var like claude and other read claude.md agents.md files", and "Raw format passes the filenas is". Agents are
-used to `@` imports; making them work in the overlay's own files with the same confinement as every path here is
-what lets an overlay split a long convention into parts.
+for var like claude and other read claude.md agents.md files", "Raw format passes the filenas is", "Both, aos first",
+"Default for will bebexpanded formst". Agents are used to `@` imports; making them work in the overlay's own files
+with the same confinement as every path here is what lets an overlay split a long convention into parts. The
+coordinator's rulings on code and unknown names keep shell-heavy knowledge intact and a prose mention harmless.
 
 **Status:** adopted; Proposed until an implementation serves knowledge.

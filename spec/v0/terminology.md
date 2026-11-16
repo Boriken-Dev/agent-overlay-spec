@@ -52,8 +52,8 @@ writes; kept across syncs and digests, deleted after removal.
 **Knowledge**: the files of an overlay that its consumer serves to an agent by path through the knowledge tools;
 see [Knowledge](knowledge.md#what-is-served).
 
-**Format** (of a knowledge file): what its first line, a shebang, names, `markdown` by default, `raw`, `envsubst`,
-`mustache` or a server's own; a file of one of the last three is a **template**, rendered when it is read; see [Templates](knowledge.md#formats-and-templates).
+**Format** (of a knowledge file): what the first line of a markdown file, a shebang, names: `aos` (or `agentic`), the default, `markdown`,
+`md` or `raw` (as written), `envsubst`, `mustache` or a server's own; a file of one of the last three is a **template**, rendered when it is read; see [Templates](knowledge.md#formats-and-templates).
 
 **Hook**: a script an overlay, or a scope's own configuration, runs at an event of a session; see
 [Hooks](hooks.md).

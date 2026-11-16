@@ -81,7 +81,7 @@ error is `{"error": {"class", "message"}}` returned the same way with `isError` 
   order of the [digest](integrity.md#tree-digest): not UTF-16 order, not case folded). Each has `lines` and
   `bytes`: the [lines](#lines) and the size in bytes of [the served text](#formats-and-templates), which is not
   the stored file's when the file has `${…}` or an include (an include's lines are in its includer's count). A file
-  whose first line names an engine other than markdown and raw also has `template`, the name, and `rendered`,
+  whose first line names an engine other than markdown, raw, `aos` and `agentic` also has `template`, the name, and `rendered`,
   whether this server renders that engine.
 - `skipped` holds the skipped files in the same order, each with its `reason`: `name`, `too-large` or `not-text`
   as above, or `render` for a file whose served text cannot be made without a `context` (a cycle of includes, an
@@ -100,7 +100,7 @@ error is `{"error": {"class", "message"}}` returned the same way with `isError` 
 ```
 
 `template`, the engine the file names, and `rendered`, whether this server rendered it, are also present when
-the file [names an engine](#formats-and-templates) other than markdown and raw.
+the file [names an engine](#formats-and-templates) other than those that name a format AOS defines as written or expanded.
 
 **Which file.** `path` is a [relative path](manifest.md#fields) under the overlay's root, compared exactly
 (case and Unicode form included) and never normalized, and with none of the characters served text writes out.
@@ -159,28 +159,32 @@ such a character is skipped instead.
 
 ## Formats and templates
 
-Every served file has a **format**, and the format is named by the file's first line.
+A **markdown file**, one whose name ends in `.md` or `.markdown` (in any ASCII case), names its **format** on its
+first line. Every other served file (a script, `.json`, `.py`, a file with no extension) has no format: it is
+served exactly as it is stored, first line included, and nothing in it is read, replaced or included, whatever
+that line says.
 
-**The first line.** A file names its format by its **first line**, from its first byte, written as a **format
-line** like [a manifest's](manifest.md#reading-overlaycfg): `#!` and then words, and the last word, after any `/`
-or `\`, with leading dots dropped and ASCII capitals lower-cased, is the **name**. So `#!mustache`,
+**The first line.** A markdown file names its format by its **first line**, from its first byte, written as a
+**format line** like [a manifest's](manifest.md#reading-overlaycfg): `#!` and then words, and the last word, after
+any `/` or `\`, with leading dots dropped and ASCII capitals lower-cased, is the **name**. So `#!mustache`,
 `#!/usr/bin/env mustache`, `#!/usr/bin/env -S mustache` and `#!MUSTACHE` all name `mustache`. A byte-order mark,
 a space or anything else before the `#!`, a `#!` on any other line, a line with no word and a path that ends in a
 separator name nothing, and the line is text.
 
-**The formats.** A file with no name is **markdown**. AOS defines four formats, and a server may have more under
-names of its own, with no registry, as a [format name of its own](manifest.md#formats) is for a manifest:
+**The formats.** AOS defines five, and a server may have more under names of its own, with no registry, as a
+[format name of its own](manifest.md#formats) is for a manifest. A markdown file that names none is
+**expanded**, as `aos` is:
 
 | Name | Every server | The file is served as |
 | --- | --- | --- |
-| `markdown`, `md` | yes | [Markdown](#markdown): `${NAME}` replaced and `@path` included; the default |
-| `raw` | yes | [Raw](#raw): as it is |
+| none, `aos`, `agentic` | yes | [Expanded](#the-aos-format): `${NAME}` replaced and `@path` included; the default |
+| `markdown`, `md`, `raw` | yes | [As written](#markdown-and-raw): byte for byte |
 | `envsubst` | no | [envsubst](#envsubst) over the whole text |
 | `mustache` | no | [Mustache](#mustache) over the whole text |
 
 A server says in `kb_list` which of the last two, and which of its own, it renders with. A first line that names
-`markdown`, `md` or `raw` is understood by every server and is **not served**: it says how to read the file, and
-carries no content, so the text a reader gets begins at the next line. A first line that names an engine this
+`markdown`, `md`, `raw`, `aos` or `agentic` is understood by every server and is **not served**: it says how to read the file,
+and carries no content, so the text a reader gets begins at the next line. A first line that names an engine this
 server renders is not served either. One that names an engine it does not render is [kept](#an-engine-this-server-does-not-render).
 
 **The text served.** What `kb_read` serves for a file, called with no `context`, is **the served text**. Its
@@ -190,20 +194,34 @@ line number means the same everywhere. A `context` can only change what an [engi
 A file whose served text cannot be made without a `context`, such as one whose includes form a cycle, is listed
 as skipped with the reason `render` and is not searched, and `kb_read` says why.
 
-### Markdown
+### Markdown and raw
 
-The text after the first line (the whole file when it names nothing) is read from left to right, one line at a
-time, and two things in it are replaced: **`${NAME}`** and **`@path`**. Nothing else is changed: the file's own
-front matter, headings, links, `{{…}}` text and every other character stay, and a file with neither is served as
-it is.
+A file whose first line names `markdown`, `md` or `raw` is served as **the text after that line, byte for byte**.
+Nothing in it is replaced: no `${…}`, no `@path`, no `{{…}}`, a `$${` and a CR LF as they are, and the file's own
+front matter kept. It is how an author turns the expansion off for a file that is only to be read: knowledge is
+full of shell lines, decorators and addresses.
+
+The three names are **synonyms**: they differ in nothing. `markdown` and `md` read naturally at the head of a
+markdown file, and `raw` where the point is that nothing is touched; a server need not tell them apart in any
+result. The line itself is not served: the server understood it, it carries no content, and a reader gets what
+the author wrote below it. A file whose first line must be served is not a markdown file: name it with another
+extension, as a program in `bin/` is not knowledge.
+
+### The `aos` format
+
+A markdown file whose first line names `aos` (or its alias `agentic`), or which names no format, is **expanded**:
+the text after the first line (the whole file when it names nothing) is read from left to right,
+one line at a time, and two things in it are replaced: **`${NAME}`** and **`@path`**. Nothing else is changed: the
+file's own front matter, headings, links, `{{…}}` text and every other character stay, and a file with neither is
+served as it is. (`agentic` is a second name for the same format; both are listed in the table above and nowhere else.)
 
 - **`${NAME}`** is replaced as [Templating](harness.md#templating) says, with [the names](#the-facts) of the
   facts: `${AOS_OVERLAY_NAME}`, an option's name, `${AOS_CALLER_ROLE}`, `${AOS_ENV_<NAME>}`, `${AOS_ARG_<key>}`
-  and the rest. A name with no value, and one that is none of these, stays as written, and `$${` is the literal
-  `${`; so `$${AOS_OVERLAY_NAME}` is the text `${AOS_OVERLAY_NAME}`, and `$$` and `$x` are themselves. This is
-  done **everywhere, code included**: the names are a closed set, so a shell line's `${HOME}` is untouched, and
-  an author who writes a path in a code span (`` `${AOS_OVERLAY_ROOT}/kb/a.md` ``) means it replaced. An option of
-  the wrong type is `invalid-option`, but only where a `${…}` that would read it is met.
+  and the rest. A `${NAME}` whose name has no value, or is none of these, stays as written: no error, and not the
+  empty string, so a prose mention never makes a file unreadable. `$${` is the literal `${`, so `$${AOS_OVERLAY_NAME}`
+  is the text `${AOS_OVERLAY_NAME}`, and `$$` and `$x` are themselves. Nothing is replaced **in code** (below):
+  a shell line's `${HOME}` or `${VAR:-x}` is safe, and so is `$${` there, which stays `$${`. An option of the wrong
+  type is `invalid-option`, but only where a `${…}` outside code that would read it is met.
 - **`@path`** includes a file of the same overlay, in the manner of the `@path` imports of Claude Code's
   `CLAUDE.md` and of `AGENTS.md` readers. The rules below decide what is an include; all else is text.
 
@@ -215,11 +233,13 @@ it is.
 3. the **name** after it, up to the next white space, with any of `. , ; : ! ? ) ] } ' "` taken off its end, is
    not empty, does not start with `/` or `~`, holds no `\`, does not start with a drive letter and `:`, and has
    no empty component; so a handle such as `@john` is a candidate and is settled by the next rule;
-4. it names a **served file of the same overlay**, found from the folder of the file that holds the `@`. A `.`
-   component stays where it is, and a `..` goes up one folder and may rise only as far as the root: one that would
-   leave it names nothing. A file that is another overlay's, a link, a file outside the knowledge, a program, one
-   that is skipped, one for an engine this server does not render and one that is not there are no served file,
-   and neither is a path through a link. Names are compared exactly, in case and in Unicode form.
+4. it names a **served file of the same overlay**, found **from the folder of the file that holds the `@`**, not
+   from the file that was asked for or from the root. A `.` component stays where it is, and a `..` goes up one
+   folder and may rise only as far as the root: one that would leave it names nothing. So `@../CONTEXT.md` in
+   `kb/guide.md` is the root's `CONTEXT.md`, and `@part.md` there is `kb/part.md`. A file that is another
+   overlay's, a link, a file outside the knowledge, a program, one that is skipped, one for an engine this server
+   does not render and one that is not there are no served file, and neither is a path through a link. Names are
+   compared exactly, in case and in Unicode form.
 
 What is not an include is **text, left as written, and no error**, because a word that names no file is prose: a
 handle, an address, a path in a sentence. An include that is one is different: the author meant it, and it can fail
@@ -228,15 +248,17 @@ handle, an address, a path in a sentence. An include that is one is different: t
 **What is included.** The included file's **own format** applies, so an author's choice of format is the same
 whether a file is read or included:
 
-- a markdown file is read as this section says, on its own, with its first line (if it names markdown) not
-  served, and **its front matter dropped** if it has one (a block that closes, the empty one too; front matter
-  describes the file, not its text), and its own `@path` are resolved from **its** folder;
-- a raw file is included as it is, after its first line, front matter and all;
+- an `aos` file is read as this section says, on its own, with its first line not served, and **its front matter
+  dropped** if it has one (a block that closes, the empty one too; front matter describes the file, not its text),
+  and its own `@path` are resolved from **its** folder;
+- a file that names `markdown`, `md` or `raw`, and a file that is not markdown, are included **as written**, after
+  their first line when it names a format, and nothing in them is replaced or included;
 - a file of `envsubst` or `mustache` is rendered with the same facts and the same `context`, and includes
   nothing further (neither engine has includes).
 
-Why the file's own format and not markdown for all: a file that says it is a template is rendered when read
-directly, and would otherwise reach the agent with its placeholders when included.
+Why the file's own format and not the includer's: a file that says it is a template is rendered when read
+directly, and would otherwise reach the agent with its placeholders when included; and a file that says it is as
+written must not change because another file includes it, and one that says nothing is expanded in turn.
 
 The included text replaces the `@` and the name; **one line end is dropped from its end** (CR LF, or LF), so a
 line that holds only `@path` becomes the included lines, the includer's line end after them; the text after the
@@ -252,18 +274,10 @@ cycle. The text added is counted with the served text toward `max_rendered_bytes
 more tildes, and closes at a line of up to three spaces, then as many of the same character or more, and nothing but
 spaces and tabs; one not closed runs to the end of the file; its fence lines are in it. A **code span** is a run of
 backticks and the text to the next run of exactly as many backticks, on the same line; a run with no such closing run
-is literal backticks. An indented block is **not** code here. An `@` in code is never an include, so a decorator
-(`@property`), a command (`@echo off`) and an example of an include are safe; `${NAME}` is replaced in code as
-above. To write an `@path` that would include, put it in a code span or write `\@path`.
-
-### Raw
-
-A file whose first line names `raw` is served as the bytes after that line, with **nothing replaced**: no
-`${…}`, no `@path`, no `{{…}}`, its front matter kept, a `$${` and a CR LF as they are. It is how an author turns
-the markdown engine off. The `#!raw` line itself is not served, as a markdown line is not: the server understood
-it, it carries no content, and keeping it would leave a line in every raw file that no reader asked for; the
-author who needs the bytes of the file, first line included, keeps the line out of the knowledge by naming the
-file as a program in `bin/`, where it is not knowledge. A raw file may be included by a markdown one, as it is.
+is literal backticks. An indented block is **not** code here. Code is left **entirely alone**: an `@` in it is never
+an include, so a decorator (`@property`), a command (`@echo off`) and an example of an include are safe, and a
+`${…}` in it is never replaced. To write an `@path` that would include, put it in a code span or write `\@path`;
+to write `${NAME}` outside code, write `$${NAME}`.
 
 ### An engine this server renders
 
@@ -301,7 +315,7 @@ JSON is, on one line with `, ` and `: ` between, the keys of every mapping below
 order, integers in decimal, booleans as `true` and `false`, and a string in double quotes in which only `"`, `\`
 and U+0000–U+001F are escaped, those last as `\u00xx` in lower case. The whole text is [written out](#served-text)
 after, as any is. The text is at most `max_rendered_bytes` bytes. A configured option of the wrong type is
-`invalid-option`, as when rendering. A markdown file that includes such a file leaves the `@path` as written.
+`invalid-option`, as when rendering. An `aos` file that includes such a file leaves the `@path` as written.
 
 ### An engine of a server's own
 

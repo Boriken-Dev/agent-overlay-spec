@@ -4179,7 +4179,9 @@ def read_icon(
 KB_DIRS = ("kb", "flows", "references", "rules", "context")
 KB_MODES = ("words", "meaning", "llm")
 KB_ENGINES = ("envsubst", "mustache")
-KB_MARKDOWN = ("markdown", "md")
+KB_MARKDOWN_SUFFIXES = (".md", ".markdown")
+KB_EXPANDED = ("aos", "agentic")  # the names of the expanded format, the default
+KB_AS_WRITTEN = ("raw", "markdown", "md")
 KB_LIMITS = {
     "max_file_bytes": 1048576,
     "max_read_bytes": 65536,
@@ -4459,12 +4461,13 @@ def kb_set(
             except UnicodeDecodeError:
                 skipped.append((path, "not-text"))
                 continue
-            name = kb_shebang(data)
-            engine = None if name in (None, "raw") + KB_MARKDOWN else name
+            markdown = path.lower().endswith(KB_MARKDOWN_SUFFIXES)
+            name = kb_shebang(data) if markdown else None
+            engine = None if name in (None,) + KB_AS_WRITTEN + KB_EXPANDED else name
             files[path] = {
                 "text": text,
                 "engine": engine,
-                "raw": name == "raw",
+                "raw": not markdown or name in KB_AS_WRITTEN,
                 "bytes": len(data),
                 "rest": kb_after_shebang(text) if name else text,
             }
@@ -4739,11 +4742,11 @@ def _kb_line(line: str, in_code: "list[bool]", path: str, ctx, chain) -> str:
     out = []
     i = 0
     while i < len(line):
-        if line.startswith("$${", i):
+        if not in_code[i] and line.startswith("$${", i):
             out.append("${")
             i += 3
             continue
-        found = _TEMPLATE_PLACEHOLDER.match(line, i)
+        found = None if in_code[i] else _TEMPLATE_PLACEHOLDER.match(line, i)
         if found:
             values = _kb_values(ctx)
             if found.group(1) in values:
@@ -4979,10 +4982,43 @@ def _mustache_line(line: str) -> "list[tuple]":
     return items
 
 
+def _mustache_open_comment(text: str) -> bool:
+    """Whether a comment tag in ``text`` is not closed."""
+    i = 0
+    while True:
+        found = text.find("{{", i)
+        if found < 0:
+            return False
+        if text.startswith("{{{", found):
+            end = text.find("}}}", found + 3)
+            if end < 0:
+                return False
+            i = end + 3
+            continue
+        end = text.find("}}", found + 2)
+        if end < 0:
+            return text.startswith("{{!", found)
+        i = end + 2
+
+
+def _mustache_logical_lines(text: str) -> "list[str]":
+    """The lines of ``text``, a line that ends inside a comment joined to the next."""
+    out = []
+    buffer = ""
+    for line in re.findall(r"[^\n]*\n|[^\n]+", text):
+        buffer += line
+        if not _mustache_open_comment(buffer):
+            out.append(buffer)
+            buffer = ""
+    if buffer:
+        out.append(buffer)
+    return out
+
+
 def _mustache_parse(text: str, limit: "dict[str, int]") -> "list":
     root: "list" = []
     stack = [(None, root)]
-    for line in re.findall(r"[^\n]*\n|[^\n]+", text):
+    for line in _mustache_logical_lines(text):
         for item in _mustache_line(line):
             kind = item[0]
             children = stack[-1][1]

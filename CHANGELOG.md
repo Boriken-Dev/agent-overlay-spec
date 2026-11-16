@@ -18,15 +18,17 @@ The first edition, `0.1.0-draft`, a development draft open for review.
   bound, text written out so that nothing in a file can hide or reorder what the agent reads, and the error
   classes are normative and have vectors; search is specified by its answer (passage, path, heading, inclusive line
   range, score, the mode that answered) and its ordering, over modes a server declares (`words`, `meaning`, `llm`),
-  never by how it ranks. A file's format is named by its first line, a shebang (`#!raw`, `#!mustache`,
-  `#!/usr/bin/env envsubst`), and it is markdown without one: `${NAME}` is replaced and `@path` includes another file
-  of the overlay as Claude Code's imports do (relative to the including file, never above the root, five hops, no
-  cycle, never in code), `#!raw` serves the file as it is, and the served text is what `kb_read` ranges, `kb_list`
-  counts and search indexes. `envsubst` is the existing `${NAME}` substitution with the
+  never by how it ranks. A markdown file's format is named by its first line, a shebang, and
+  only a markdown file (`.md`, `.markdown`) reads one: without it, or with `#!aos` (or `#!agentic`), the file is
+  expanded, `${NAME}` replaced and `@path` including another file of the overlay as Claude Code's imports do (relative
+  to the including file, never above the root, five hops, no cycle, none of it in code, an unknown name or a path
+  that names no file left as written); `#!markdown`, `#!md` and `#!raw` serve the file as it is, the line dropped, and
+  are synonyms; any other file is served as it is. The served text is what `kb_read` ranges, `kb_list` counts and
+  search indexes. `envsubst` is the existing `${NAME}` substitution with the
   caller's role and profile, the environment variables the user opened (never a sensitive one) and the call's
   `context`; `mustache` is a subset with sections and no partial, delimiter change, lambda or escaping; any other
   name is the server's own, and an engine a server does not render is no error: the file is served as it is, the
-  line kept, with the context the renderer would have used in a front matter after it. `#!markdown` is plain. A new
+  line kept, with the context the renderer would have used in a front matter after it. A new
   manifest field `knowledge` (`serve`) hints that an overlay's rules and context are to be served rather than
   injected; the user's choice wins and a consumer without MCP is never forced. Recorded in the design decisions as
   32, 33 and 34; vectors in `tests/vectors/knowledge.json` and `knowledge_search.json`, the `knowledge` cases of

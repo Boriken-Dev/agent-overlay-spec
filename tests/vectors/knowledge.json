@@ -2089,7 +2089,7 @@
     },
     {
       "id": "list-templates",
-      "description": "Every served file has the lines and bytes of the text `kb_read` serves for it with no context. A file whose first line names an engine other than markdown or raw also has the engine and whether this server renders it. Markdown files expand `${...}` and includes, so their counts are of what is served, not of the stored file.",
+      "description": "Every served file has the lines and bytes of the text `kb_read` serves for it with no context. A file whose first line names an engine other than markdown, raw, aos or agentic also has the engine and whether this server renders it. Expanded files replace `${...}` and include, so their counts are of what is served, not of the stored file.",
       "tool": "kb_list",
       "overlays": [
         {
@@ -2121,7 +2121,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/md-short.md",
@@ -2202,12 +2202,12 @@
                 {
                   "path": "kb/md-short.md",
                   "lines": 1,
-                  "bytes": 15
+                  "bytes": 25
                 },
                 {
                   "path": "kb/md.md",
                   "lines": 2,
-                  "bytes": 35
+                  "bytes": 60
                 },
                 {
                   "path": "kb/must.md",
@@ -5592,8 +5592,8 @@
       }
     },
     {
-      "id": "markdown-vars-and-unknown-names",
-      "description": "A file with no first line naming an engine is markdown: ${NAME} of the facts is replaced, `$${` is `${`, and anything else stays as written: an unknown name, `$$` and `$x`, and {{...}} tags.",
+      "id": "default-vars-and-unknown-names",
+      "description": "A markdown file that names no format is expanded: ${NAME} of the facts is replaced, `$${` is `${`, and anything else stays as written: an unknown name, `$$` and `$x`, and {{...}} tags.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -5654,8 +5654,8 @@
       }
     },
     {
-      "id": "markdown-vars-no-facts",
-      "description": "With no facts and no context, a name with no value stays as written.",
+      "id": "default-vars-no-facts",
+      "description": "With no facts and no context, a name with no value stays as written: no error, and not the empty string.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -5697,8 +5697,8 @@
       }
     },
     {
-      "id": "markdown-front-matter-kept",
-      "description": "The front matter of a markdown file stays in what is served (only an included file loses its own), and ${...} is replaced in it as anywhere.",
+      "id": "default-front-matter-kept",
+      "description": "The front matter of an expanded file stays in what is served (only an included file loses its own), and ${...} is replaced in it as anywhere.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -5739,7 +5739,7 @@
       }
     },
     {
-      "id": "markdown-broken-front-matter-kept",
+      "id": "default-broken-front-matter-kept",
       "description": "Front matter that does not parse is text like any.",
       "tool": "kb_read",
       "overlays": [
@@ -5781,8 +5781,8 @@
       }
     },
     {
-      "id": "markdown-old-template-key-is-nothing",
-      "description": "A front matter key 'template' marks nothing: the file is markdown.",
+      "id": "default-old-template-key-is-nothing",
+      "description": "A front matter key 'template' marks nothing.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -5823,8 +5823,8 @@
       }
     },
     {
-      "id": "markdown-shebang-dropped",
-      "description": "A first line naming markdown is understood and is not served; the rest is markdown like any file.",
+      "id": "markdown-shebang-as-written",
+      "description": "A first line naming markdown is understood and is not served; the rest is served byte for byte: ${...} and {{...}} stay, and so does an @path.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -5844,7 +5844,11 @@
           "tree": [
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
+            },
+            {
+              "path": "kb/part-plain.md",
+              "text": "PART\n"
             }
           ]
         }
@@ -5877,13 +5881,13 @@
           "to_line": 2,
           "total_lines": 2,
           "truncated": false,
-          "text": "# Title\nteam-docs {{overlay.name}}"
+          "text": "# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md"
         }
       }
     },
     {
       "id": "markdown-shebang-short-name-any-case",
-      "description": "'md', in any ASCII case, names markdown too.",
+      "description": "'md', in any ASCII case, names markdown too, and the rest is as written.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -5936,7 +5940,7 @@
           "to_line": 1,
           "total_lines": 1,
           "truncated": false,
-          "text": "text team-docs"
+          "text": "text ${AOS_OVERLAY_NAME}"
         }
       }
     },
@@ -9091,8 +9095,8 @@
       }
     },
     {
-      "id": "template-no-shebang-is-markdown",
-      "description": "No first line naming anything: the file is markdown, so ${...} is replaced and {{...}} is not.",
+      "id": "template-no-shebang-is-expanded",
+      "description": "No first line naming anything: the file is expanded, so ${...} is replaced and {{...}} is not.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -9178,7 +9182,7 @@
     },
     {
       "id": "template-shebang-after-bom",
-      "description": "A byte-order mark before it: the first line does not start with '#!', so the file is markdown, the mark and the line served as text.",
+      "description": "A byte-order mark before it: the first line does not start with '#!', so the file names no format and is expanded, the mark and the line served as text.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -9221,7 +9225,7 @@
     },
     {
       "id": "template-shebang-no-word",
-      "description": "A '#!' that names nothing is no engine: the file is markdown, the line served.",
+      "description": "A '#!' that names nothing is no engine: the line is served, and the file is expanded.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -9350,7 +9354,7 @@
     },
     {
       "id": "template-shebang-markdown-with-path",
-      "description": "'markdown' by a path is still markdown.",
+      "description": "'markdown' by a path is still markdown, and the rest is as written.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -9393,7 +9397,7 @@
     },
     {
       "id": "template-shebang-space-before-hash",
-      "description": "A line that does not start at its first byte with '#!' is no shebang: markdown.",
+      "description": "A line that does not start at its first byte with '#!' is no shebang: the file is expanded.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -11111,7 +11115,7 @@
     },
     {
       "id": "include-not-in-code",
-      "description": "An @ in a code span, in a fenced block (backticks or tildes, closed by a fence as long) or in a line of an unclosed fence is not an include; one in an indented line is (an indented block is not code here); ${...} is replaced everywhere.",
+      "description": "An @ in a code span, in a fenced block (backticks or tildes, closed by a fence as long) or in a line of an unclosed fence is not an include; one in an indented line is (an indented block is not code here); ${...} is left alone in code too.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -11168,7 +11172,7 @@
           "to_line": 15,
           "total_lines": 15,
           "truncated": false,
-          "text": "run `@part-plain.md` here ``@part-plain.md`` and ` PART\nPART\n```sh\n@part-plain.md\necho team-docs\n```\n~~~\n@part-plain.md\n~~~\n````\n```\n@part-plain.md\n````\n    PART\nend PART"
+          "text": "run `@part-plain.md` here ``@part-plain.md`` and ` PART\nPART\n```sh\n@part-plain.md\necho ${AOS_OVERLAY_NAME}\n```\n~~~\n@part-plain.md\n~~~\n````\n```\n@part-plain.md\n````\n    PART\nend PART"
         }
       }
     },
@@ -11711,7 +11715,7 @@
     },
     {
       "id": "include-engines-follow-the-included-file",
-      "description": "An included file's own first line decides: mustache and envsubst are rendered with the same facts (and do not include in their turn), markdown has its line dropped and is expanded, raw is included as it is with its front matter; a file for an engine this server lacks, a file that is not text, one too large and a link are no include and stay written.",
+      "description": "An included file's own first line decides: mustache and envsubst are rendered with the same facts (and do not include in their turn), a markdown, raw or aos line is dropped, and aos is expanded, raw is included as it is with its front matter; a file for an engine this server lacks, a file that is not text, one too large and a link are no include and stay written.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -11803,7 +11807,7 @@
           "to_line": 12,
           "total_lines": 12,
           "truncated": false,
-          "text": "A\n[team-docs reviewer]\n[team-docs reviewer] @part-plain.md\n@jinja-in.md\nmd text team-docs\n---\nr: 1\n---\n@part-plain.md ${AOS_OVERLAY_NAME} {{overlay.name}}\n@blob.md\n@huge.md\nZ"
+          "text": "A\n[team-docs reviewer]\n[team-docs reviewer] @part-plain.md\n@jinja-in.md\nmd text ${AOS_OVERLAY_NAME}\n---\nr: 1\n---\n@part-plain.md ${AOS_OVERLAY_NAME} {{overlay.name}}\n@blob.md\n@huge.md\nZ"
         }
       }
     },
@@ -12524,7 +12528,7 @@
     },
     {
       "id": "include-includes-markdown-shebang-dropped",
-      "description": "A markdown first line of an included file is dropped.",
+      "description": "A markdown first line of an included file is dropped, and the file is included as written.",
       "tool": "kb_read",
       "overlays": [
         {
@@ -13082,6 +13086,1693 @@
       },
       "expect": {
         "error": "too-large"
+      }
+    },
+    {
+      "id": "default-vars-not-in-code",
+      "description": "${NAME} is replaced outside code and left alone in a code span and in a fenced block (backticks or tildes), '$${' in code included; outside code, '$${' is '${', and a name that is not among the facts stays as written, no error.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/codevars.md",
+              "text": "x `${AOS_OVERLAY_NAME}` y ${AOS_OVERLAY_NAME}\n``${AOS_OVERLAY_NAME}`` and `` ` ``\n```sh\necho ${HOME:-x} ${AOS_OVERLAY_NAME} $${AOS_OVERLAY_NAME}\n```\n~~~\n${AOS_OVERLAY_NAME}\n~~~\nz $${AOS_OVERLAY_NAME} ${NOPE} ${HOME}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/codevars.md"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/codevars.md",
+          "from_line": 1,
+          "to_line": 9,
+          "total_lines": 9,
+          "truncated": false,
+          "text": "x `${AOS_OVERLAY_NAME}` y team-docs\n``${AOS_OVERLAY_NAME}`` and `` ` ``\n```sh\necho ${HOME:-x} ${AOS_OVERLAY_NAME} $${AOS_OVERLAY_NAME}\n```\n~~~\n${AOS_OVERLAY_NAME}\n~~~\nz ${AOS_OVERLAY_NAME} ${NOPE} ${HOME}"
+        }
+      }
+    },
+    {
+      "id": "format-script-served-as-written",
+      "description": "Only a markdown file (a name ending .md or .markdown, in any ASCII case) reads a first line as a format: a script is served as written, its '#!/bin/bash' kept, nothing replaced, nothing included, no context block.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/part-plain.md",
+              "text": "PART\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/run.sh"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/run.sh",
+          "from_line": 1,
+          "to_line": 2,
+          "total_lines": 2,
+          "truncated": false,
+          "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}"
+        }
+      }
+    },
+    {
+      "id": "format-json-served-as-written",
+      "description": "A file of any other kind: ${...} and @path stay.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/data.json",
+              "text": "{\"a\": \"${AOS_OVERLAY_NAME}\", \"b\": \"@part-plain.md\"}\n"
+            },
+            {
+              "path": "kb/part-plain.md",
+              "text": "PART\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/data.json"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/data.json",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "{\"a\": \"${AOS_OVERLAY_NAME}\", \"b\": \"@part-plain.md\"}"
+        }
+      }
+    },
+    {
+      "id": "format-py-names-an-engine-and-is-written",
+      "description": "A '#!jinja' line in a file that is not markdown names nothing: no context block.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/tool.py",
+              "text": "#!jinja\nx = {{ y }}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/tool.py"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/tool.py",
+          "from_line": 1,
+          "to_line": 2,
+          "total_lines": 2,
+          "truncated": false,
+          "text": "#!jinja\nx = {{ y }}"
+        }
+      }
+    },
+    {
+      "id": "format-no-extension-served-as-written",
+      "description": "A name with no extension is not markdown: '#!raw' is text and is served.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/readme",
+              "text": "#!raw\n${AOS_OVERLAY_NAME}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/readme"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/readme",
+          "from_line": 1,
+          "to_line": 2,
+          "total_lines": 2,
+          "truncated": false,
+          "text": "#!raw\n${AOS_OVERLAY_NAME}"
+        }
+      }
+    },
+    {
+      "id": "format-mdx-is-not-markdown",
+      "description": "'.mdx' is not '.md'.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/page.mdx",
+              "text": "#!raw\n${AOS_OVERLAY_NAME}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/page.mdx"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/page.mdx",
+          "from_line": 1,
+          "to_line": 2,
+          "total_lines": 2,
+          "truncated": false,
+          "text": "#!raw\n${AOS_OVERLAY_NAME}"
+        }
+      }
+    },
+    {
+      "id": "format-upper-case-md-is-markdown",
+      "description": "The extension is compared in ASCII case: NOTES.MD reads its '#!raw' line.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/NOTES.MD",
+              "text": "#!raw\n${AOS_OVERLAY_NAME} @part-plain.md\n"
+            },
+            {
+              "path": "kb/part-plain.md",
+              "text": "PART\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/NOTES.MD"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/NOTES.MD",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "${AOS_OVERLAY_NAME} @part-plain.md"
+        }
+      }
+    },
+    {
+      "id": "format-dot-markdown-is-markdown",
+      "description": "'.markdown' is markdown too: '#!md' is read, the line dropped, the rest as written; with no line the file is expanded.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/page.markdown",
+              "text": "#!md\n${AOS_OVERLAY_NAME}\n"
+            },
+            {
+              "path": "kb/page2.markdown",
+              "text": "${AOS_OVERLAY_NAME}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/page.markdown"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/page.markdown",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "${AOS_OVERLAY_NAME}"
+        }
+      }
+    },
+    {
+      "id": "format-dot-markdown-default-is-expanded",
+      "description": "A .markdown file that names no format is expanded like a .md one.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/page2.markdown",
+              "text": "${AOS_OVERLAY_NAME}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/page2.markdown"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/page2.markdown",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "team-docs"
+        }
+      }
+    },
+    {
+      "id": "include-non-markdown-files-as-written",
+      "description": "A markdown file may include a file of another kind: it is included as written, with its first line.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/nonmd.md",
+              "text": "A\n@run.sh\n@data.json\n@tool.py\nB\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/data.json",
+              "text": "{\"a\": \"${AOS_OVERLAY_NAME}\", \"b\": \"@part-plain.md\"}\n"
+            },
+            {
+              "path": "kb/tool.py",
+              "text": "#!jinja\nx = {{ y }}\n"
+            },
+            {
+              "path": "kb/part-plain.md",
+              "text": "PART\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/nonmd.md"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/nonmd.md",
+          "from_line": 1,
+          "to_line": 7,
+          "total_lines": 7,
+          "truncated": false,
+          "text": "A\n#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n{\"a\": \"${AOS_OVERLAY_NAME}\", \"b\": \"@part-plain.md\"}\n#!jinja\nx = {{ y }}\nB"
+        }
+      }
+    },
+    {
+      "id": "include-root-from-kb",
+      "description": "Names are from the including file's folder: to reach a file at the root from kb/, climb with '../'.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/toroot.md",
+              "text": "see @../CONTEXT.md\n"
+            },
+            {
+              "path": "CONTEXT.md",
+              "text": "root context\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/toroot.md"
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/toroot.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "see root context"
+        }
+      }
+    },
+    {
+      "id": "list-non-markdown-files",
+      "description": "A file that is not markdown is counted as it is stored, first line included; one that is markdown with a '#!raw' or '#!md' line is counted without it.",
+      "tool": "kb_list",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/data.json",
+              "text": "{\"a\": \"${AOS_OVERLAY_NAME}\", \"b\": \"@part-plain.md\"}\n"
+            },
+            {
+              "path": "kb/tool.py",
+              "text": "#!jinja\nx = {{ y }}\n"
+            },
+            {
+              "path": "kb/NOTES.MD",
+              "text": "#!raw\n${AOS_OVERLAY_NAME} @part-plain.md\n"
+            },
+            {
+              "path": "kb/page.markdown",
+              "text": "#!md\n${AOS_OVERLAY_NAME}\n"
+            },
+            {
+              "path": "kb/readme",
+              "text": "#!raw\n${AOS_OVERLAY_NAME}\n"
+            },
+            {
+              "path": "kb/page.mdx",
+              "text": "#!raw\n${AOS_OVERLAY_NAME}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {},
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlays": [
+            {
+              "overlay": "team-docs",
+              "served": false,
+              "files": [
+                {
+                  "path": "kb/NOTES.MD",
+                  "lines": 1,
+                  "bytes": 35
+                },
+                {
+                  "path": "kb/data.json",
+                  "lines": 1,
+                  "bytes": 52
+                },
+                {
+                  "path": "kb/page.markdown",
+                  "lines": 1,
+                  "bytes": 20
+                },
+                {
+                  "path": "kb/page.mdx",
+                  "lines": 2,
+                  "bytes": 26
+                },
+                {
+                  "path": "kb/readme",
+                  "lines": 2,
+                  "bytes": 26
+                },
+                {
+                  "path": "kb/run.sh",
+                  "lines": 2,
+                  "bytes": 69
+                },
+                {
+                  "path": "kb/tool.py",
+                  "lines": 2,
+                  "bytes": 20
+                }
+              ],
+              "skipped": []
+            }
+          ],
+          "engines": [
+            "envsubst",
+            "mustache"
+          ]
+        }
+      }
+    },
+    {
+      "id": "mustache-comment-spans-lines-standalone",
+      "description": "A comment may span lines. One that, with white space, fills its lines leaves none.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\na\n  {{!\n  note\n  more\n  }}  \nb\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 2,
+          "total_lines": 2,
+          "truncated": false,
+          "text": "a\nb",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-comment-spans-lines-inline",
+      "description": "One with text around it keeps the text, the comment's own line ends gone.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\na {{! x\ny }} b\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "a  b",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-comment-spans-lines-crlf",
+      "description": "With CR LF line ends.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\na\r\n{{!\r\nnote\r\n}}\r\nb\r\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 2,
+          "total_lines": 2,
+          "truncated": false,
+          "text": "a\nb",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-comment-then-tag-after-lines",
+      "description": "A tag after a multi-line comment, on its last line, is read.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\n{{! c\n}}{{context.x}}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md",
+        "context": {
+          "x": "X"
+        }
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "X",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "mustache-comment-unclosed",
+      "description": "A comment never closed is refused, as any tag.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\na {{! never\nclosed\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "error": "template-error"
+      }
+    },
+    {
+      "id": "mustache-comment-one-line-still",
+      "description": "A one-line comment as before.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/t.md",
+              "text": "#!mustache\na\n{{! note }}\nb\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/t.md"
+      },
+      "facts": {},
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/t.md",
+          "from_line": 1,
+          "to_line": 2,
+          "total_lines": 2,
+          "truncated": false,
+          "text": "a\nb",
+          "template": "mustache",
+          "rendered": true
+        }
+      }
+    },
+    {
+      "id": "default-same-text-is-expanded",
+      "description": "A markdown file with no first line naming a format is expanded: the @path is included, ${AOS_OVERLAY_NAME} replaced, the code span and {{x}} left, $${X} the literal ${X}.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/plain.md",
+              "text": "see @part-plain.md and ${AOS_OVERLAY_NAME} and `${HOME}` {{x}} $${X}\n"
+            },
+            {
+              "path": "kb/part-plain.md",
+              "text": "PART\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/plain.md"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/plain.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "see PART and team-docs and `${HOME}` {{x}} ${X}"
+        }
+      }
+    },
+    {
+      "id": "markdown-same-text-is-unchanged",
+      "description": "The same text under '#!markdown': the line is not served and the rest is unchanged, @path and ${...} and all.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/plain.md",
+              "text": "#!markdown\nsee @part-plain.md and ${AOS_OVERLAY_NAME} and `${HOME}` {{x}} $${X}\n"
+            },
+            {
+              "path": "kb/part-plain.md",
+              "text": "PART\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/plain.md"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/plain.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "see @part-plain.md and ${AOS_OVERLAY_NAME} and `${HOME}` {{x}} $${X}"
+        }
+      }
+    },
+    {
+      "id": "md-same-text-is-unchanged",
+      "description": "'#!md' is the same.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/plain.md",
+              "text": "#!md\nsee @part-plain.md and ${AOS_OVERLAY_NAME} and `${HOME}` {{x}} $${X}\n"
+            },
+            {
+              "path": "kb/part-plain.md",
+              "text": "PART\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/plain.md"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/plain.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "see @part-plain.md and ${AOS_OVERLAY_NAME} and `${HOME}` {{x}} $${X}"
+        }
+      }
+    },
+    {
+      "id": "raw-same-text-is-unchanged",
+      "description": "'#!raw' serves the same bytes: markdown, md and raw are synonyms.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/plain.md",
+              "text": "#!raw\nsee @part-plain.md and ${AOS_OVERLAY_NAME} and `${HOME}` {{x}} $${X}\n"
+            },
+            {
+              "path": "kb/part-plain.md",
+              "text": "PART\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/plain.md"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/plain.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "see @part-plain.md and ${AOS_OVERLAY_NAME} and `${HOME}` {{x}} $${X}"
+        }
+      }
+    },
+    {
+      "id": "aos-same-text-is-expanded",
+      "description": "'#!aos' names the default: the same as no line, the line not served.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/plain.md",
+              "text": "#!aos\nsee @part-plain.md and ${AOS_OVERLAY_NAME} and `${HOME}` {{x}} $${X}\n"
+            },
+            {
+              "path": "kb/part-plain.md",
+              "text": "PART\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/plain.md"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/plain.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "see PART and team-docs and `${HOME}` {{x}} ${X}"
+        }
+      }
+    },
+    {
+      "id": "agentic-alias-same-text-is-expanded",
+      "description": "'#!agentic' is its alias.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/plain.md",
+              "text": "#!agentic\nsee @part-plain.md and ${AOS_OVERLAY_NAME} and `${HOME}` {{x}} $${X}\n"
+            },
+            {
+              "path": "kb/part-plain.md",
+              "text": "PART\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/plain.md"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/plain.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "see PART and team-docs and `${HOME}` {{x}} ${X}"
+        }
+      }
+    },
+    {
+      "id": "aos-first-line-forms",
+      "description": "The expanded format is named as any: by a path, with flags, in any ASCII case.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/a.md",
+              "text": "#!/usr/bin/env -S AoS\n${AOS_OVERLAY_NAME}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/a.md"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/a.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "team-docs"
+        }
+      }
+    },
+    {
+      "id": "agentic-first-line-forms",
+      "description": "And its alias.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/a.md",
+              "text": "#!/usr/bin/env Agentic\n${AOS_OVERLAY_NAME}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/a.md"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/a.md",
+          "from_line": 1,
+          "to_line": 1,
+          "total_lines": 1,
+          "truncated": false,
+          "text": "team-docs"
+        }
+      }
+    },
+    {
+      "id": "aos-line-in-a-file-that-is-not-markdown",
+      "description": "A file that is not markdown does not read the line: '#!aos' in a .txt is text, and nothing is expanded.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/a.txt",
+              "text": "#!aos\n${AOS_OVERLAY_NAME} @b.md\n"
+            },
+            {
+              "path": "kb/b.md",
+              "text": "B\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/a.txt"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/a.txt",
+          "from_line": 1,
+          "to_line": 2,
+          "total_lines": 2,
+          "truncated": false,
+          "text": "#!aos\n${AOS_OVERLAY_NAME} @b.md"
+        }
+      }
+    },
+    {
+      "id": "include-as-written-by-name",
+      "description": "A file that names markdown, md or raw is included as written, its line dropped; one that names nothing is expanded in turn: here b.md is expanded and includes d, c and d are as written.",
+      "tool": "kb_read",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/a.md",
+              "text": "@b.md\n@c.md\n@d.md\n"
+            },
+            {
+              "path": "kb/b.md",
+              "text": "b ${AOS_OVERLAY_NAME} @e.md\n"
+            },
+            {
+              "path": "kb/c.md",
+              "text": "#!markdown\nc ${AOS_OVERLAY_NAME} @e.md\n"
+            },
+            {
+              "path": "kb/d.md",
+              "text": "#!raw\nd ${AOS_OVERLAY_NAME}\n"
+            },
+            {
+              "path": "kb/e.md",
+              "text": "E\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "path": "kb/a.md"
+      },
+      "facts": {
+        "caller": {
+          "role": "reviewer",
+          "profile": "work"
+        },
+        "env": {
+          "USER": "ana",
+          "HOME": "/home/ana",
+          "SHELL_X": "zsh",
+          "TOKEN": "t"
+        },
+        "env_allow": [
+          "USER",
+          "HOME",
+          "NOPE"
+        ]
+      },
+      "expect": {
+        "result": {
+          "overlay": "team-docs",
+          "path": "kb/a.md",
+          "from_line": 1,
+          "to_line": 3,
+          "total_lines": 3,
+          "truncated": false,
+          "text": "b team-docs E\nc ${AOS_OVERLAY_NAME} @e.md\nd ${AOS_OVERLAY_NAME}"
+        }
       }
     },
     {

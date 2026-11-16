@@ -39,7 +39,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -80,6 +80,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -151,7 +155,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -192,6 +196,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -254,7 +262,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -295,6 +303,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -367,7 +379,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -408,6 +420,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -482,7 +498,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -523,6 +539,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -587,7 +607,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -628,6 +648,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -694,7 +718,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -735,6 +759,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -800,7 +828,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -841,6 +869,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -907,7 +939,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -948,6 +980,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -1025,7 +1061,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -1066,6 +1102,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         },
@@ -1163,7 +1203,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -1204,6 +1244,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         },
@@ -1298,7 +1342,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -1339,6 +1383,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         },
@@ -1429,7 +1477,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -1470,6 +1518,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         },
@@ -1554,7 +1606,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -1595,6 +1647,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         },
@@ -1695,7 +1751,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -1736,6 +1792,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -1808,7 +1868,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -1849,6 +1909,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -1923,7 +1987,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -1964,6 +2028,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -2035,7 +2103,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -2076,6 +2144,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -2147,7 +2219,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -2188,6 +2260,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -2270,7 +2346,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -2311,6 +2387,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         },
@@ -2426,7 +2506,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -2467,6 +2547,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -2580,7 +2664,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -2621,6 +2705,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -2702,7 +2790,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -2743,6 +2831,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -2824,7 +2916,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -2865,6 +2957,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -2944,7 +3040,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -2985,6 +3081,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -3066,7 +3166,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -3107,6 +3207,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -3188,7 +3292,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -3229,6 +3333,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -3308,7 +3416,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -3349,6 +3457,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -3422,7 +3534,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -3463,6 +3575,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -3536,7 +3652,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -3577,6 +3693,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -3648,7 +3768,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -3689,6 +3809,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -3769,7 +3893,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -3810,6 +3934,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -3882,7 +4010,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -3923,6 +4051,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -3997,7 +4129,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -4038,6 +4170,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -4112,7 +4248,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -4153,6 +4289,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -4227,7 +4367,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -4268,6 +4408,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -4341,7 +4485,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -4382,6 +4526,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -4453,7 +4601,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -4494,6 +4642,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -4567,7 +4719,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -4608,6 +4760,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -4679,7 +4835,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -4720,6 +4876,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -4793,7 +4953,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -4834,6 +4994,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -4905,7 +5069,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -4946,6 +5110,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -5017,7 +5185,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -5058,6 +5226,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -5131,7 +5303,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -5172,6 +5344,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -5204,6 +5380,240 @@
       },
       "expect": {
         "violations": []
+      }
+    },
+    {
+      "id": "check-script-is-served-whole",
+      "description": "A file that is not markdown is searched as it is stored: its first line is its first line.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "#!envsubst\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/jinja.md",
+              "text": "#!jinja\nHello {{ overlay.name }} {% if x %}y{% endif %} ${AOS_OVERLAY_NAME}\n"
+            },
+            {
+              "path": "kb/md.md",
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            },
+            {
+              "path": "kb/dollar.md",
+              "text": "name ${AOS_OVERLAY_NAME} home ${HOME} {{overlay.name}} lit $${AOS_OVERLAY_NAME} arg ${AOS_ARG_topic} $$ $x\n"
+            },
+            {
+              "path": "kb/lc.md",
+              "text": "a\n@multi.md\nz\n"
+            },
+            {
+              "path": "kb/multi.md",
+              "text": "m1\nm2\nm3\n"
+            },
+            {
+              "path": "kb/c/a.md",
+              "text": "a\n@b.md\n"
+            },
+            {
+              "path": "kb/c/b.md",
+              "text": "b\n@a.md\n"
+            },
+            {
+              "path": "kb/raw.md",
+              "text": "#!raw\n---\ntitle: x\n---\nline @part-plain.md ${AOS_OVERLAY_NAME} {{overlay.name}} $${X}\r\n\nlast ``@part-plain.md``"
+            },
+            {
+              "path": "kb/part-plain.md",
+              "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/run.sh",
+                "heading": "",
+                "from_line": 1,
+                "to_line": 1,
+                "score": 1,
+                "text": "#!/bin/bash"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": []
+      }
+    },
+    {
+      "id": "check-script-is-not-expanded",
+      "description": "And nothing in it is replaced.",
+      "overlays": [
+        {
+          "identity": "team-docs",
+          "manifest": {},
+          "served": false,
+          "facts": {
+            "root": "/o/team-docs",
+            "state": "/s/team-docs",
+            "scope": "user",
+            "project": "/work/app",
+            "options": {
+              "strict": true,
+              "token": "secret"
+            }
+          },
+          "tree": [
+            {
+              "path": "kb/intro.md",
+              "text": "# Intro\n\nHello\n\n## Setup\nrun it\n"
+            },
+            {
+              "path": "kb/crlf.md",
+              "text": "one\r\ntwo\r\nthree"
+            },
+            {
+              "path": "kb/env.md",
+              "text": "#!envsubst\noverlay ${AOS_OVERLAY_NAME} root ${AOS_OVERLAY_ROOT} scope ${AOS_OVERLAY_SCOPE}\nproject ${AOS_PROJECT_ROOT} state ${AOS_OVERLAY_STATE}\nrole ${AOS_CALLER_ROLE} profile ${AOS_CALLER_PROFILE}\nuser ${AOS_ENV_USER} home ${AOS_ENV_HOME} off ${AOS_ENV_SHELL_X}\ntopic ${AOS_ARG_topic} n ${AOS_ARG_count} flag ${AOS_ARG_deep} list ${AOS_ARG_items}\ndepth ${depth} token ${token} plain ${HOME} $${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+            },
+            {
+              "path": "kb/jinja.md",
+              "text": "#!jinja\nHello {{ overlay.name }} {% if x %}y{% endif %} ${AOS_OVERLAY_NAME}\n"
+            },
+            {
+              "path": "kb/md.md",
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
+            },
+            {
+              "path": "kb/hostile.md",
+              "text": "ok\u001b[31mred\u001b[0m\ttab\n\u202eevil\u202c \u200bzero\ufeff\nend\u2028x\n"
+            },
+            {
+              "path": "rules/always.md",
+              "text": "- **Be kind.**\n"
+            },
+            {
+              "path": "flows/f.md",
+              "text": "a flow\n"
+            },
+            {
+              "path": "kb/dollar.md",
+              "text": "name ${AOS_OVERLAY_NAME} home ${HOME} {{overlay.name}} lit $${AOS_OVERLAY_NAME} arg ${AOS_ARG_topic} $$ $x\n"
+            },
+            {
+              "path": "kb/lc.md",
+              "text": "a\n@multi.md\nz\n"
+            },
+            {
+              "path": "kb/multi.md",
+              "text": "m1\nm2\nm3\n"
+            },
+            {
+              "path": "kb/c/a.md",
+              "text": "a\n@b.md\n"
+            },
+            {
+              "path": "kb/c/b.md",
+              "text": "b\n@a.md\n"
+            },
+            {
+              "path": "kb/raw.md",
+              "text": "#!raw\n---\ntitle: x\n---\nline @part-plain.md ${AOS_OVERLAY_NAME} {{overlay.name}} $${X}\r\n\nlast ``@part-plain.md``"
+            },
+            {
+              "path": "kb/part-plain.md",
+              "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
+            }
+          ]
+        }
+      ],
+      "arguments": {
+        "query": "setup"
+      },
+      "modes": [
+        "words",
+        "meaning",
+        "llm"
+      ],
+      "response": {
+        "results": [
+          {
+            "overlay": "team-docs",
+            "mode": "words",
+            "passages": [
+              {
+                "path": "kb/run.sh",
+                "heading": "",
+                "from_line": 2,
+                "to_line": 2,
+                "score": 1,
+                "text": "echo team-docs @part-plain.md {{overlay.name}}"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "violations": [
+          "text"
+        ]
       }
     },
     {
@@ -5243,7 +5653,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -5284,6 +5694,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -5355,7 +5769,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -5396,6 +5810,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -5467,7 +5885,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -5508,6 +5926,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -5582,7 +6004,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -5623,6 +6045,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -5696,7 +6122,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -5737,6 +6163,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -5810,7 +6240,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -5851,6 +6281,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -5924,7 +6358,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -5965,6 +6399,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -6036,7 +6474,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -6077,6 +6515,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -6148,7 +6590,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -6189,6 +6631,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -6260,7 +6706,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -6301,6 +6747,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -6374,7 +6824,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -6415,6 +6865,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -6488,7 +6942,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -6529,6 +6983,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -6600,7 +7058,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -6641,6 +7099,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -6712,7 +7174,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -6753,6 +7215,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -6827,7 +7293,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -6868,6 +7334,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -6941,7 +7411,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -6982,6 +7452,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -7053,7 +7527,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -7094,6 +7568,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -7168,7 +7646,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -7209,6 +7687,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -7281,7 +7763,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -7322,6 +7804,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -7396,7 +7882,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -7437,6 +7923,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -7511,7 +8001,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -7552,6 +8042,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
@@ -7623,7 +8117,7 @@
             },
             {
               "path": "kb/md.md",
-              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}}\n"
+              "text": "#!markdown\n# Title\n${AOS_OVERLAY_NAME} {{overlay.name}} @part-plain.md\n"
             },
             {
               "path": "kb/hostile.md",
@@ -7664,6 +8158,10 @@
             {
               "path": "kb/part-plain.md",
               "text": "PART\n"
+            },
+            {
+              "path": "kb/run.sh",
+              "text": "#!/bin/bash\necho ${AOS_OVERLAY_NAME} @part-plain.md {{overlay.name}}\n"
             }
           ]
         }
