@@ -4418,17 +4418,43 @@ def _kb_hidden_name(path: str) -> bool:
     return any(_kb_hides(ord(char)) for char in path)
 
 
-def kb_shebang(data: bytes) -> "Optional[str]":
-    """The name a file's first line gives its format, or ``None`` when it gives none. The line is
-    a format line as a manifest's is: ``#!`` and its last word, after any slash or backslash,
-    lower-cased in ASCII, leading dots dropped. No line and no word name nothing."""
+_KB_OPTION = re.compile(r"([a-z][a-z_]*)=(\S+)\Z")
+
+
+def kb_format_line(data: bytes) -> "Optional[tuple[str, dict[str, str]]]":
+    """The name and the options a file's first line gives its format, or ``None`` when it gives no
+    name. The line is a format line as a manifest's is, with ``name=value`` words besides: the
+    name is the last word that is not one, after any slash or backslash, lower-cased in ASCII,
+    leading dots dropped."""
     if not data.startswith(b"#!"):
         return None
+    end = data.find(b"\n")
+    line = data[2:] if end < 0 else data[2:end]
     try:
-        name, _ = _format_line(data, "")
-    except ReadError:
+        text = line.decode("utf-8")
+    except UnicodeDecodeError:
         return None
-    return name
+    options: "dict[str, str]" = {}
+    names = []
+    for word in re.split(r"[ \t\x0c\r]+", text):
+        if not word:
+            continue
+        found = _KB_OPTION.match(word)
+        if found:
+            options[found.group(1)] = found.group(2)
+        else:
+            names.append(word)
+    if not names:
+        return None
+    name = re.split(r"[/\\]", names[-1])[-1].lstrip(".")
+    name = "".join(c.lower() if "A" <= c <= "Z" else c for c in name)
+    return (name, options) if name else None
+
+
+def kb_shebang(data: bytes) -> "Optional[str]":
+    """The name a file's first line gives its format, or ``None`` when it gives none."""
+    found = kb_format_line(data)
+    return found[0] if found else None
 
 
 def kb_after_shebang(text: str) -> str:
@@ -4462,12 +4488,14 @@ def kb_set(
                 skipped.append((path, "not-text"))
                 continue
             markdown = path.lower().endswith(KB_MARKDOWN_SUFFIXES)
-            name = kb_shebang(data) if markdown else None
+            line = kb_format_line(data) if markdown else None
+            name = line[0] if line else None
             engine = None if name in (None,) + KB_AS_WRITTEN + KB_EXPANDED else name
             files[path] = {
                 "text": text,
                 "engine": engine,
                 "raw": not markdown or name in KB_AS_WRITTEN,
+                "options": line[1] if line else {},
                 "bytes": len(data),
                 "rest": kb_after_shebang(text) if name else text,
             }
@@ -4529,7 +4557,7 @@ def _kb_list(overlays, args, modes, limits, engines, facts) -> "dict[str, Any]":
             entry = {"path": path, "lines": len(kb_lines(text)), "bytes": len(text.encode("utf-8"))}
             if item["engine"]:
                 entry["template"] = item["engine"]
-                entry["rendered"] = item["engine"] in engines
+                entry["rendered"] = _kb_here(item, engines)
             files.append(entry)
         skipped.sort(key=lambda pair: pair[0].encode("utf-8"))
         listed.append(
@@ -4616,7 +4644,7 @@ def _kb_read(overlays, args, limits, facts, engines) -> "dict[str, Any]":
     }
     if engine:
         result["template"] = engine
-        result["rendered"] = engine in engines
+        result["rendered"] = _kb_here(held["files"][path], engines)
     return result
 
 
@@ -4635,13 +4663,68 @@ def _kb_allowed_env(facts: "dict[str, Any]") -> "dict[str, str]":
     }
 
 
+KB_DIALECTS = {
+    "gnu": ("all", frozenset()),
+    "a8m": ("all", frozenset({"escape", "default"})),
+    "drone": ("braced", frozenset({"escape", "default"})),
+}
+KB_SHELL_FEATURES = (
+    "escape",
+    "default",
+    "assign",
+    "alternate",
+    "nested",
+    "unquote",
+    "slice",
+    "replace",
+    "trim",
+    "case",
+    "length",
+)
+KB_IMPLEMENTED_FEATURES = frozenset({"escape", "default"})
+KB_UNDEFINED = ("strict", "lenient", "debug")
+
+
+def _kb_envsubst_options(options: "dict[str, str]") -> "tuple[str, frozenset, str]":
+    """The pattern, features and undefined mode an ``envsubst`` line asks for, or ``template-error``."""
+    dialect = options.get("dialect", "gnu")
+    if dialect not in KB_DIALECTS:
+        raise KnowledgeError("template-error", "dialect is gnu, a8m or drone")
+    pattern, features = KB_DIALECTS[dialect]
+    if "pattern" in options:
+        if options["pattern"] not in ("braced", "unbraced", "all"):
+            raise KnowledgeError("template-error", "pattern is braced, unbraced or all")
+        pattern = options["pattern"]
+    if "features" in options:
+        asked = frozenset(options["features"].split(","))
+        if not asked <= set(KB_SHELL_FEATURES):
+            raise KnowledgeError("template-error", "a feature that is not defined")
+        features = asked
+    undefined = options.get("undefined", "lenient")
+    if undefined not in KB_UNDEFINED:
+        raise KnowledgeError("template-error", "undefined is strict, lenient or debug")
+    return pattern, features, undefined
+
+
+def _kb_here(item, engines) -> bool:
+    """Whether this server renders the file's engine with the options it asks for."""
+    if item["engine"] not in engines:
+        return False
+    if item["engine"] == "envsubst":
+        try:
+            return _kb_envsubst_options(item["options"])[1] <= KB_IMPLEMENTED_FEATURES
+        except KnowledgeError:
+            return True
+    return True
+
+
 def _kb_serve(overlay, held, path, context, call, limit, engines) -> str:
     """The text ``kb_read`` serves for a file of the knowledge, before it is cut into lines."""
     item = held["files"][path]
     if item["raw"]:
         return item["rest"]
     if item["engine"]:
-        return _kb_render(overlay, item, context, call, limit, item["engine"] in engines)
+        return _kb_render(overlay, item, context, call, limit, _kb_here(item, engines), held, path)
     ctx = {
         "overlay": overlay,
         "held": held,
@@ -4742,9 +4825,9 @@ def _kb_line(line: str, in_code: "list[bool]", path: str, ctx, chain) -> str:
     out = []
     i = 0
     while i < len(line):
-        if not in_code[i] and line.startswith("$${", i):
-            out.append("${")
-            i += 3
+        if not in_code[i] and line.startswith("$$", i):
+            out.append("$")
+            i += 2
             continue
         found = None if in_code[i] else _TEMPLATE_PLACEHOLDER.match(line, i)
         if found:
@@ -4797,9 +4880,11 @@ def _kb_include(target: str, ctx, chain) -> "Optional[str]":
     if item["raw"]:
         text = item["rest"]
     elif item["engine"]:
-        if item["engine"] not in ctx["engines"]:
+        if not _kb_here(item, ctx["engines"]):
             return None
-        text = _kb_render(ctx["overlay"], item, ctx["context"], ctx["call"], limit, True)
+        text = _kb_render(
+            ctx["overlay"], item, ctx["context"], ctx["call"], limit, True, ctx["held"], target
+        )
     else:
         if target in chain:
             raise KnowledgeError("include-error", "an include comes back to " + target)
@@ -4909,7 +4994,14 @@ def _kb_context_block(engine: str, data: "dict[str, Any]") -> str:
     return "---\naos_template_context: {" + ", ".join(parts) + "}\n---\n"
 
 
-def _kb_render(overlay, item, context, call, limit, here) -> str:
+def _kb_partial(held, path, name) -> "Optional[str]":
+    """A partial: a served file of the same overlay, found as an include is, its text after its
+    first line when that line names a format."""
+    target = _kb_resolve(path, name, held) if name else None
+    return held["files"][target]["rest"] if target else None
+
+
+def _kb_render(overlay, item, context, call, limit, here, held, path) -> str:
     manifest = overlay.get("manifest", {})
     data = _kb_data(overlay, context, call)
     engine = item["engine"]
@@ -4920,126 +5012,187 @@ def _kb_render(overlay, item, context, call, limit, here) -> str:
         out = first + _kb_context_block(engine, data) + rest
     elif engine == "envsubst":
         values = _kb_envsubst_values(overlay, data, context)
-        out = template(item["rest"], values)
+        pattern, features, undefined = _kb_envsubst_options(item["options"])
+        out = kb_envsubst(item["rest"], values, pattern, features, undefined)
     else:
-        out = mustache(item["rest"], data, limit)
+        escape = item["options"].get("escape", "html")
+        if escape not in ("html", "none"):
+            raise KnowledgeError("template-error", "escape is html or none")
+        out = mustache(
+            item["rest"], data, limit, lambda name: _kb_partial(held, path, name), escape
+        )
     if _kb_over(len(out.encode("utf-8")), limit["max_rendered_bytes"]):
         raise KnowledgeError("too-large", "the rendered text")
     return out
 
 
-# Mustache, the subset: variables, sections, inverted sections, comments; no partials, no
-# delimiter change, no lambdas, no escaping.
-_MUSTACHE_NAME = re.compile(r"(?:\.|[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\Z")
-_MUSTACHE_STANDALONE = re.compile(r"[ \t]*\r?\n?\Z")
-_MISSING = object()
+_KB_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 
-def _mustache_line(line: str) -> "list[tuple]":
-    items: "list[tuple]" = []
-    index = 0
-    while index < len(line):
-        found = line.find("{{", index)
-        if found < 0:
-            items.append(("text", line[index:]))
-            break
-        if found > index:
-            items.append(("text", line[index:found]))
-        if line.startswith("{{{", found):
-            end = line.find("}}}", found + 3)
-            if end < 0:
-                raise KnowledgeError("template-error", "a tag is not closed")
-            name = line[found + 3 : end].strip(" \t")
-            items.append(("var", name))
-            index = end + 3
-        else:
-            end = line.find("}}", found + 2)
-            if end < 0:
-                raise KnowledgeError("template-error", "a tag is not closed")
-            inner = line[found + 2 : end].strip(" \t")
-            index = end + 2
-            sigil = inner[:1]
-            if sigil in ("#", "^", "/", "&"):
-                kind = {"#": "sec", "^": "inv", "/": "end", "&": "var"}[sigil]
-                items.append((kind, inner[1:].strip(" \t")))
-            elif sigil == "!":
-                items.append(("comment", ""))
-            elif sigil in (">", "<", "=", "{", "}", "$", "%", "*"):
-                raise KnowledgeError("template-error", "a tag of this kind is not defined")
-            else:
-                items.append(("var", inner))
-        if items[-1][0] != "text" and items[-1][0] != "comment":
-            if not _MUSTACHE_NAME.match(items[-1][1]) or (
-                items[-1][0] in ("sec", "inv", "end") and items[-1][1] == "."
-            ):
-                raise KnowledgeError("template-error", "a name is not usable")
-    tags = [item for item in items if item[0] != "text"]
-    if len(tags) == 1 and tags[0][0] in ("sec", "inv", "end", "comment"):
-        if all(
-            item[0] != "text" or _MUSTACHE_STANDALONE.match(item[1]) for item in items
-        ) and _MUSTACHE_STANDALONE.match("".join(i[1] for i in items if i[0] == "text")):
-            return tags
-    return items
-
-
-def _mustache_open_comment(text: str) -> bool:
-    """Whether a comment tag in ``text`` is not closed."""
+def kb_envsubst(
+    text: str,
+    values: "dict[str, str]",
+    pattern: str = "all",
+    features: "frozenset[str]" = frozenset(),
+    undefined: str = "lenient",
+) -> str:
+    """``envsubst``: ``$NAME`` and ``${NAME}`` (as ``pattern`` allows) replaced by the value of
+    NAME; a name with no value follows ``undefined``; with the ``escape`` feature ``$$`` is ``$``,
+    with ``default`` ``${NAME:-word}`` and ``${NAME-word}`` give the word where the name has no
+    value (``:-`` also where it is empty). Anything else is text."""
+    out = []
     i = 0
-    while True:
-        found = text.find("{{", i)
-        if found < 0:
-            return False
-        if text.startswith("{{{", found):
-            end = text.find("}}}", found + 3)
+    while i < len(text):
+        if text[i] != "$":
+            out.append(text[i])
+            i += 1
+            continue
+        if "escape" in features and text.startswith("$$", i):
+            out.append("$")
+            i += 2
+            continue
+        found = None
+        if pattern in ("braced", "all") and text.startswith("${", i):
+            name = _KB_NAME.match(text, i + 2)
+            if name:
+                j = name.end()
+                if text.startswith("}", j):
+                    found = (name.group(), None, j + 1)
+                elif "default" in features and (
+                    text.startswith(":-", j) or text.startswith("-", j)
+                ):
+                    colon = text.startswith(":-", j)
+                    close = text.find("}", j)
+                    if close >= 0:
+                        word = text[j + (2 if colon else 1) : close]
+                        found = (name.group(), (colon, word), close + 1)
+        if found is None and pattern in ("unbraced", "all"):
+            name = _KB_NAME.match(text, i + 1)
+            if name:
+                found = (name.group(), None, name.end())
+        if found is None:
+            out.append("$")
+            i += 1
+            continue
+        name, default, end = found
+        value = values.get(name)
+        if default is not None and (value is None or (default[0] and value == "")):
+            out.append(default[1])
+        elif value is not None:
+            out.append(value)
+        elif undefined == "strict":
+            raise KnowledgeError("template-error", "a name has no value: " + name)
+        elif undefined == "debug":
+            out.append(text[i:end])
+        i = end
+    return "".join(out)
+
+
+_MISSING = object()
+_M_WS = " \t\r\n"
+_M_STANDALONE = ("comment", "sec", "inv", "end", "partial", "delim")
+_M_TAIL = re.compile(r"[ \t]*(?:\r?\n|\Z)")
+
+
+def _m_tokens(text: str) -> "list[tuple]":
+    tokens: "list[tuple]" = []
+    opening, closing = "{{", "}}"
+    i = 0
+    while i < len(text):
+        j = text.find(opening, i)
+        if j < 0:
+            tokens.append(("text", i, len(text)))
+            break
+        if j > i:
+            tokens.append(("text", i, j))
+        k = j + len(opening)
+        if opening == "{{" and text.startswith("{", k):
+            end = text.find("}}}", k + 1)
             if end < 0:
-                return False
+                raise KnowledgeError("template-error", "a tag is not closed")
+            tokens.append(("tag", "raw", text[k + 1 : end].strip(_M_WS), j, end + 3))
             i = end + 3
             continue
-        end = text.find("}}", found + 2)
+        sigil = text[k : k + 1]
+        if sigil == "=":
+            end = text.find("=" + closing, k + 1)
+            parts = text[k + 1 : end].split() if end >= 0 else []
+            if len(parts) != 2:
+                raise KnowledgeError("template-error", "a delimiter tag is not usable")
+            tokens.append(("tag", "delim", "", j, end + 1 + len(closing)))
+            i = end + 1 + len(closing)
+            opening, closing = parts
+            continue
+        if sigil and sigil in "!#^/>&":
+            end = text.find(closing, k + 1)
+            if end < 0:
+                raise KnowledgeError("template-error", "a tag is not closed")
+            kind = {"!": "comment", "#": "sec", "^": "inv", "/": "end", ">": "partial", "&": "raw"}[
+                sigil
+            ]
+            tokens.append(("tag", kind, text[k + 1 : end].strip(_M_WS), j, end + len(closing)))
+            i = end + len(closing)
+            continue
+        end = text.find(closing, k)
         if end < 0:
-            return text.startswith("{{!", found)
-        i = end + 2
+            raise KnowledgeError("template-error", "a tag is not closed")
+        tokens.append(("tag", "var", text[k:end].strip(_M_WS), j, end + len(closing)))
+        i = end + len(closing)
+    return tokens
 
 
-def _mustache_logical_lines(text: str) -> "list[str]":
-    """The lines of ``text``, a line that ends inside a comment joined to the next."""
-    out = []
-    buffer = ""
-    for line in re.findall(r"[^\n]*\n|[^\n]+", text):
-        buffer += line
-        if not _mustache_open_comment(buffer):
-            out.append(buffer)
-            buffer = ""
-    if buffer:
-        out.append(buffer)
-    return out
+def _m_parse(text: str) -> "list":
+    tokens = _m_tokens(text)
+    removed: "list[tuple[int, int]]" = []
+    indents: "dict[int, str]" = {}
+    for index, token in enumerate(tokens):
+        if token[0] != "tag" or token[1] not in _M_STANDALONE:
+            continue
+        start, end = token[3], token[4]
+        line = text.rfind("\n", 0, start) + 1
+        tail = _M_TAIL.match(text, end)
+        if text[line:start].strip(" \t") == "" and tail:
+            removed.append((line, tail.end()))
+            indents[index] = text[line:start]
 
+    def cut(low: int, high: int) -> str:
+        out, at = [], low
+        for a, b in removed:
+            if b <= low or a >= high:
+                continue
+            out.append(text[at : max(a, low)])
+            at = min(b, high)
+        out.append(text[at:high])
+        return "".join(out)
 
-def _mustache_parse(text: str, limit: "dict[str, int]") -> "list":
     root: "list" = []
-    stack = [(None, root)]
-    for line in _mustache_logical_lines(text):
-        for item in _mustache_line(line):
-            kind = item[0]
-            children = stack[-1][1]
-            if kind in ("text", "var"):
-                children.append(item)
-            elif kind in ("sec", "inv"):
-                node = [kind, item[1], []]
-                children.append(node)
-                stack.append((item[1], node[2]))
-                if _kb_over(len(stack), limit["max_template_depth"]):
-                    raise KnowledgeError("template-error", "sections nest too deep")
-            elif kind == "end":
-                if len(stack) == 1 or stack[-1][0] != item[1]:
-                    raise KnowledgeError("template-error", "a section is closed wrongly")
-                stack.pop()
+    stack = [("", root)]
+    for index, token in enumerate(tokens):
+        children = stack[-1][1]
+        if token[0] == "text":
+            piece = cut(token[1], token[2])
+            if piece:
+                children.append(("text", piece))
+            continue
+        kind, name = token[1], token[2]
+        if kind in ("var", "raw"):
+            children.append(("var", name, kind == "var"))
+        elif kind in ("sec", "inv"):
+            node = ("sec", name, kind == "inv", [])
+            children.append(node)
+            stack.append((name, node[3]))
+        elif kind == "end":
+            if len(stack) == 1 or stack[-1][0] != name:
+                raise KnowledgeError("template-error", "a section is closed wrongly")
+            stack.pop()
+        elif kind == "partial":
+            children.append(("partial", name, indents.get(index, "")))
     if len(stack) != 1:
         raise KnowledgeError("template-error", "a section is not closed")
     return root
 
 
-def _mustache_lookup(name: str, stack: "list") -> Any:
+def _m_lookup(name: str, stack: "list") -> Any:
     if name == ".":
         return stack[-1]
     first, *rest = name.split(".")
@@ -5055,16 +5208,34 @@ def _mustache_lookup(name: str, stack: "list") -> Any:
     return value
 
 
-def _mustache_truthy(value: Any) -> bool:
-    return not (value is _MISSING or value is None or value is False or value == [])
+def _m_text(value: Any) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, str)):
+        return str(value)
+    return ""
 
 
-def mustache(text: str, data: "dict[str, Any]", limits: "Optional[dict[str, int]]" = None) -> str:
-    """The Mustache subset of the knowledge section, over ``data``."""
+def _m_escape(text: str) -> str:
+    return (
+        text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+    )
+
+
+def mustache(
+    text: str,
+    data: "dict[str, Any]",
+    limits: "Optional[dict[str, int]]" = None,
+    partial: "Optional[Any]" = None,
+    escape: str = "html",
+) -> str:
+    """Mustache as its specification defines it (interpolation, sections, inverted sections,
+    comments, delimiters, partials), over ``data``; ``partial(name)`` gives a partial's text or
+    ``None``, which renders as nothing. ``escape`` is ``html`` (``& < > "``) or ``none``."""
     limit = kb_limits(limits)
-    tree = _mustache_parse(text, limit)
     out: "list[str]" = []
     size = [0]
+    parsed: "dict[str, list]" = {}
 
     def emit(piece: str) -> None:
         size[0] += len(piece.encode("utf-8"))
@@ -5072,26 +5243,40 @@ def mustache(text: str, data: "dict[str, Any]", limits: "Optional[dict[str, int]
             raise KnowledgeError("too-large", "the rendered text")
         out.append(piece)
 
-    def walk(nodes: "list", stack: "list") -> None:
+    def tree(source: str) -> "list":
+        if source not in parsed:
+            parsed[source] = _m_parse(source)
+        return parsed[source]
+
+    def walk(nodes: "list", stack: "list", depth: int) -> None:
+        if _kb_over(depth, limit["max_template_depth"]):
+            raise KnowledgeError("template-error", "sections and partials nest too deep")
         for node in nodes:
             if node[0] == "text":
                 emit(node[1])
             elif node[0] == "var":
-                value = _mustache_lookup(node[1], stack)
-                if isinstance(value, bool):
-                    emit("true" if value else "false")
-                elif isinstance(value, (int, str)):
-                    emit(str(value))
+                piece = _m_text(_m_lookup(node[1], stack))
+                emit(_m_escape(piece) if node[2] and escape == "html" else piece)
+            elif node[0] == "partial":
+                source = partial(node[1]) if partial and node[1] else None
+                if source is None:
+                    continue
+                if node[2]:
+                    source = "".join(
+                        node[2] + part for part in re.findall(r"[^\n]*\n|[^\n]+", source)
+                    )
+                walk(tree(source), stack, depth + 1)
             else:
-                value = _mustache_lookup(node[1], stack)
-                if node[0] == "inv":
-                    if not _mustache_truthy(value):
-                        walk(node[2], stack)
-                elif _mustache_truthy(value):
+                value = _m_lookup(node[1], stack)
+                falsy = value is _MISSING or value is None or value is False or value == []
+                if node[2]:
+                    if falsy:
+                        walk(node[3], stack, depth + 1)
+                elif not falsy:
                     for item in value if isinstance(value, list) else [value]:
-                        walk(node[2], stack + [item])
+                        walk(node[3], stack + [item], depth + 1)
 
-    walk(tree, [data])
+    walk(tree(text), [data], 0)
     return "".join(out)
 
 

@@ -171,6 +171,15 @@ any `/` or `\`, with leading dots dropped and ASCII capitals lower-cased, is the
 a space or anything else before the `#!`, a `#!` on any other line, a line with no word and a path that ends in a
 separator name nothing, and the line is text.
 
+**Options.** A word of the form `name=value` (`name` lower-case letters and `_`, `value` with no white space) on
+the line is an **option** of the format, not part of its name, and the name is the last word that is not one: so
+`#!envsubst dialect=drone undefined=debug` and `#!/usr/bin/env -S mustache escape=none` name `envsubst` and
+`mustache`. The options are those of the real engines, spelled as [tplx](https://github.com/jose-pr/tplx) spells
+its own, so that nothing here is a dialect of AOS's: they are defined with each engine below. An option no edition
+defines for the engine is **ignored**, so that an edition can add one and a server that predates it still serves
+the file; a defined option with a value it does not have is `template-error`, never a guess. An option on a format
+that has none (`aos`, `markdown`, `raw`) is ignored.
+
 **The formats.** AOS defines five, and a server may have more under names of its own, with no registry, as a
 [format name of its own](manifest.md#formats) is for a manifest. A markdown file that names none is
 **expanded**, as `aos` is:
@@ -179,8 +188,8 @@ separator name nothing, and the line is text.
 | --- | --- | --- |
 | none, `aos`, `agentic` | yes | [Expanded](#the-aos-format): `${NAME}` replaced and `@path` included; the default |
 | `markdown`, `md`, `raw` | yes | [As written](#markdown-and-raw): byte for byte |
-| `envsubst` | no | [envsubst](#envsubst) over the whole text |
-| `mustache` | no | [Mustache](#mustache) over the whole text |
+| `envsubst` | no | [envsubst](#envsubst), the real one, with its options, over the whole text |
+| `mustache` | no | [Mustache](#mustache), the real one, with its options, over the whole text |
 
 A server says in `kb_list` which of the last two, and which of its own, it renders with. A first line that names
 `markdown`, `md`, `raw`, `aos` or `agentic` is understood by every server and is **not served**: it says how to read the file,
@@ -209,7 +218,10 @@ extension, as a program in `bin/` is not knowledge.
 
 ### The `aos` format
 
-A markdown file whose first line names `aos` (or its alias `agentic`), or which names no format, is **expanded**:
+A markdown file whose first line names `aos` (or its alias `agentic`), or which names no format, is **expanded**. The
+format is AOS's own, since no other has includes in the manner of `CLAUDE.md`: an **include pass** over the text, and
+[envsubst](#envsubst) with its options fixed: the `braced` pattern, the `escape` feature, and `undefined=debug`. What
+is specific to AOS is the include pass and that code is left alone. Specifically,
 the text after the first line (the whole file when it names nothing) is read from left to right,
 one line at a time, and two things in it are replaced: **`${NAME}`** and **`@path`**. Nothing else is changed: the
 file's own front matter, headings, links, `{{…}}` text and every other character stay, and a file with neither is
@@ -218,9 +230,10 @@ served as it is. (`agentic` is a second name for the same format; both are liste
 - **`${NAME}`** is replaced as [Templating](harness.md#templating) says, with [the names](#the-facts) of the
   facts: `${AOS_OVERLAY_NAME}`, an option's name, `${AOS_CALLER_ROLE}`, `${AOS_ENV_<NAME>}`, `${AOS_ARG_<key>}`
   and the rest. A `${NAME}` whose name has no value, or is none of these, stays as written: no error, and not the
-  empty string, so a prose mention never makes a file unreadable. `$${` is the literal `${`, so `$${AOS_OVERLAY_NAME}`
-  is the text `${AOS_OVERLAY_NAME}`, and `$$` and `$x` are themselves. Nothing is replaced **in code** (below):
-  a shell line's `${HOME}` or `${VAR:-x}` is safe, and so is `$${` there, which stays `$${`. An option of the wrong
+  empty string, so a prose mention never makes a file unreadable (envsubst's `undefined=debug`). `$$` is a dollar
+  (its `escape` feature), so `$${AOS_OVERLAY_NAME}` is the text `${AOS_OVERLAY_NAME}`; `$x` is read by no one (the
+  `braced` pattern). Nothing is replaced **in code** (below):
+  a shell line's `${HOME}` or `${VAR:-x}` is safe, and so is `$$` there, which stays `$$`. An option of the wrong
   type is `invalid-option`, but only where a `${…}` outside code that would read it is met.
 - **`@path`** includes a file of the same overlay, in the manner of the `@path` imports of Claude Code's
   `CLAUDE.md` and of `AGENTS.md` readers. The rules below decide what is an include; all else is text.
@@ -326,8 +339,7 @@ engine is allowed is this section's, and not the engine's: how the server keeps 
 process with nothing, a subset) is its own. An engine that cannot be held to this (one whose includes or attribute
 access reach the host) is not listed in `engines`, and its files are served as above. The reason is that a template's
 text is a third party's and is rendered on the person's machine because an agent asked, so an engine that can read a
-file or run code would let an overlay do that on request; it is the reason this edition defines no partial and no
-lambda for Mustache, and no include in `envsubst`.
+file or run code would let an overlay do that on request; it is the reason a partial reaches only what an `@path` does, and `envsubst` and Mustache have nothing else to reach.
 
 ### The facts
 
@@ -365,61 +377,70 @@ as the five `AOS_` names already are: nothing sets a variable in any environment
 
 ### `envsubst`
 
-The text after the first line is read as [Templating](harness.md#templating) reads it, with the names above: `${NAME}` is replaced when
-`NAME` has a value, `$${` is `${`, and anything else, an unknown name such as `${HOME}`, a name with no value,
-another case, an operator, a bare `$NAME` and a Mustache tag, is left as written and is no error. A value is
-inserted as it is and never read again. Of the context, only the keys whose value is a string, an integer or a
-boolean are names (as text, `true` or `false` for a boolean).
+The text after the first line is the real thing: **envsubst**, with the options of [tplx](https://github.com/jose-pr/tplx)'s
+engine of that name, so that a template written for one is read by the other. The names it replaces are the first column
+of the table above, as the variables of an environment are in a shell.
+
+**At its defaults** it is **GNU gettext's** `envsubst`: `$NAME` and `${NAME}` are replaced by the value of `NAME` (a name
+is a letter or `_`, then letters, digits and `_`, as long as it goes: `$AOS_OVERLAY_NAME-x` is the value and `-x`); a name
+with no value is replaced by nothing; it has **no operators** (`${NAME:-word}` is text), **no `$$` escape** (`$$NAME` is a
+dollar and the value), and anything that is not a reference, such as `$1`, a `$` before a space, and `${NAME` with its
+brace never closed, is text. A value is inserted as it is and never read again.
+
+**Options**, on the first line:
+
+| Option | Values | Meaning |
+| --- | --- | --- |
+| `dialect` | `gnu` (default), `a8m`, `drone` | The behaviour to follow: GNU envsubst's; [a8m/envsubst](https://github.com/a8m/envsubst)'s (`$$` escape, defaults, `=`, `+`, nested words, bare and braced names); [drone/envsubst](https://github.com/drone/envsubst)'s (braced names only, `$$` escape, defaults, slices, replacements, trims, case, length) |
+| `pattern` | `braced`, `unbraced`, `all` | Which references are read, the dialect's by default (`all` for `gnu` and `a8m`, `braced` for `drone`) |
+| `features` | a comma-separated list of `escape`, `default`, `assign`, `alternate`, `nested`, `unquote`, `slice`, `replace`, `trim`, `case`, `length` | The operators read, replacing the dialect's; `escape` is `$$`, `default` is `${NAME:-word}` and `${NAME-word}` (`:-` also where the value is empty), and the rest are tplx's shell features, as that engine defines them |
+| `undefined` | `lenient` (default), `strict`, `debug` | What a name with no value is: nothing; an error (`template-error`); or kept as it was written, as the nginx image's envsubst keeps `$request_uri` |
+
+Why `lenient` and not tplx's loader default of `strict`: GNU's own is empty, and a file that cannot be read because of a
+name in it is worse for an agent than a blank. Each dialect is the named implementation's, and a server MAY implement fewer
+of them, or fewer features: a file whose options it cannot honour is served as a file for an engine it does not render
+([below](#an-engine-this-server-does-not-render)). The vectors check the common core of the three dialects, `$$`, the
+patterns, `default` and the undefined modes, and the GNU defaults. tplx matches names without regard to case, as
+a departure it documents; whether a name matches in another case is the consumer's, and no vector asks.
 
 ### `mustache`
 
-The text after the first line is read as a small subset of [Mustache](https://mustache.github.io/mustache.5.html), over the data of
-the table's second column: the roots `overlay`, `project`, `caller`, `env`, `options` and `context`.
+The text after the first line is **Mustache**, as [its specification](https://github.com/mustache/spec) defines it, read by
+a library that follows it: interpolation, sections, inverted sections, comments, delimiters and partials, over the data of
+the table's second column (the roots `overlay`, `project`, `caller`, `env`, `options` and `context`, each only with what it
+holds). Its **standard behaviour** is what is meant: `{{x}}` is HTML escaped (`&`, `<`, `>` and `"`; the other characters
+a library escapes, the apostrophe and the slash among them, are the library's), `{{{x}}}` and `{{&x}}` are not; a name is
+looked up through the contexts of the sections around it and a dotted name's later parts only in what the first found; a
+name not found is empty; a list is walked; a standalone tag, comment, delimiter change or partial leaves no line. A value is
+never read as a template. Options, on the first line:
 
-- **Tags.** `{{name}}`, `{{{name}}}` and `{{&name}}` insert a value; `{{#name}}…{{/name}}` is a section,
-  `{{^name}}…{{/name}}` an inverted one, `{{! text }}` a comment. White space inside a tag, around its name, is
-  ignored. A tag is on one line. A name is `.` or dotted identifiers (`[A-Za-z_][A-Za-z0-9_]*`); a section's name
-  is not `.`.
-- **Not defined, and refused** (`template-error`): partials (`{{> name}}`), a change of delimiters
-  (`{{=…=}}`), inheritance and blocks, a lambda or any other tag or sigil, a name that is not a name, a tag not
-  closed on its line, a section not closed or closed by another name, a section deeper than `max_template_depth`.
-  Nothing a template says reads a file, runs code or calls a function: values are data, and a value that is a
-  function does not exist. There is no way to write a literal `{{`; text that needs one is served from a markdown or raw file.
-- **Values.** A name is looked up in the contexts of the sections around it, innermost first, the roots last: its
-  first part, then each later part must be a key of what that found. A name that is not found is missing and
-  renders as nothing. `.` is the innermost context.
-- **Inserting.** A string is inserted as it is, an integer in decimal, a boolean as `true` or `false`; an object
-  or a list inserts nothing. There is **no escaping**, in any of the three forms: the output is text for an agent,
-  not markup.
-- **Sections.** A section is skipped when its name is missing, `null`, `false` or an empty list. Otherwise a list
-  renders its body once for each item, each as the innermost context; any other value renders it once with that
-  value as the innermost context. An inverted section renders its body when a section on it would be skipped. An
-  empty string and 0 are not false.
-- **Standalone lines.** A line that holds only a section tag (opening, inverted or closing) or a comment, and
-  white space (spaces and tabs) around it, is removed whole with its line end (`\n` or `\r\n`); a line with any
-  other tag or text, or with two tags, is not changed.
-- **Text.** Everything else is copied exactly, `${…}` and a single `{` included, and a value is never read as
-  a template.
+| Option | Values | Meaning |
+| --- | --- | --- |
+| `escape` | `html` (default), `none` | `html` is the specification's escaping; `none` inserts every value as it is, as a file for an agent usually wants |
 
-**Where this departs from [Mustache's own specification](https://github.com/mustache/spec)**, and why. A library
-that follows the specification can meet each by a check before it renders or an option, but not by default.
+- **Partials** (`{{> name}}`) are served files of the same overlay, resolved as an `@path` is: from the folder of the file
+  that has the tag, rising no higher than the root, and not a link, a file outside the knowledge or another overlay's. A
+  partial that names no such file renders as nothing, as the specification says of a missing one. A partial's text is the
+  file's text after its first line when that line names a format, and all of it when it does not (a file that is not
+  markdown never has such a line); it is read as Mustache whatever it names, with the default delimiters, and is rendered with the
+  contexts at the tag and indented by the tag's indentation when the tag is alone on its line. A partial may name itself:
+  nesting is a server's limit (`max_template_depth`, an error of the server and not of the language), and a library's own
+  limit may come first.
+- **Lambdas** cannot arise: the data is JSON. Any other optional module (inheritance, blocks) is left to the server, and
+  a file that uses it is the server's to read or to refuse; no vector asks.
+- **Consumer-defined**, because the specification leaves them to the language: whether an empty string and `0` are
+  false, how a boolean, a list or an object is written by `{{x}}` (this edition's reference writes a boolean `true` or
+  `false` and the others as nothing), and which characters beyond `& < > "` are escaped. The vectors avoid all of them.
+- **Refused**: a template a library refuses (a tag or a section not closed, a close with no open) is `template-error`;
+  the vectors hold the shapes every library refuses.
 
-- *No escaping.* The specification escapes `{{x}}`; the set of characters it escapes, past `& < > "`, differs
-  between libraries (the apostrophe, `/`, the backtick, `=`), so two consumers would serve different bytes. The
-  output is text for an agent, not markup.
-- *Stringification and truthiness are fixed*, since a library's own is its language's: a boolean is `true` or
-  `false` (not `True`), an empty string and 0 are not false (a list's emptiness, `false` and a missing name are), and an
-  object or a list inserts nothing (libraries print their own text for it).
-- *Refused, not supported:* partials, delimiter changes, inheritance and lambdas (they read files, or run code),
-  a name outside `[A-Za-z_][A-Za-z0-9_]*` and dots, and sections nested past `max_template_depth`. The
-  specification defines the first and the delimiters; lambdas and inheritance are its optional modules.
-- *A tag, a comment included, is on one line*; the specification lets a comment span lines.
-- *`{{& x}}`* takes white space after the `&`, as the specification does.
+Nothing else is changed: `${…}` and a single `{` are text, and a literal `{{` is written with a delimiter change.
 
 ### Refusals
 
-`invalid-option` for an option of the wrong type, configured or by default, in any engine,
-`template-error` for a Mustache template the subset refuses, `too-large` for an output past `max_rendered_bytes`,
+`invalid-option` for an overlay option of the wrong type, configured or by default, in any engine,
+`template-error` for a template the library refuses, a format option with a value it does not have, and a name with
+no value under `undefined=strict`, `too-large` for an output past `max_rendered_bytes`,
 and `invalid-arguments` for a context that is not usable.
 
 ## Search
@@ -509,7 +530,7 @@ Every limit is a setting of the consumer with a default, and no floor: a person 
 | `max_top` | 100 | `top` |
 | `max_context_bytes` | 16 KiB | strings and keys of a `context` |
 | `max_context_depth` | 8 | a `context`'s nesting |
-| `max_template_depth` | 32 | Mustache sections one in another |
+| `max_template_depth` | 32 | Mustache sections and partials one in another (a server limit) |
 | `max_include_depth` | 5 | `@path` includes one in another |
 
 ## Errors
@@ -525,7 +546,7 @@ Every limit is a setting of the consumer with a default, and no floor: a person 
 | `not-text` | the file's bytes are not UTF-8 |
 | `too-large` | the file is past `max_file_bytes`, or a rendered text past `max_rendered_bytes` |
 | `invalid-option` | a configured option, or a default, is not of its declared type |
-| `template-error` | a Mustache body the subset refuses |
+| `template-error` | a template the library refuses, a format option with a value it does not have, or a name with no value under `undefined=strict` |
 | `include-error` | an `@path` that names a served file and cannot be included: a cycle, or nesting past `max_include_depth` |
 | `line-range` | `to` before `from`, or `from` past the last line |
 | `unavailable`, `mode-unavailable` | in a search entry: no answer now, or not by that mode |
@@ -542,7 +563,7 @@ names a served file of the same overlay or nothing, resolved from the including 
 the root, so a file cannot pull in another overlay's text, a file outside the knowledge or the person's own files;
 nesting and cycles are bounded. A template
 reaches the user's environment only through names the user opened, and never through a
-[sensitive](security.md#sensitive-variables) one; it cannot read files or run code under either engine, which is
-why this edition defines no partial and no lambda, and no engine of a server's own may either. The environment's values and the call's context go to the
+[sensitive](security.md#sensitive-variables) one; it cannot read a file but a partial, which reaches only what an `@path` does, or run code under either engine (Mustache
+has no lambda from JSON data), and no engine of a server's own may either. The environment's values and the call's context go to the
 agent that asked and to no one else. A consumer that gives an agent a role or profile tells it, in the
 template's facts, nothing more than the label.

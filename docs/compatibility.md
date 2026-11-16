@@ -30,7 +30,7 @@ the table below is the list an implementation works from.
 | Runtime probing | None | `runtime.os`, `runtime.commands`, interpreter and version probes before placement |
 | Context | Root `CONTEXT.md` by file name | The body of `OVERLAY.md`, or the same, by default, then the `context` list and per-harness `context` |
 | Templating | Expands `<NAME>_OVERLAY_ROOT` in context output; no other name | `${AOS_OVERLAY_ROOT}`, `_STATE`, `_NAME`, `_SCOPE`, `AOS_PROJECT_ROOT` and declared `options` in context and bundled skill bodies, when served; other text left as written; a sensitive option never |
-| Knowledge | None served by name; files are read by the agent as it can | `kb_list` and `kb_read` over MCP in every consumer, `kb_search` where it can, expanded markdown (`${}` and `@path` includes) by default, `#!markdown`, `#!raw` and templates by a first-line shebang, `[knowledge] serve` as a hint |
+| Knowledge | None served by name; files are read by the agent as it can | `kb_list` and `kb_read` over MCP in every consumer, `kb_search` where it can, expanded markdown (`${}` and `@path` includes) by default, `#!markdown`, `#!raw` and the real `envsubst` and Mustache with their options by a first-line shebang, `[knowledge] serve` as a hint |
 | Skills | Every `skills/*/SKILL.md` published | The same by default, for skill names, plus the `skills` list: bundled, named or sourced |
 | Scripts | `bin/*.py` and `[scripts]` strings, run under Python | `[scripts]` only: strings by extension, or `{ path, interpreter, os }`; `bin/` is on `PATH`, and a file in it is no command by default |
 | MCP stdio | Working directory inherited from the gateway; `env` strings | Working directory the overlay root; `env` values may be references |

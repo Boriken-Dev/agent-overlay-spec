@@ -729,7 +729,7 @@ author already writes in a routing line, so the tool needs no catalogue of its o
 author can rely on it, and leaving search optional lets a small consumer ship the two tools that need no index.
 Rendering per call, from the file as installed, keeps the tree digest and pins as they were, as decision 28 does.
 
-**Status:** adopted; Proposed until an implementation serves knowledge. Part 4 is superseded by 33.
+**Status:** adopted; Proposed until an implementation serves knowledge. Part 4 is superseded by 33, and the Mustache subset of part 5 by 35.
 
 ## 33 — A template names its engine by a first-line shebang; an engine a server lacks is no error
 
@@ -788,12 +788,46 @@ skipped reason `template` are gone with it.
   anything else stays.
 - **The served text is the one text** that `kb_read` numbers, `kb_list` counts and `kb_search` indexes, with no
   `context`, so an included file is found through its includer and a line number means one thing.
-- **Mustache comments may span lines**, as in the Mustache specification; every other tag is on one line.
+- **Mustache comments may span lines**, as in the Mustache specification (superseded by 35: every part of Mustache is the specification's).
 
 **Reason:** the owner, 2026-11-16: "Markdown should work with @ for include only include up to overlay root and ${}
 for var like claude and other read claude.md agents.md files", "Raw format passes the filenas is", "Both, aos first",
 "Default for will bebexpanded formst". Agents are used to `@` imports; making them work in the overlay's own files
 with the same confinement as every path here is what lets an overlay split a long convention into parts. The
 coordinator's rulings on code and unknown names keep shell-heavy knowledge intact and a prose mention harmless.
+
+**Status:** adopted; Proposed until an implementation serves knowledge.
+
+## 35 — The engines are the real ones, with their own options; AOS invents only `aos`
+
+**Decision:** supersedes the Mustache subset and the closed-name `envsubst` of 32, 33 and 34.
+
+- **`#!mustache` is Mustache** as the [specification](https://github.com/mustache/spec) defines it, read by a library
+  that follows it: interpolation with its HTML escaping, sections, inverted sections, comments (which may span
+  lines), delimiters and partials. Lambdas cannot arise from JSON data, and the optional modules are the server's.
+  A **partial** is a served file of the same overlay, found as an `@path` is, so a template reaches no more than an
+  include does; one that names no file renders as nothing. What the specification leaves to the language, the
+  truthiness of `""` and `0` and the way a boolean, a list or an object is written, is consumer-defined and no vector
+  asks, so that the stock libraries pass unmodified. Escaping beyond `& < > "` is the library's too.
+- **`#!envsubst` is envsubst**: GNU gettext's at its defaults (`$NAME` and `${NAME}`, no operators, no `$$`, a name with no
+  value empty), with tplx's options, spelled as tplx spells them: `dialect` (`gnu`, `a8m`, `drone`), `pattern`, `features`
+  and `undefined` (`lenient`, `strict`, `debug`). The default `undefined` is `lenient`, GNU's own, and not tplx's loader
+  default of `strict`, so that a name in a file never makes it unreadable.
+- **Options are `name=value` words on the first line**, after the engine's name (`#!envsubst dialect=drone
+  undefined=debug`, `#!mustache escape=none`); the name is the last word that is none. Mustache has `escape`
+  (`html`, the standard, or `none`), since tplx and the mainstream libraries expose no other. An **unknown option is
+  ignored** (a later edition can add one and an older server still serves the file); a known option with a value it does
+  not have is `template-error`. A server that cannot honour a dialect or feature serves the file as one for an engine it
+  does not render.
+- **`aos` stays AOS's own**: an include pass over envsubst with fixed options (braced pattern, `escape`, `undefined=debug`),
+  and code left alone. `$$` is a dollar in it, as the escape feature makes it.
+- **Other names** are unchanged: a server's own, or served as written with the context.
+
+**Reason:** the owner, 2026-11-16: "Coqui-aos can support its own doesnt need to rewrite the one in tplx, especially if
+its no longer msutache and custom to it. Also we should support as much of the tempalte as possible not be changing the
+template language so we dont need to write custom template engines", and "Same for ensub we should no need to rewrite
+a actual template format we could limit it with options on it. And thay is already part of tplx format setting html
+escape option and others". A subset that is neither the engine nor a library's is a fourth implementation of the same
+thing in every language; the real engine with a few named options is one a library already has.
 
 **Status:** adopted; Proposed until an implementation serves knowledge.
