@@ -844,3 +844,8 @@ thing in every language; the real engine with a few named options is one a libra
 both engines read an unknown name alike. `lenient` (empty, GNU's own) and `strict` remain options. The reasoning above
 for `lenient` as the default, that a name never makes a file unreadable, holds for `debug` too, and a blank no longer
 changes what a sentence says.
+
+**Amended 2026-11-16, after running the vectors on stock libraries:** a server that cannot honour an option value
+(a released tplx has no Mustache escape-off setting, a library may lack a dialect) serves the file as one for an engine it
+does not render, as it does for a feature it lacks. The vectors say what a case needs, and a runner says what its server
+lacks. Three behaviours of the Mustache specification that stock libraries miss stay in the vectors, noted as such.

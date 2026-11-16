@@ -4533,7 +4533,9 @@ def kb_call(
     template ``facts``; ``facts`` holds the caller's: ``caller``, ``env`` and ``env_allow``;
     ``engines`` are the template engines this server renders with."""
     modes = list(modes)
-    engines = [engine for engine in KB_ENGINES if engine in set(engines)]
+    # "-engine:option=value" entries say which option values this server cannot honour
+    lacks = [entry for entry in engines if entry.startswith("-")]
+    engines = [engine for engine in KB_ENGINES if engine in set(engines)] + lacks
     try:
         args = kb_arguments(tool, arguments, modes, limits)
         if tool == "kb_list":
@@ -4571,7 +4573,10 @@ def _kb_list(overlays, args, modes, limits, engines, facts) -> "dict[str, Any]":
                 "skipped": [{"path": kb_inert(path), "reason": reason} for path, reason in skipped],
             }
         )
-    result: "dict[str, Any]" = {"overlays": listed, "engines": engines}
+    result: "dict[str, Any]" = {
+        "overlays": listed,
+        "engines": [engine for engine in engines if not engine.startswith("-")],
+    }
     if modes:
         result["search"] = {"modes": [mode for mode in KB_MODES if mode in set(modes)]}
     return result
@@ -4713,6 +4718,9 @@ def _kb_here(item, engines) -> bool:
     """Whether this server renders the file's engine with the options it asks for."""
     if item["engine"] not in engines:
         return False
+    for key, value in item["options"].items():
+        if "-%s:%s=%s" % (item["engine"], key, value) in engines:
+            return False
     if item["engine"] == "envsubst":
         try:
             return _kb_envsubst_options(item["options"])[1] <= KB_IMPLEMENTED_FEATURES

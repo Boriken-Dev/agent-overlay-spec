@@ -181,6 +181,12 @@ defines for the engine is **ignored**, so that an edition can add one and a serv
 the file; a defined option with a value it does not have is `template-error`, never a guess. An option on a format
 that has none (`aos`, `markdown`, `raw`) is ignored.
 
+**An option value a server cannot honour.** A value the format defines and the server's engine cannot give (a dialect or
+a feature it lacks, `escape=none` in a Mustache library with no such setting, any other) makes the file one for an
+[engine the server does not render](#an-engine-this-server-does-not-render): it is served as written with the context,
+and `kb_list` says `rendered: false`. This is not an error, and it is not guessed at. A server may therefore honour
+fewer values than this edition defines, and a file can say what it needs by naming it.
+
 **The formats.** AOS defines five, and a server may have more under names of its own, with no registry, as a
 [format name of its own](manifest.md#formats) is for a manifest. A markdown file that names none is
 **expanded**, as `aos` is:
@@ -401,8 +407,8 @@ brace never closed, is text. A value is inserted as it is and never read again.
 Why `debug` and not tplx's loader default of `strict` or GNU's own empty: it is what `aos` does, so that both engines read a
 name alike, and a prose mention of `$NAME` that no fact answers is neither an error that makes the file unreadable nor a
 blank that changes what the sentence says. `undefined=lenient` gives GNU's empty. Each dialect is the named implementation's, and a server MAY implement fewer
-of them, or fewer features: a file whose options it cannot honour is served as a file for an engine it does not render
-([below](#an-engine-this-server-does-not-render)). The vectors check the common core of the three dialects, `$$`, the
+of them, or fewer features, or lack a value of any option: a file whose options it cannot honour is served as a file for
+an engine it does not render ([below](#an-engine-this-server-does-not-render)). The vectors check the common core of the three dialects, `$$`, the
 patterns, `default` and the undefined modes, and the GNU defaults. tplx matches names without regard to case, as
 a departure it documents, and so does its `aos` engine: whether a name matches in another case (`${aos_overlay_name}`, an
 option written in capitals) is the consumer's, and no vector asks.
@@ -420,7 +426,7 @@ never read as a template. Options, on the first line:
 
 | Option | Values | Meaning |
 | --- | --- | --- |
-| `escape` | `html` (default), `none` | `html` is the specification's escaping; `none` inserts every value as it is, as a file for an agent usually wants |
+| `escape` | `html` (default), `none` | `html` is the specification's escaping; `none` inserts every value as it is, as a file for an agent usually wants. A library with no such setting (a released tplx has none) cannot give `none`, and a server on it serves the file as written with the context, as for any [value it cannot honour](#formats-and-templates) |
 
 - **Partials** (`{{> name}}`) are served files of the same overlay, resolved as an `@path` is: from the folder of the file
   that has the tag, rising no higher than the root, and not a link, a file outside the knowledge or another overlay's. A

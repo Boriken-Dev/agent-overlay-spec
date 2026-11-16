@@ -436,7 +436,8 @@ def test_knowledge(case):
             case.get("modes", []),
             limits,
             case.get("facts"),
-            case.get("engines", ("envsubst", "mustache")),
+            list(case.get("engines", ("envsubst", "mustache")))
+            + ["-" + lacked for lacked in case.get("lacks", [])],
         )
         got = {"error": out["error"]["class"]} if "error" in out else {"result": out["result"]}
     assert strict(json.loads(json.dumps(got))) == strict(case["expect"])
@@ -458,7 +459,8 @@ def test_knowledge_search(case):
                 case["modes"],
                 case.get("limits"),
                 case.get("facts"),
-                case.get("engines", ("envsubst", "mustache")),
+                list(case.get("engines", ("envsubst", "mustache")))
+                + ["-" + lacked for lacked in case.get("lacks", [])],
             )
         }
     assert strict(json.loads(json.dumps(got))) == strict(case["expect"])
