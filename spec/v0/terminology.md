@@ -49,6 +49,12 @@ runs the `sync` phase.
 **State directory**: a directory outside the overlay root, per identity and OS, where setup
 writes; kept across syncs and digests, deleted after removal.
 
+**Knowledge**: the files of an overlay that its consumer serves to an agent by path through the knowledge tools;
+see [Knowledge](knowledge.md#what-is-served).
+
+**Template** (a file): a knowledge file whose front matter names a template engine, `envsubst` or `mustache`, and
+which is rendered when it is read; see [Templates](knowledge.md#templates).
+
 **Hook**: a script an overlay, or a scope's own configuration, runs at an event of a session; see
 [Hooks](hooks.md).
 
@@ -101,5 +107,6 @@ An implementation states which of these it claims; see [Conformance](conformance
 7. **Manager**: installs, updates, removes and composes overlays.
 8. **Store**: lists overlays from catalogs, with their informational fields and icons.
 9. **Hooks**: runs hooks at a session's events, allowed by digest, and applies what they output.
+10. **Knowledge**: serves the knowledge of the overlays active in a session to its agent over MCP.
 
 A class includes another's obligations only when the implementation claims both.

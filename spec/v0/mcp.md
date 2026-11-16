@@ -1,7 +1,8 @@
 # MCP integration
 
 **Optional Extension.** AOS records the MCP server declaration dotagents implements. It does not
-require a consumer to start servers, expose tools, or run a gateway.
+require a consumer to start the servers an overlay declares, or to run a gateway. A consumer's own MCP server for
+the overlays' knowledge is another matter, and [required](knowledge.md).
 
 ```toml
 [mcp]

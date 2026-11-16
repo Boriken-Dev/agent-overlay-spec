@@ -47,6 +47,7 @@ nav:
       - Context and harnesses: spec/v0/harness.md
       - Hooks: spec/v0/hooks.md
       - MCP: spec/v0/mcp.md
+      - Knowledge through MCP: spec/v0/knowledge.md
       - Distribution: spec/v0/distribution.md
       - Store and catalogs: spec/v0/catalog.md
       - Integrity: spec/v0/integrity.md

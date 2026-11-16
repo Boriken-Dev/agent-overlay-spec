@@ -28,7 +28,8 @@ another setting with a default (1 MiB is RECOMMENDED), and likewise refuses past
 name; the body of `OVERLAY.md` counts as its file does.
 
 An operator chose to give the overlay to the agent, so the text is instruction, not fenced data; a
-consumer still marks where each file came from.
+consumer still marks where each file came from. An overlay can ask that its `rules` and `context` files be
+[served](knowledge.md#the-hint) instead.
 
 > **Status:** dotagents adds the overlay root's `CONTEXT.md` to the context it assembles, without its
 > front matter, and expands `<NAME>_OVERLAY_ROOT` placeholders in output that is not written to a file.
@@ -40,7 +41,7 @@ consumer still marks where each file came from.
 The consumer replaces `${NAME}` in the text it hands the agent, as Claude Code does for a skill's body
 and Gemini CLI and Codex do for a command's or a prompt's, once, when it loads it.
 
-**When.** A consumer replaces when it assembles the [context](#context) and when it serves a skill's body,
+**When.** A consumer replaces when it assembles the [context](#context), when it serves a skill's body and when it serves a [template](knowledge.md#templates) of the knowledge tools,
 each time, from the files as they are installed. It never changes an installed file: the
 [tree digest](integrity.md#tree-digest), a pin, a sync and a move of the overlay's directory stay as
 they were. It does not replace when it installs or reads a file for any other purpose, and it cannot
@@ -51,7 +52,9 @@ replace in a file the agent opens itself, since a consumer does not intercept ev
 - each context file, after its front matter is dropped, and the body of `OVERLAY.md`;
 - the body of a [bundled skill](skills.md#declaring-skills)'s `SKILL.md`, which is the text after its
   front matter. The front matter reaches the harness exactly as written. A skill from elsewhere is
-  delivered as it was fetched, since it is another overlay's text under a digest the user accepted.
+  delivered as it was fetched, since it is another overlay's text under a digest the user accepted;
+- a knowledge file that marks itself a [template](knowledge.md#templates), when `kb_read` serves it: with the
+  names below and the caller's and environment's [facts](knowledge.md#the-facts) added, or as Mustache.
 
 and nowhere else: not in `routing`, `rules`, a manifest value or an env value (which have their own
 [substitution](environment.md#substitution)), and not in any file the agent opens itself. Those files

@@ -194,6 +194,13 @@ substituted value as written, never its result. Substitution runs nothing and re
 MCP servers can reach data and networks; a consumer shows each server, its transport and the
 variables it reads before starting it.
 
+## Knowledge served to an agent
+
+The [knowledge tools](knowledge.md#security) hand an agent text from files nobody read first: it is served as data,
+with the characters that hide or reorder text written out; a path never leaves the overlay and a link is refused;
+a template reaches the environment only by names the user opened, never a sensitive variable, and reads no file and
+runs no code.
+
 ## Stores, catalogs and icons
 
 [Store metadata and catalogs](catalog.md) are informational, and untrusted:

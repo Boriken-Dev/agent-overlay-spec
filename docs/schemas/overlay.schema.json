@@ -25,6 +25,7 @@
     "mcp": { "$ref": "#/$defs/mcp" },
     "hooks": { "$ref": "#/$defs/hooks" },
     "harness": { "$ref": "#/$defs/harness" },
+    "knowledge": { "$ref": "#/$defs/knowledge" },
     "about": { "$ref": "#/$defs/about" }
   },
   "additionalProperties": { "$ref": "#/$defs/value" },
@@ -467,6 +468,12 @@
           }
         ]
       }
+    },
+    "knowledge": {
+      "description": "A hint that the overlay's knowledge is meant to be served through the knowledge tools rather than put in the context.",
+      "type": "object",
+      "properties": { "serve": { "type": "boolean" } },
+      "additionalProperties": false
     },
     "harness": {
       "type": "object",

@@ -35,6 +35,7 @@ the reference implementation, does today.
 - [Package](package.md), [manifest](manifest.md), [composition](composition.md),
   [dependencies](dependencies.md), [resolution](resolution.md)
 - [Environment](environment.md), [runtime and setup](runtime.md), [commands](commands.md),
-  [skills](skills.md), [context and harnesses](harness.md), [hooks](hooks.md), [MCP](mcp.md)
+  [skills](skills.md), [context and harnesses](harness.md), [hooks](hooks.md), [MCP](mcp.md),
+  [knowledge served through MCP](knowledge.md)
 - [Sources and distribution](distribution.md), [store metadata and catalogs](catalog.md),
   [integrity](integrity.md), [security](security.md)

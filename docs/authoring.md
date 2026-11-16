@@ -126,6 +126,14 @@ Read `${AOS_OVERLAY_ROOT}/kb/checklist.md`. Reviews are `${depth}`; keep notes i
 
 See [Templating](spec/v0/harness.md#templating) for the rules.
 
+## Knowledge the agent asks for
+
+Files under `kb/`, `flows/`, `references/`, `rules/` and `context/`, and `CONTEXT.md`, are served to the agent by
+path, with a search where the consumer has one, so a long convention need not sit in every context. Say so with
+`[knowledge] serve = true` and leave a routing line that names the path. A file is served exactly as written; to
+make one depend on who asks, give it front matter `template: envsubst` (`${AOS_CALLER_ROLE}`) or
+`template: mustache` (`{{caller.role}}`). See [Knowledge](spec/v0/knowledge.md).
+
 ## The manifest
 
 Start with the fields your consumers use:

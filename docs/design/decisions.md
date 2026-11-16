@@ -690,3 +690,43 @@ store reading the same location lists the same overlays. It is what a registry f
 layout, and a directory with no manifest is an overlay for the same reason it is in dotagents.
 
 **Status:** adopted; Proposed with the rest of the catalog extension.
+
+## 32 — Knowledge is served through MCP by every consumer; a template names its engine
+
+**Decision:**
+
+1. **Every consumer that runs an agent session serves the active overlays' knowledge over MCP**, by relative path:
+   `kb_list` and `kb_read` are required, `kb_search` is an optional capability with modes the server declares
+   (`words`, `meaning`, `llm`). Not an optional extension, and not tied to one program's tool names: the tool
+   names, schemas, results and errors are the contract. Read and list are deterministic and have vectors; search is
+   specified by its answer's shape and ordering, never by its ranking.
+2. **The overlay limit is an argument.** A call may name an overlay; with none, every active overlay is asked, and
+   a path two overlays hold is `ambiguous`.
+3. **Knowledge is a set of paths**, not the whole overlay: `kb/`, `flows/`, `references/`, `rules/`, `context/`,
+   the root `CONTEXT.md` and the files `rules` and `context` name, as UTF-8 text. A path leaving the root, a
+   link, a program or a manifest is refused or not found, and never read.
+4. **A file is served as it is, byte for byte, unless its front matter names an engine** in a `template` key:
+   `envsubst` or `mustache`. Any other value is an error, never a guess, and never served as plain text.
+   `envsubst` is the existing `${NAME}` substitution, closed over a list of names, extended with the caller's role
+   and profile, the environment variables the user opened (a sensitive one never), and the call's `context`.
+   `mustache` is a subset over the same facts.
+5. **Extend the existing substitution, and offer Mustache beside it, not a second `${}` dialect.** The five
+   `AOS_` names, options and the escape stay one rule; the new names are `AOS_CALLER_*`, `AOS_ENV_*` and
+   `AOS_ARG_*`, so no overlay name can be shadowed. Mustache is there because its sections and lists make a
+   checklist depend on who asks, which a replacement of names cannot, and it is a familiar syntax; the subset leaves
+   out partials (they read files), delimiter changes, inheritance and lambdas (they run code), and escaping (the
+   output is text for an agent, not markup). A file picks one engine by its front matter, so the two never meet.
+6. **A hint, `knowledge.serve`,** says an overlay's knowledge is meant to be served instead of injected. The user's
+   choice wins; a consumer that cannot give the agent MCP tools applies the context as it did, so the hint never
+   takes text from an agent that cannot ask for it.
+7. **Served text is data**: the characters that hide or reorder text are written out, and a template can read the
+   environment only through names the user opened.
+
+**Reason:** the owner, 2026-11-16: knowledge served "either direct by rel path to kb with optional limit to
+overlay", with search by "a more indexed way or with cheap/local llm", every client serving it, and a file's front
+matter saying whether it is a template and with which engine, "envsubst or mustache". A path is what an overlay
+author already writes in a routing line, so the tool needs no catalogue of its own; making it required means an
+author can rely on it, and leaving search optional lets a small consumer ship the two tools that need no index.
+Rendering per call, from the file as installed, keeps the tree digest and pins as they were, as decision 28 does.
+
+**Status:** adopted; Proposed until an implementation serves knowledge.

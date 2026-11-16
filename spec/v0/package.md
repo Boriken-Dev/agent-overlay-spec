@@ -19,7 +19,7 @@ means something only when a field names it.
 | `skills/<name>/SKILL.md` | A skill |
 | `env`, `env.<ext>`, `setup.<ext>` | The env file, the env script and setup, by default |
 | `hook.<ext>` | The overlay's [hook](hooks.md), at the events that carry no content, by default |
-| `kb/`, `flows/`, `references/` | Instructions and knowledge, named by `rules`, `routing` and `context` |
+| `kb/`, `flows/`, `references/` | Instructions and knowledge, named by `rules`, `routing` and `context`, and [served](knowledge.md#what-is-served) to the agent by path |
 | `cmds/`, `scripts/` | Executable assets, exposed only by a [`scripts`](commands.md) entry |
 | `setup/`, `env/`, `locks/` | Files named by `setup`, `env_files`, `env_scripts` and `runtime` |
 | `templates/`, `workflows/` | Reusable project or process assets |

@@ -11,6 +11,21 @@ The first edition, `0.1.0-draft`, a development draft open for review.
 
 ### Added
 
+- Knowledge served through MCP (Core, Proposed; search an Optional Extension): every consumer that runs an agent
+  session serves the active overlays' knowledge by relative path with `kb_list` and `kb_read`, and may add
+  `kb_search`. The tools' names and input schemas, the paths (relative to the overlay root, never leaving it, a link
+  refused), the optional `overlay` limit, what the listing holds and its byte order, line ranges and a read's size
+  bound, text written out so that nothing in a file can hide or reorder what the agent reads, and the error
+  classes are normative and have vectors; search is specified by its answer (passage, path, heading, inclusive line
+  range, score, the mode that answered) and its ordering, over modes a server declares (`words`, `meaning`, `llm`),
+  never by how it ranks. A file is served byte for byte unless its front matter has `template: envsubst` or
+  `template: mustache`: `envsubst` is the existing `${NAME}` substitution with the caller's role and profile, the
+  environment variables the user opened (never a sensitive one) and the call's `context`; `mustache` is a subset with
+  sections and no partial, delimiter change, lambda or escaping; an unknown engine is refused, never guessed. A new
+  manifest field `knowledge` (`serve`) hints that an overlay's rules and context are to be served rather than
+  injected; the user's choice wins and a consumer without MCP is never forced. Recorded in the design decisions as
+  32; vectors in `tests/vectors/knowledge.json` and `knowledge_search.json`, the `knowledge` cases of
+  `validation.json`, an example and fixtures.
 - A catalog's location may name a directory: each immediate subdirectory is an overlay entry named by the directory, with that subdirectory as its source, as dotagents reads a repo that is a directory of overlays. Recorded in the design decisions as 31.
 - Templating (Proposed): a consumer replaces `${NAME}` in the context it assembles and in the body of each
   bundled skill it serves, when it serves them, never in an installed file. The names are

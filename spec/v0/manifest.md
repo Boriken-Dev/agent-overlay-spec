@@ -323,6 +323,7 @@ manifest.
 | `mcp` | mapping | Optional Extension | absent | [MCP](mcp.md) |
 | `hooks` | mapping of event to hook | Optional Extension, **Proposed** | `{}`, after the [defaults](package.md#defaults) | [Hooks](hooks.md) |
 | `harness` | mapping of harness id to hints | Optional Extension, **Proposed** | `{}` | [Context and harnesses](harness.md#harness-hints) |
+| `knowledge` | mapping | Optional Extension, **Proposed** | absent | [Knowledge through MCP](knowledge.md#the-hint) |
 | `about` | mapping of informational fields | Optional Extension, **Proposed**, informational | absent | [Store metadata](catalog.md#informational-fields) |
 
 Eight fields have [defaults](package.md#defaults) that come from the overlay's files. They apply
