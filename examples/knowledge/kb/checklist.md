@@ -1,6 +1,4 @@
----
-template: mustache
----
+#!mustache
 # Review checklist for {{caller.role}}
 
 Depth: {{options.depth}}.

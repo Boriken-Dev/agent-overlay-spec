@@ -30,8 +30,7 @@ The **knowledge** of an overlay is the set of its files that:
 The set does not depend on [`defaults`](package.md#turning-a-default-off). Of these files, one is **served**
 only if its name holds no character that [served text](#served-text) writes out, its size is at most
 `max_file_bytes`, and its bytes are UTF-8; otherwise it is **skipped**, with the reason `name`, `too-large` or
-`not-text`. A file whose front matter names a template engine no edition defines is skipped with the reason
-`template`. A link, a directory and a special file are no files of the set.
+`not-text`. A link, a directory and a special file are no files of the set.
 
 Every other file of the overlay (programs, env files, hooks, setup, the manifest) is not knowledge, and
 `kb_read` answers `not-found` for it, as for a file that is not there, so a call cannot learn what an overlay
@@ -52,10 +51,13 @@ when it declares at least one [mode](#search), `kb_search`, in that order.
 | `kb_search` | `query`, `top`?, `overlay`?, `mode`?, `path`? | The passages that best answer a query |
 
 **Arguments.** The arguments are an object with only the keys the tool defines. A `null` is the argument absent.
-`overlay` and `path` are text. `from`, `to` and `top` are integers (`2.0` and `true` are not), `from` and `to`
-from 1 to 9007199254740991. A failure of any of this is `invalid-arguments`. An `overlay` names an active
-overlay as an [identity](package.md#names-and-paths) is compared, normalized; one the session has not is
-`unknown-overlay`. A server answers an overlay by the identity the consumer holds it under.
+`overlay` and `path` are text. `from`, `to` and `top` are integers (`true`, text and a number with a fraction,
+such as `2.5`, are not), `from` and `to` from 1 to 9007199254740991. Whether `2.0` is an integer is the
+consumer's: a JSON reader with one number type cannot tell it from `2`, and a consumer may accept it or refuse
+it; no vector asks. A failure of any of this is `invalid-arguments`. An `overlay` names an active overlay as an
+[identity](package.md#names-and-paths) is compared, normalized; one the session has not is `unknown-overlay`.
+Every result names an overlay by the identity the consumer holds it under, **as it holds it and not
+normalized**, whatever spelling the call used.
 
 **Results.** A result is a JSON object with the keys this section names and no other, returned as the call's
 `structuredContent` and, as the same JSON text, in one `text` block of `content`, with `isError` false. An
@@ -67,20 +69,26 @@ error is `{"error": {"class", "message"}}` returned the same way with `isError` 
 ```json
 {"overlays": [{"overlay": "team-docs", "served": true,
                "files": [{"path": "kb/intro.md", "lines": 6, "bytes": 32},
-                         {"path": "kb/review.md", "template": "mustache"}],
+                         {"path": "kb/review.md", "template": "mustache", "rendered": true}],
                "skipped": [{"path": "kb/big.md", "reason": "too-large"}]}],
- "search": {"modes": ["words", "meaning"]}}
+ "engines": ["envsubst", "mustache"], "search": {"modes": ["words", "meaning"]}}
 ```
 
 - `overlays` holds each active overlay, or the one `overlay` names, in [composition order](composition.md#deterministic-ordering).
 - `served` says whether the consumer has left this overlay's `rules` and `context` files out of the context
   [because they are served](#the-hint).
 - `files` holds the served files in the order of their paths as UTF-8 bytes, compared as unsigned bytes (the
-  order of the [digest](integrity.md#tree-digest): not UTF-16 order, not case folded). A plain file has `lines`
-  and `bytes`, its [lines](#lines) and its size as stored. A [template](#templates) has `template`, its engine,
-  and neither, since what it serves depends on the call.
-- `skipped` holds the skipped files in the same order, each with its `reason`; a path in it is written out as
+  order of the [digest](integrity.md#tree-digest): not UTF-16 order, not case folded). Each has `lines` and
+  `bytes`: the [lines](#lines) and the size in bytes of [the served text](#formats-and-templates), which is not
+  the stored file's when the file has `${…}` or an include (an include's lines are in its includer's count). A file
+  whose first line names an engine other than markdown and raw also has `template`, the name, and `rendered`,
+  whether this server renders that engine.
+- `skipped` holds the skipped files in the same order, each with its `reason`: `name`, `too-large` or `not-text`
+  as above, or `render` for a file whose served text cannot be made without a `context` (a cycle of includes, an
+  option of the wrong type, a Mustache body refused: `kb_read` says which). A path in it is written out as
   [served text](#served-text) is.
+- `engines` are the [template engines](#formats-and-templates) this server renders with, in the order `envsubst`, `mustache`
+  and then any others of its own by their names' bytes; possibly none.
 - `search` is present only when `kb_search` is offered, and `modes` are its declared modes in the order
   `words`, `meaning`, `llm`.
 
@@ -91,7 +99,8 @@ error is `{"error": {"class", "message"}}` returned the same way with `isError` 
  "truncated": false, "text": "Hello\n\n## Setup"}
 ```
 
-`template` is also present, holding the engine, when the file was rendered.
+`template`, the engine the file names, and `rendered`, whether this server rendered it, are also present when
+the file [names an engine](#formats-and-templates) other than markdown and raw.
 
 **Which file.** `path` is a [relative path](manifest.md#fields) under the overlay's root, compared exactly
 (case and Unicode form included) and never normalized, and with none of the characters served text writes out.
@@ -102,16 +111,20 @@ every active overlay is asked; exactly one that has the file answers; more than 
 
 **What is refused.** A path none of whose files is served is answered, when an overlay says so, in this order of
 priority: `link` when the path, or a directory on the way to it, is a symbolic link, a junction or another
-reparse point, whatever it points at (it is never followed); `not-text`, `too-large` and `unknown-template`
-for a skipped file; and otherwise `not-found`, which also answers a directory, a special file, a file outside
-the knowledge and one that is not there. A consumer opens a path so that it cannot leave the root through a
-link, as the [manifest section](manifest.md#fields) says, and does not check first and open after.
+reparse point, whatever it points at (it is never followed); `not-text` and `too-large` for a skipped file; and
+otherwise `not-found`, which also answers a directory, a special file, a file outside the knowledge, one that is
+not there, and any path when no overlay is active and none is named.
+
+A `link` answer depends on the tree the consumer holds recording links: a tree read as an [integrity
+digest](integrity.md#tree-digest) reads refuses one, and one read from a filesystem shows it. The race between
+looking and opening is the consumer's to close: it opens a path so that it cannot leave the root through a link, as
+the [manifest section](manifest.md#fields) says, and does not check first and open after.
 
 **Which lines.** See [Lines](#lines).
 
 ### Lines
 
-A file's text, or a rendered template's, is split into **lines** at line feed. A carriage return immediately
+The [served text](#formats-and-templates) is split into **lines** at line feed. A carriage return immediately
 before the line feed is not part of the line, and one anywhere else is. The text has no line after a final line
 feed, and an empty file has no line; a file with no final line feed has the line it ends on. No other character
 ends a line (U+2028, U+000B and U+000C do not).
@@ -144,26 +157,167 @@ include the ones a [hook's](hooks.md#output) output refuses, which a file cannot
 else changes. A path is never written out in a result that gives a path to read: a file whose name holds
 such a character is skipped instead.
 
-## Templates
+## Formats and templates
 
-A file is served as it is, byte for byte, unless its front matter marks it as a template. The front matter is
-read as [the split](manifest.md#the-split) and the [front matter reading](manifest.md#overlaymd) say, with their
-bounds. A file is a **template** only when the block closes, reads as a mapping, and that mapping has the key
-`template`; a file with no front matter, a block that does not close, parse or map, a head past the bound or a
-mapping with no `template` key is a plain file, whatever its text, and keeps its front matter in what is served.
+Every served file has a **format**, and the format is named by the file's first line.
 
-The value of `template` names the engine, exactly and in this case: `envsubst` or `mustache`. Any other value
-(another name, another case, an empty string, a boolean, a list) makes the file skipped with the reason
-`template`, and a read of it is `unknown-template`; it is never guessed, and never served as plain text, since
-its placeholders would reach the agent as written.
+**The first line.** A file names its format by its **first line**, from its first byte, written as a **format
+line** like [a manifest's](manifest.md#reading-overlaycfg): `#!` and then words, and the last word, after any `/`
+or `\`, with leading dots dropped and ASCII capitals lower-cased, is the **name**. So `#!mustache`,
+`#!/usr/bin/env mustache`, `#!/usr/bin/env -S mustache` and `#!MUSTACHE` all name `mustache`. A byte-order mark,
+a space or anything else before the `#!`, a `#!` on any other line, a line with no word and a path that ends in a
+separator name nothing, and the line is text.
 
-A template is served as its **rendered body**: the text after its front matter, with the engine applied. Its
-lines are counted in the rendered text. The rendered text is at most `max_rendered_bytes` bytes, or `too-large`
-refuses it. A template is rendered when `kb_read` serves it, with the facts of that call, never when it is
-installed, so the [tree digest](integrity.md#tree-digest) is unchanged. `kb_search` never returns a passage of a
-template, and a consumer MAY leave it out of any index, since what it serves changes with the call.
+**The formats.** A file with no name is **markdown**. AOS defines four formats, and a server may have more under
+names of its own, with no registry, as a [format name of its own](manifest.md#formats) is for a manifest:
+
+| Name | Every server | The file is served as |
+| --- | --- | --- |
+| `markdown`, `md` | yes | [Markdown](#markdown): `${NAME}` replaced and `@path` included; the default |
+| `raw` | yes | [Raw](#raw): as it is |
+| `envsubst` | no | [envsubst](#envsubst) over the whole text |
+| `mustache` | no | [Mustache](#mustache) over the whole text |
+
+A server says in `kb_list` which of the last two, and which of its own, it renders with. A first line that names
+`markdown`, `md` or `raw` is understood by every server and is **not served**: it says how to read the file, and
+carries no content, so the text a reader gets begins at the next line. A first line that names an engine this
+server renders is not served either. One that names an engine it does not render is [kept](#an-engine-this-server-does-not-render).
+
+**The text served.** What `kb_read` serves for a file, called with no `context`, is **the served text**. Its
+lines are what `kb_read` counts and numbers, what `kb_list` reports as `lines` and `bytes`, and what `kb_search`
+indexes and returns passages of, so an included file's text is found through the file that includes it and a
+line number means the same everywhere. A `context` can only change what an [engine](#the-facts) reads from it.
+A file whose served text cannot be made without a `context`, such as one whose includes form a cycle, is listed
+as skipped with the reason `render` and is not searched, and `kb_read` says why.
+
+### Markdown
+
+The text after the first line (the whole file when it names nothing) is read from left to right, one line at a
+time, and two things in it are replaced: **`${NAME}`** and **`@path`**. Nothing else is changed: the file's own
+front matter, headings, links, `{{…}}` text and every other character stay, and a file with neither is served as
+it is.
+
+- **`${NAME}`** is replaced as [Templating](harness.md#templating) says, with [the names](#the-facts) of the
+  facts: `${AOS_OVERLAY_NAME}`, an option's name, `${AOS_CALLER_ROLE}`, `${AOS_ENV_<NAME>}`, `${AOS_ARG_<key>}`
+  and the rest. A name with no value, and one that is none of these, stays as written, and `$${` is the literal
+  `${`; so `$${AOS_OVERLAY_NAME}` is the text `${AOS_OVERLAY_NAME}`, and `$$` and `$x` are themselves. This is
+  done **everywhere, code included**: the names are a closed set, so a shell line's `${HOME}` is untouched, and
+  an author who writes a path in a code span (`` `${AOS_OVERLAY_ROOT}/kb/a.md` ``) means it replaced. An option of
+  the wrong type is `invalid-option`, but only where a `${…}` that would read it is met.
+- **`@path`** includes a file of the same overlay, in the manner of the `@path` imports of Claude Code's
+  `CLAUDE.md` and of `AGENTS.md` readers. The rules below decide what is an include; all else is text.
+
+**What is an include.** An `@` is the start of one only if all of these hold:
+
+1. it is **not in code**: not in a fenced block, and not in a code span (below);
+2. it is the first character of its line, or follows a space, a tab, a carriage return, a vertical tab or a form
+   feed, so `a@b.md`, `(@b.md)`, `@@b.md` and `\@b.md` are not includes, and an address is never one;
+3. the **name** after it, up to the next white space, with any of `. , ; : ! ? ) ] } ' "` taken off its end, is
+   not empty, does not start with `/` or `~`, holds no `\`, does not start with a drive letter and `:`, and has
+   no empty component; so a handle such as `@john` is a candidate and is settled by the next rule;
+4. it names a **served file of the same overlay**, found from the folder of the file that holds the `@`. A `.`
+   component stays where it is, and a `..` goes up one folder and may rise only as far as the root: one that would
+   leave it names nothing. A file that is another overlay's, a link, a file outside the knowledge, a program, one
+   that is skipped, one for an engine this server does not render and one that is not there are no served file,
+   and neither is a path through a link. Names are compared exactly, in case and in Unicode form.
+
+What is not an include is **text, left as written, and no error**, because a word that names no file is prose: a
+handle, an address, a path in a sentence. An include that is one is different: the author meant it, and it can fail
+(below), which is an error.
+
+**What is included.** The included file's **own format** applies, so an author's choice of format is the same
+whether a file is read or included:
+
+- a markdown file is read as this section says, on its own, with its first line (if it names markdown) not
+  served, and **its front matter dropped** if it has one (a block that closes, the empty one too; front matter
+  describes the file, not its text), and its own `@path` are resolved from **its** folder;
+- a raw file is included as it is, after its first line, front matter and all;
+- a file of `envsubst` or `mustache` is rendered with the same facts and the same `context`, and includes
+  nothing further (neither engine has includes).
+
+Why the file's own format and not markdown for all: a file that says it is a template is rendered when read
+directly, and would otherwise reach the agent with its placeholders when included.
+
+The included text replaces the `@` and the name; **one line end is dropped from its end** (CR LF, or LF), so a
+line that holds only `@path` becomes the included lines, the includer's line end after them; the text after the
+name, on the same line, follows. Text that is included is **never read again** for names or includes, by the file
+that includes it or any other.
+
+**Depth and cycles.** Includes nest at most `max_include_depth` hops (default 5, as Claude Code's); one more is
+`include-error`, and with the depth 0 an include is an error. A file that includes a file that is being read (itself
+or one above it in the chain) is `include-error`. The same file included twice, side by side or by two routes, is no
+cycle. The text added is counted with the served text toward `max_rendered_bytes`.
+
+**Code.** A **fenced block** opens at a line of up to three spaces and then three or more backticks or three or
+more tildes, and closes at a line of up to three spaces, then as many of the same character or more, and nothing but
+spaces and tabs; one not closed runs to the end of the file; its fence lines are in it. A **code span** is a run of
+backticks and the text to the next run of exactly as many backticks, on the same line; a run with no such closing run
+is literal backticks. An indented block is **not** code here. An `@` in code is never an include, so a decorator
+(`@property`), a command (`@echo off`) and an example of an include are safe; `${NAME}` is replaced in code as
+above. To write an `@path` that would include, put it in a code span or write `\@path`.
+
+### Raw
+
+A file whose first line names `raw` is served as the bytes after that line, with **nothing replaced**: no
+`${…}`, no `@path`, no `{{…}}`, its front matter kept, a `$${` and a CR LF as they are. It is how an author turns
+the markdown engine off. The `#!raw` line itself is not served, as a markdown line is not: the server understood
+it, it carries no content, and keeping it would leave a line in every raw file that no reader asked for; the
+author who needs the bytes of the file, first line included, keeps the line out of the knowledge by naming the
+file as a program in `bin/`, where it is not knowledge. A raw file may be included by a markdown one, as it is.
+
+### An engine this server renders
+
+An `envsubst` or `mustache` file, or one of a server's own, that this server renders, is served as its **rendered
+text**: the engine applied to all the text after the first line (its line end with it), the first line left out.
+The file's own front matter, if it has any, is part of that text and is rendered with it. A template is rendered
+when `kb_read` serves it, with the facts of that call, never when it is installed, so the
+[tree digest](integrity.md#tree-digest) is unchanged. The text is at most `max_rendered_bytes` bytes, or `too-large`
+refuses it. A server that has no engine for a name, whether AOS or the server has never heard of it, or it is not
+installed there (a Python without the engine's package), is in the next case.
+
+### An engine this server does not render
+
+This is no error. The file is served as it is, **its first line kept**, and with a front matter that carries what
+the renderer would have used, so that the agent reading it can do the substitution itself. The text served is, in
+order: the first line as written, the block below, and the rest of the file exactly as it was; no `${…}` is
+replaced and no `@path` included.
+
+```text
+#!jinja
+---
+aos_template_context: {"engine": "jinja", "overlay": {"name": "team-docs", …}, "caller": {"role": "reviewer"}, …}
+---
+Hello {{ name }}
+```
+
+The block is the lines `---`, `aos_template_context: ` and one flow mapping on the same line, and `---`, each
+ended by a line feed, and the first line gets one when it has none. It is a front matter of its own, placed
+before whatever front matter the file has, which stays as the author wrote it: the two never share a mapping, so
+nothing the author wrote is overwritten or reordered, and a key of the same name in the author's front matter
+is the author's. The mapping holds `engine` (the name) and then, each only when it holds something, `overlay`,
+`project`, `caller`, `env`, `options` and `context`: the same data, with the same limits, that
+[Mustache](#mustache) reads under those roots, so a sensitive option or variable is never in it. It is written as
+JSON is, on one line with `, ` and `: ` between, the keys of every mapping below the first level in UTF-8 byte
+order, integers in decimal, booleans as `true` and `false`, and a string in double quotes in which only `"`, `\`
+and U+0000–U+001F are escaped, those last as `\u00xx` in lower case. The whole text is [written out](#served-text)
+after, as any is. The text is at most `max_rendered_bytes` bytes. A configured option of the wrong type is
+`invalid-option`, as when rendering. A markdown file that includes such a file leaves the `@path` as written.
+
+### An engine of a server's own
+
+A server that renders an engine of its own gives the template the facts and nothing else: it MUST NOT let the file
+read a file, include or import another, run code or call a program, reach the network, read an environment variable
+the user did not open or any object of the server, and it bounds time and output (`max_rendered_bytes`). What the
+engine is allowed is this section's, and not the engine's: how the server keeps it so (a sandboxed environment, a
+process with nothing, a subset) is its own. An engine that cannot be held to this (one whose includes or attribute
+access reach the host) is not listed in `engines`, and its files are served as above. The reason is that a template's
+text is a third party's and is rendered on the person's machine because an agent asked, so an engine that can read a
+file or run code would let an overlay do that on request; it is the reason this edition defines no partial and no
+lambda for Mustache, and no include in `envsubst`.
 
 ### The facts
+
+What a file reads when it is served. Markdown reads the names of the first column, as `envsubst` does.
 
 | `envsubst` name | `mustache` path | Value |
 | --- | --- | --- |
@@ -187,17 +341,17 @@ as the five `AOS_` names already are: nothing sets a variable in any environment
   consumer MAY refuse more. A variable's value is text; one that is not set is absent. The names compare
   exactly, in every OS.
 - **The context is the caller's.** `context` is an object whose keys are names (`[A-Za-z_][A-Za-z0-9_]*`) at
-  every depth and whose values are strings, integers (at most 9007199254740991 in absolute value), booleans,
+  every depth and whose values are strings, integers (at most 9007199254740991 in absolute value; a number with a fraction is not one), booleans,
   lists and objects, nested at most `max_context_depth` levels (the object itself is one), with strings and
   keys together at most `max_context_bytes` bytes of UTF-8. Anything else, a `null` and a float included, is
   `invalid-arguments`. It is given by the agent, so it is as trusted as the agent is and no more: it can change
-  only the text returned to the agent, and it sets nothing. A `context` for a plain file is ignored.
-- **Option values** are the user's, typed, as in [Options](harness.md#options): a configured value of the wrong
-  type is `invalid-option`.
+  only the text returned to the agent, and it sets nothing. A `context` for a raw or markdown file with nothing to read it is ignored.
+- **Option values** are the user's, typed, as in [Options](harness.md#options): a configured value, or a default,
+  of the wrong type is `invalid-option`, whichever engine reads it. A sensitive option is not read at all.
 
 ### `envsubst`
 
-The body is read as [Templating](harness.md#templating) reads it, with the names above: `${NAME}` is replaced when
+The text after the first line is read as [Templating](harness.md#templating) reads it, with the names above: `${NAME}` is replaced when
 `NAME` has a value, `$${` is `${`, and anything else, an unknown name such as `${HOME}`, a name with no value,
 another case, an operator, a bare `$NAME` and a Mustache tag, is left as written and is no error. A value is
 inserted as it is and never read again. Of the context, only the keys whose value is a string, an integer or a
@@ -205,7 +359,7 @@ boolean are names (as text, `true` or `false` for a boolean).
 
 ### `mustache`
 
-The body is read as a small subset of [Mustache](https://mustache.github.io/mustache.5.html), over the data of
+The text after the first line is read as a small subset of [Mustache](https://mustache.github.io/mustache.5.html), over the data of
 the table's second column: the roots `overlay`, `project`, `caller`, `env`, `options` and `context`.
 
 - **Tags.** `{{name}}`, `{{{name}}}` and `{{&name}}` insert a value; `{{#name}}…{{/name}}` is a section,
@@ -216,7 +370,7 @@ the table's second column: the roots `overlay`, `project`, `caller`, `env`, `opt
   (`{{=…=}}`), inheritance and blocks, a lambda or any other tag or sigil, a name that is not a name, a tag not
   closed on its line, a section not closed or closed by another name, a section deeper than `max_template_depth`.
   Nothing a template says reads a file, runs code or calls a function: values are data, and a value that is a
-  function does not exist. There is no way to write a literal `{{`; text that needs one is served from a plain file.
+  function does not exist. There is no way to write a literal `{{`; text that needs one is served from a markdown or raw file.
 - **Values.** A name is looked up in the contexts of the sections around it, innermost first, the roots last: its
   first part, then each later part must be a key of what that found. A name that is not found is missing and
   renders as nothing. `.` is the innermost context.
@@ -233,9 +387,24 @@ the table's second column: the roots `overlay`, `project`, `caller`, `env`, `opt
 - **Text.** Everything else is copied exactly, `${…}` and a single `{` included, and a value is never read as
   a template.
 
+**Where this departs from [Mustache's own specification](https://github.com/mustache/spec)**, and why. A library
+that follows the specification can meet each by a check before it renders or an option, but not by default.
+
+- *No escaping.* The specification escapes `{{x}}`; the set of characters it escapes, past `& < > "`, differs
+  between libraries (the apostrophe, `/`, the backtick, `=`), so two consumers would serve different bytes. The
+  output is text for an agent, not markup.
+- *Stringification and truthiness are fixed*, since a library's own is its language's: a boolean is `true` or
+  `false` (not `True`), an empty string and 0 are not false (a list's emptiness, `false` and a missing name are), and an
+  object or a list inserts nothing (libraries print their own text for it).
+- *Refused, not supported:* partials, delimiter changes, inheritance and lambdas (they read files, or run code),
+  a name outside `[A-Za-z_][A-Za-z0-9_]*` and dots, and sections nested past `max_template_depth`. The
+  specification defines the first and the delimiters; lambdas and inheritance are its optional modules.
+- *A tag, a comment included, is on one line*; the specification lets a comment span lines.
+- *`{{& x}}`* takes white space after the `&`, as the specification does.
+
 ### Refusals
 
-`unknown-template` for an engine that is not defined, `invalid-option` for a configured option of the wrong type,
+`invalid-option` for an option of the wrong type, configured or by default, in any engine,
 `template-error` for a Mustache template the subset refuses, `too-large` for an output past `max_rendered_bytes`,
 and `invalid-arguments` for a context that is not usable.
 
@@ -278,9 +447,10 @@ may say why in a `note`); it chooses `llm` only if the person has asked for that
   that overlay cannot answer now, which does not fail the call: its `error` has a `class`, `unavailable` (an
   index is still being made, or failed) or `mode-unavailable`, and a `message`.
 - `mode` is the mode that answered, one the server declares, and for a named mode that one.
-- A passage has `path` (a served, plain file of the overlay), `heading`, `from_line` and `to_line` (inclusive, from
+- A passage has `path` (a served file of the overlay), `heading`, `from_line` and `to_line` (inclusive, from
   1, not past the file's last line, the first not after the second), `score` and `text`. The `text` lies within the
-  lines from `from_line` to `to_line` as `kb_read` serves them, written out the same way; it is those lines whole,
+  lines from `from_line` to `to_line` of [the served text](#formats-and-templates), as `kb_read` serves it with no
+  `context`, written out the same way; it is those lines whole,
   except that a line longer than the server's passage size may be cut, so that a passage is part of a line.
   `heading` is the path of the Markdown headings above the passage, outermost first, joined by ` > `, empty where
   there is none; it is written out.
@@ -314,20 +484,19 @@ it. A hint never forces a consumer without MCP to do anything.
 
 ## Settings
 
-Every limit is a setting of the consumer with a default, and no floor: a person may raise or lower any.
+Every limit is a setting of the consumer with a default, and no floor: a person may raise or lower any, or **lift** it so that it bounds nothing. A lifted `max_query_characters` leaves `maxLength` out of the schema of `query`, and a lifted `max_top` leaves `maximum` out of `top`'s; the least stays (a query of one character, a `top` of 1).
 
 | Setting | Default | Bounds |
 | --- | --- | --- |
 | `max_file_bytes` | 1 MiB | the size of a served file |
 | `max_read_bytes` | 64 KiB | the text of one `kb_read` |
-| `max_rendered_bytes` | 1 MiB | a rendered template |
+| `max_rendered_bytes` | 1 MiB | a template as served, rendered or with its context |
 | `max_query_characters` | 1000 | a query |
 | `max_top` | 100 | `top` |
 | `max_context_bytes` | 16 KiB | strings and keys of a `context` |
 | `max_context_depth` | 8 | a `context`'s nesting |
 | `max_template_depth` | 32 | Mustache sections one in another |
-
-Reading a file's front matter is bounded as [the split's](manifest.md#bounds) bytes are.
+| `max_include_depth` | 5 | `@path` includes one in another |
 
 ## Errors
 
@@ -337,26 +506,29 @@ Reading a file's front matter is bounded as [the split's](manifest.md#bounds) by
 | `invalid-path` | a `path` is not a relative path, or holds a character served text writes out |
 | `unknown-overlay` | an `overlay` the session does not have |
 | `ambiguous` | more than one overlay has the path, and none was named |
-| `not-found` | no file of the knowledge is at the path |
+| `not-found` | no file of the knowledge is at the path, or no overlay is active |
 | `link` | the path, or a directory on the way, is a link |
 | `not-text` | the file's bytes are not UTF-8 |
 | `too-large` | the file is past `max_file_bytes`, or a rendered text past `max_rendered_bytes` |
-| `unknown-template` | the front matter names an engine no edition defines |
-| `invalid-option` | a configured option is not of its declared type |
+| `invalid-option` | a configured option, or a default, is not of its declared type |
 | `template-error` | a Mustache body the subset refuses |
+| `include-error` | an `@path` that names a served file and cannot be included: a cycle, or nesting past `max_include_depth` |
 | `line-range` | `to` before `from`, or `from` past the last line |
 | `unavailable`, `mode-unavailable` | in a search entry: no answer now, or not by that mode |
 
 A `kb_read` that more than one overlay could answer with an error answers with the first class in the order
-`link`, `not-text`, `too-large`, `unknown-template`, `not-found`.
+`link`, `not-text`, `too-large`, `not-found`.
 
 ## Security
 
 Every file read is a file of an overlay the user chose, but not one the user read: its text may say anything,
 so the served text is data and is written out as above. A path never leaves the root, and a link is refused
-rather than followed, since a link in an overlay is a way to read a file the overlay does not hold. A template
+rather than followed, since a link in an overlay is a way to read a file the overlay does not hold. An `@path`
+names a served file of the same overlay or nothing, resolved from the including file's folder and no higher than
+the root, so a file cannot pull in another overlay's text, a file outside the knowledge or the person's own files;
+nesting and cycles are bounded. A template
 reaches the user's environment only through names the user opened, and never through a
 [sensitive](security.md#sensitive-variables) one; it cannot read files or run code under either engine, which is
-why this edition defines no partial and no lambda. The environment's values and the call's context go to the
+why this edition defines no partial and no lambda, and no engine of a server's own may either. The environment's values and the call's context go to the
 agent that asked and to no one else. A consumer that gives an agent a role or profile tells it, in the
 template's facts, nothing more than the label.

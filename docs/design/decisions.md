@@ -729,4 +729,64 @@ author already writes in a routing line, so the tool needs no catalogue of its o
 author can rely on it, and leaving search optional lets a small consumer ship the two tools that need no index.
 Rendering per call, from the file as installed, keeps the tree digest and pins as they were, as decision 28 does.
 
+**Status:** adopted; Proposed until an implementation serves knowledge. Part 4 is superseded by 33.
+
+## 33 — A template names its engine by a first-line shebang; an engine a server lacks is no error
+
+**Decision:** supersedes part 4 of 32 (the `template` front matter key, which is gone) and the refusal of an engine
+nobody defines.
+
+- **The first line names the engine**, as a manifest's format line names its format: `#!mustache`,
+  `#!/usr/bin/env mustache`, the last word, lower-cased. No such line, or one naming `markdown` or `md`, is plain
+  markdown: served byte for byte, the line kept. Kept, so that a plain file is one thing to the listing, the search
+  and the read, and because it is the author's text.
+- **An engine the server renders:** the text after the line is rendered and served without it, front matter of the
+  file included.
+- **An engine it does not render, whatever the reason** (unknown to AOS, not implemented, a package missing): no error.
+  The file is served as it is, the line kept, with a front matter after it, `aos_template_context`, holding the
+  facts the renderer would have read, so the agent can substitute itself. It is placed before the author's front
+  matter, which stays untouched, and not merged into it: merging means editing YAML of any of three formats, and two
+  consumers would write different bytes. A sensitive value is never in it.
+- **AOS defines `envsubst` and `mustache`; every other name is a server's own**, with no registry, the way a
+  format name of its own is for a manifest. A server renders it only if it can keep it to the facts: no file, no
+  code, no network, no other environment.
+- **A search never returns a passage of a file that names an engine**, rendered or not.
+
+**Reason:** the owner, 2026-11-16: "The shebang of markdown will have the template format default is markdown ao no
+template if template engine not avaliable leave shebang in markdown and include front matter with context that the
+renderer would have used", and "Tplx should work for ensub and mustache and others". A first line is readable
+without parsing YAML, so a consumer finds the engine from a file's first bytes; an engine that is missing becomes a
+file the agent can still use instead of an error that hides it. The error classes `unknown-template` and the
+skipped reason `template` are gone with it.
+
+**Status:** adopted; Proposed until an implementation serves knowledge. Amended by 34: a markdown file is no longer served byte for byte.
+
+## 34 — Markdown is the default format: `${}` and `@path`; `#!raw` is the way out
+
+**Decision:** amends 33, which made a file with no shebang or a markdown one byte for byte.
+
+- **A file with no first line naming a format is markdown**, and every server implements it. `${NAME}` is replaced
+  by the existing envsubst grammar over the same facts, `$${` being a literal `${`; `@path` includes a file, as
+  the imports of Claude Code's `CLAUDE.md` do and as AGENTS.md readers read them.
+- **An `@` is an include only if it names a served file of the same overlay**, from the including file's folder,
+  rising to the root and no further, and is not in code, and follows white space or the start of a line. What
+  names nothing (a handle, an address, a path outside the root, a link, a file not in the knowledge) is text and no
+  error; what names a served file and cannot be included (a cycle, past five hops) is an error. A prose mention
+  must never make a file unreadable; an include the author meant must never fail silently.
+- **The included file's own format applies**: a template is rendered, a raw file is as it is, a markdown file is
+  expanded with its front matter dropped; one for an engine the server lacks is not included, since pasting its
+  context block into a document would corrupt it, and stays written for the agent to read by path.
+- **`${}` is replaced in code, `@` is not**: the names are a closed set, so replacing in a code span is harmless
+  and wanted (a path in backticks); an `@` in code is a decorator, a command or an example.
+- **`#!raw`** is a format every server has: the file after that line, with nothing replaced and its front matter
+  kept. The `#!raw` and `#!markdown` lines are not served: the server understood them. (33's rule that a markdown
+  line is kept is replaced.)
+- **The served text is the one text** that `kb_read` numbers, `kb_list` counts and `kb_search` indexes, with no
+  `context`, so an included file is found through its includer and a line number means one thing.
+
+**Reason:** the owner, 2026-11-16: "Markdown should work with @ for include only include up to overlay root and ${}
+for var like claude and other read claude.md agents.md files", and "Raw format passes the filenas is". Agents are
+used to `@` imports; making them work in the overlay's own files with the same confinement as every path here is
+what lets an overlay split a long convention into parts.
+
 **Status:** adopted; Proposed until an implementation serves knowledge.

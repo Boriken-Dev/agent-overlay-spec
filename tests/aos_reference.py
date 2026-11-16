@@ -4179,6 +4179,7 @@ def read_icon(
 KB_DIRS = ("kb", "flows", "references", "rules", "context")
 KB_MODES = ("words", "meaning", "llm")
 KB_ENGINES = ("envsubst", "mustache")
+KB_MARKDOWN = ("markdown", "md")
 KB_LIMITS = {
     "max_file_bytes": 1048576,
     "max_read_bytes": 65536,
@@ -4188,6 +4189,7 @@ KB_LIMITS = {
     "max_context_bytes": 16384,
     "max_context_depth": 8,
     "max_template_depth": 32,
+    "max_include_depth": 5,
 }
 KB_MAX_INTEGER = 9007199254740991
 KB_DEFAULT_TOP = 5
@@ -4202,8 +4204,13 @@ class KnowledgeError(Exception):
         self.message = message or code
 
 
-def kb_limits(given: "Optional[dict[str, int]]") -> "dict[str, int]":
+def kb_limits(given: "Optional[dict[str, Optional[int]]]") -> "dict[str, Optional[int]]":
+    """The settings: the defaults, then the given ones. A setting given as ``None`` is lifted."""
     return dict(KB_LIMITS, **(given or {}))
+
+
+def _kb_over(value: int, bound: "Optional[int]") -> bool:
+    return bound is not None and value > bound
 
 
 def _kb_hides(code: int) -> bool:
@@ -4211,7 +4218,8 @@ def _kb_hides(code: int) -> bool:
         0x202A <= code <= 0x202E
         or 0x2066 <= code <= 0x206F
         or 0x200B <= code <= 0x200F
-        or code in (0x2028, 0x2029, 0x2060, 0x061C, 0xFEFF, 0x00AD, 0x180E)
+        or 0x2060 <= code <= 0x2064
+        or code in (0x2028, 0x2029, 0x061C, 0xFEFF, 0x00AD, 0x180E)
         or 0xFE00 <= code <= 0xFE0F
         or 0xE0000 <= code <= 0xE007F
         or 0xE0100 <= code <= 0xE01EF
@@ -4245,6 +4253,10 @@ def kb_lines(text: str) -> "list[str]":
     if last != "":
         lines.append(last)
     return lines
+
+
+def _kb_bound(key: str, value: "Optional[int]") -> "dict[str, int]":
+    return {} if value is None else {key: value}
 
 
 def kb_tools(modes: "Iterable[str]", limits: "Optional[dict[str, int]]" = None) -> "list[dict]":
@@ -4284,17 +4296,15 @@ def kb_tools(modes: "Iterable[str]", limits: "Optional[dict[str, int]]" = None) 
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "query": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": limit["max_query_characters"],
-                        },
-                        "top": {
-                            "type": "integer",
-                            "minimum": 1,
-                            "maximum": limit["max_top"],
-                            "default": KB_DEFAULT_TOP,
-                        },
+                        "query": dict(
+                            {"type": "string", "minLength": 1},
+                            **_kb_bound("maxLength", limit["max_query_characters"]),
+                        ),
+                        "top": dict(
+                            {"type": "integer", "minimum": 1},
+                            **_kb_bound("maximum", limit["max_top"]),
+                            default=KB_DEFAULT_TOP,
+                        ),
                         "overlay": {"type": "string"},
                         "mode": {"type": "string", "enum": ["auto"] + modes, "default": "auto"},
                         "path": {"type": "string"},
@@ -4307,11 +4317,11 @@ def kb_tools(modes: "Iterable[str]", limits: "Optional[dict[str, int]]" = None) 
     return tools
 
 
-_KB_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_KB_IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
 
 def _kb_context_ok(value: Any, depth: int, budget: "list[int]", limit: "dict[str, int]") -> bool:
-    if depth > limit["max_context_depth"]:
+    if _kb_over(depth, limit["max_context_depth"]):
         return False
     if isinstance(value, bool):
         return True
@@ -4319,7 +4329,7 @@ def _kb_context_ok(value: Any, depth: int, budget: "list[int]", limit: "dict[str
         return abs(value) <= KB_MAX_INTEGER
     if isinstance(value, str):
         budget[0] += len(value.encode("utf-8"))
-        return budget[0] <= limit["max_context_bytes"]
+        return not _kb_over(budget[0], limit["max_context_bytes"])
     if isinstance(value, list):
         return all(_kb_context_ok(item, depth + 1, budget, limit) for item in value)
     if isinstance(value, dict):
@@ -4327,7 +4337,7 @@ def _kb_context_ok(value: Any, depth: int, budget: "list[int]", limit: "dict[str
             if not _KB_IDENT.match(key):
                 return False
             budget[0] += len(key.encode("utf-8"))
-            if budget[0] > limit["max_context_bytes"]:
+            if _kb_over(budget[0], limit["max_context_bytes"]):
                 return False
             if not _kb_context_ok(item, depth + 1, budget, limit):
                 return False
@@ -4363,12 +4373,12 @@ def kb_arguments(
             if "enum" in spec and value not in spec["enum"]:
                 raise KnowledgeError("invalid-arguments", key + " is not one of its values")
             if key == "query":
-                if len(value) > spec["maxLength"] or not value.strip(" \t\n\v\f\r"):
+                if _kb_over(len(value), spec.get("maxLength")) or not value.strip(" \t\n\v\f\r"):
                     raise KnowledgeError("invalid-arguments", "the query is empty or too long")
         elif spec["type"] == "integer":
             if isinstance(value, bool) or not isinstance(value, int):
                 raise KnowledgeError("invalid-arguments", key + " is a whole number")
-            if not spec["minimum"] <= value <= spec["maximum"]:
+            if value < spec["minimum"] or _kb_over(value, spec.get("maximum")):
                 raise KnowledgeError("invalid-arguments", key + " is out of range")
         else:
             if not isinstance(value, dict) or not _kb_context_ok(value, 1, [0], limit):
@@ -4406,10 +4416,29 @@ def _kb_hidden_name(path: str) -> bool:
     return any(_kb_hides(ord(char)) for char in path)
 
 
+def kb_shebang(data: bytes) -> "Optional[str]":
+    """The name a file's first line gives its format, or ``None`` when it gives none. The line is
+    a format line as a manifest's is: ``#!`` and its last word, after any slash or backslash,
+    lower-cased in ASCII, leading dots dropped. No line and no word name nothing."""
+    if not data.startswith(b"#!"):
+        return None
+    try:
+        name, _ = _format_line(data, "")
+    except ReadError:
+        return None
+    return name
+
+
+def kb_after_shebang(text: str) -> str:
+    """A text after its first line, the line end (LF, or CR LF) with it."""
+    end = text.find("\n")
+    return "" if end < 0 else text[end + 1 :]
+
+
 def kb_set(
     overlay: "dict[str, Any]", limits: "Optional[dict[str, int]]" = None
 ) -> "dict[str, Any]":
-    """An overlay's knowledge: ``files`` (path -> {text, engine, bytes}) and ``skipped``
+    """An overlay's knowledge: ``files`` (path -> {text, engine, bytes, rest}) and ``skipped``
     ((path, reason) pairs), both in path-byte order, and the raw ``entries``."""
     limit = kb_limits(limits)
     entries = _kb_entries(overlay.get("tree", []))
@@ -4422,7 +4451,7 @@ def kb_set(
             continue
         if _kb_hidden_name(path):
             skipped.append((path, "name"))
-        elif len(data) > limit["max_file_bytes"]:
+        elif _kb_over(len(data), limit["max_file_bytes"]):
             skipped.append((path, "too-large"))
         else:
             try:
@@ -4430,14 +4459,15 @@ def kb_set(
             except UnicodeDecodeError:
                 skipped.append((path, "not-text"))
                 continue
-            engine = None
-            found = read_front_matter(data)
-            if found.get("case") == "mapping" and "template" in found["data"]:
-                engine = found["data"]["template"]
-                if not isinstance(engine, str) or engine not in KB_ENGINES:
-                    skipped.append((path, "template"))
-                    continue
-            files[path] = {"text": text, "engine": engine, "bytes": len(data), "raw": data}
+            name = kb_shebang(data)
+            engine = None if name in (None, "raw") + KB_MARKDOWN else name
+            files[path] = {
+                "text": text,
+                "engine": engine,
+                "raw": name == "raw",
+                "bytes": len(data),
+                "rest": kb_after_shebang(text) if name else text,
+            }
     return {"files": files, "skipped": skipped, "entries": entries}
 
 
@@ -4461,46 +4491,53 @@ def kb_call(
     modes: "Iterable[str]" = (),
     limits: "Optional[dict[str, int]]" = None,
     facts: "Optional[dict[str, Any]]" = None,
+    engines: "Iterable[str]" = KB_ENGINES,
 ) -> "dict[str, Any]":
     """What a server answers a call of ``kb_list`` or ``kb_read``: ``{"result": ...}`` or
     ``{"error": {"class", "message"}}``. ``overlays`` are the session's active overlays in
     composition order, each with ``identity``, ``manifest``, ``tree``, ``served`` and its
-    template ``facts``; ``facts`` holds the caller's: ``caller``, ``env`` and ``env_allow``."""
+    template ``facts``; ``facts`` holds the caller's: ``caller``, ``env`` and ``env_allow``;
+    ``engines`` are the template engines this server renders with."""
     modes = list(modes)
+    engines = [engine for engine in KB_ENGINES if engine in set(engines)]
     try:
         args = kb_arguments(tool, arguments, modes, limits)
         if tool == "kb_list":
-            return {"result": _kb_list(overlays, args, modes, limits)}
+            return {"result": _kb_list(overlays, args, modes, limits, engines, facts or {})}
         if tool == "kb_read":
-            return {"result": _kb_read(overlays, args, limits, facts or {})}
+            return {"result": _kb_read(overlays, args, limits, facts or {}, engines)}
         raise KnowledgeError("invalid-arguments", "no tool is named " + tool)
     except KnowledgeError as error:
         return _kb_error(error)
 
 
-def _kb_list(overlays, args, modes, limits) -> "dict[str, Any]":
+def _kb_list(overlays, args, modes, limits, engines, facts) -> "dict[str, Any]":
     listed = []
     for overlay in _kb_choose(overlays, args.get("overlay")):
         found = kb_set(overlay, limits)
         files = []
+        skipped = list(found["skipped"])
         for path, item in found["files"].items():
+            try:
+                text = _kb_serve(overlay, found, path, {}, facts, kb_limits(limits), engines)
+            except KnowledgeError:
+                skipped.append((path, "render"))
+                continue
+            entry = {"path": path, "lines": len(kb_lines(text)), "bytes": len(text.encode("utf-8"))}
             if item["engine"]:
-                files.append({"path": path, "template": item["engine"]})
-            else:
-                files.append(
-                    {"path": path, "lines": len(kb_lines(item["text"])), "bytes": item["bytes"]}
-                )
+                entry["template"] = item["engine"]
+                entry["rendered"] = item["engine"] in engines
+            files.append(entry)
+        skipped.sort(key=lambda pair: pair[0].encode("utf-8"))
         listed.append(
             {
                 "overlay": overlay["identity"],
                 "served": bool(overlay.get("served", False)),
                 "files": files,
-                "skipped": [
-                    {"path": kb_inert(path), "reason": reason} for path, reason in found["skipped"]
-                ],
+                "skipped": [{"path": kb_inert(path), "reason": reason} for path, reason in skipped],
             }
         )
-    result: "dict[str, Any]" = {"overlays": listed}
+    result: "dict[str, Any]" = {"overlays": listed, "engines": engines}
     if modes:
         result["search"] = {"modes": [mode for mode in KB_MODES if mode in set(modes)]}
     return result
@@ -4514,12 +4551,11 @@ _KB_SKIP_CLASS = {
     "name": "invalid-path",
     "too-large": "too-large",
     "not-text": "not-text",
-    "template": "unknown-template",
 }
-_KB_PRIORITY = ("link", "not-text", "too-large", "unknown-template", "not-found")
+_KB_PRIORITY = ("link", "not-text", "too-large", "not-found")
 
 
-def _kb_read(overlays, args, limits, facts) -> "dict[str, Any]":
+def _kb_read(overlays, args, limits, facts, engines) -> "dict[str, Any]":
     limit = kb_limits(limits)
     path = args["path"]
     if _kb_path_problem(path):
@@ -4536,19 +4572,19 @@ def _kb_read(overlays, args, limits, facts) -> "dict[str, Any]":
         if linked:
             problems.append("link")
         elif path in held["files"]:
-            found_in.append((overlay, held["files"][path]))
+            found_in.append((overlay, held))
         else:
             reason = dict(held["skipped"]).get(path)
             problems.append(_KB_SKIP_CLASS[reason] if reason else "not-found")
     if len(found_in) > 1:
         raise KnowledgeError("ambiguous", "more than one overlay has that path")
     if not found_in:
-        raise KnowledgeError(min(problems, key=_KB_PRIORITY.index), kb_inert(path))
-    overlay, item = found_in[0]
-    text = item["text"]
-    engine = item["engine"]
-    if engine:
-        text = _kb_render(overlay, item, args.get("context", {}), facts, limit)
+        raise KnowledgeError(
+            min(problems, key=_KB_PRIORITY.index) if problems else "not-found", kb_inert(path)
+        )
+    overlay, held = found_in[0]
+    engine = held["files"][path]["engine"]
+    text = _kb_serve(overlay, held, path, args.get("context", {}), facts, limit, engines)
     lines = kb_lines(text)
     total = len(lines)
     start = args.get("from", 1)
@@ -4561,7 +4597,7 @@ def _kb_read(overlays, args, limits, facts) -> "dict[str, Any]":
     truncated = False
     for line in lines[start - 1 : last]:
         add = len(line.encode("utf-8")) + (1 if chosen else 0)
-        if chosen and size + add > limit["max_read_bytes"]:
+        if chosen and _kb_over(size + add, limit["max_read_bytes"]):
             truncated = True
             break
         chosen.append(line)
@@ -4577,6 +4613,7 @@ def _kb_read(overlays, args, limits, facts) -> "dict[str, Any]":
     }
     if engine:
         result["template"] = engine
+        result["rendered"] = engine in engines
     return result
 
 
@@ -4595,71 +4632,303 @@ def _kb_allowed_env(facts: "dict[str, Any]") -> "dict[str, str]":
     }
 
 
-def _kb_render(overlay, item, context, call, limit) -> str:
-    manifest = overlay.get("manifest", {})
-    template_facts = _kb_facts(overlay)
-    found = split_front_matter(item["raw"])
-    body = item["raw"][found["body_offset"] :].decode("utf-8")
-    caller = {k: v for k, v in call.get("caller", {}).items() if isinstance(v, str)}
-    env = _kb_allowed_env(call)
-    try:
-        values = template_values(manifest, template_facts)
-    except ReadError as error:
-        raise KnowledgeError("invalid-option", error.args[0] if error.args else "") from None
-    if item["engine"] == "envsubst":
-        for key, name in (("role", "AOS_CALLER_ROLE"), ("profile", "AOS_CALLER_PROFILE")):
-            if key in caller:
-                values[name] = caller[key]
-        for name, value in env.items():
-            values["AOS_ENV_" + name] = value
-        for key, value in context.items():
-            if isinstance(value, bool):
-                values["AOS_ARG_" + key] = "true" if value else "false"
-            elif isinstance(value, (int, str)):
-                values["AOS_ARG_" + key] = str(value)
-        out = template(body, values)
-    else:
-        options: "dict[str, Any]" = {}
-        configured = template_facts.get("options", {})
-        for name, declared in (manifest.get("options") or {}).items():
-            if declared.get("sensitive") is True:
+def _kb_serve(overlay, held, path, context, call, limit, engines) -> str:
+    """The text ``kb_read`` serves for a file of the knowledge, before it is cut into lines."""
+    item = held["files"][path]
+    if item["raw"]:
+        return item["rest"]
+    if item["engine"]:
+        return _kb_render(overlay, item, context, call, limit, item["engine"] in engines)
+    ctx = {
+        "overlay": overlay,
+        "held": held,
+        "context": context,
+        "call": call,
+        "limit": limit,
+        "engines": engines,
+        "values": None,
+        "added": [0],
+    }
+    out = _kb_markdown(item["rest"], path, ctx, (path,))
+    if _kb_over(len(out.encode("utf-8")), limit["max_rendered_bytes"]):
+        raise KnowledgeError("too-large", "the served text")
+    return out
+
+
+def _kb_values(ctx) -> "dict[str, str]":
+    """The names ``${NAME}`` replaces, made the first time one is met."""
+    if ctx["values"] is None:
+        data = _kb_data(ctx["overlay"], ctx["context"], ctx["call"])
+        ctx["values"] = _kb_envsubst_values(ctx["overlay"], data, ctx["context"])
+    return ctx["values"]
+
+
+_KB_FENCE = re.compile(r"( {0,3})(`{3,}|~{3,})")
+
+
+def _kb_opens_fence(line: str) -> "Optional[tuple[str, int]]":
+    found = _KB_FENCE.match(line)
+    return (found.group(2)[0], len(found.group(2))) if found else None
+
+
+def _kb_closes_fence(line: str, fence: "tuple[str, int]") -> bool:
+    found = _KB_FENCE.match(line)
+    return bool(
+        found
+        and found.group(2)[0] == fence[0]
+        and len(found.group(2)) >= fence[1]
+        and line[found.end() :].strip(" \t\r\n") == ""
+    )
+
+
+def _kb_code_mask(line: str) -> "list[bool]":
+    """Which characters of a line are in a code span: a run of backticks, to the next run of as
+    many on the same line; a run with none is itself."""
+    mask = [False] * len(line)
+    i = 0
+    while i < len(line):
+        if line[i] != "`":
+            i += 1
+            continue
+        j = i
+        while j < len(line) and line[j] == "`":
+            j += 1
+        k = j
+        end = None
+        while k < len(line):
+            if line[k] == "`":
+                m = k
+                while m < len(line) and line[m] == "`":
+                    m += 1
+                if m - k == j - i:
+                    end = m
+                    break
+                k = m
+            else:
+                k += 1
+        if end is None:
+            i = j
+        else:
+            for n in range(i, end):
+                mask[n] = True
+            i = end
+    return mask
+
+
+def _kb_markdown(text: str, path: str, ctx, chain) -> str:
+    out = []
+    fence = None
+    for line in re.findall(r"[^\n]*\n|[^\n]+", text):
+        if fence is not None:
+            out.append(_kb_line(line, [True] * len(line), path, ctx, chain))
+            if _kb_closes_fence(line, fence):
+                fence = None
+            continue
+        fence = _kb_opens_fence(line)
+        if fence:
+            out.append(_kb_line(line, [True] * len(line), path, ctx, chain))
+        else:
+            out.append(_kb_line(line, _kb_code_mask(line), path, ctx, chain))
+    return "".join(out)
+
+
+_KB_TRAILING = ".,;:!?)]}'\""
+
+
+def _kb_line(line: str, in_code: "list[bool]", path: str, ctx, chain) -> str:
+    out = []
+    i = 0
+    while i < len(line):
+        if line.startswith("$${", i):
+            out.append("${")
+            i += 3
+            continue
+        found = _TEMPLATE_PLACEHOLDER.match(line, i)
+        if found:
+            values = _kb_values(ctx)
+            if found.group(1) in values:
+                out.append(values[found.group(1)])
+                i = found.end()
                 continue
-            if name in configured:
+        if line[i] == "@" and not in_code[i] and (i == 0 or line[i - 1] in " \t\r\f\v"):
+            token = re.match(r"[^ \t\r\n\f\v]+", line[i + 1 :])
+            name = token.group() if token else ""
+            while name and name[-1] in _KB_TRAILING:
+                name = name[:-1]
+            target = _kb_resolve(path, name, ctx["held"]) if name else None
+            included = _kb_include(target, ctx, chain) if target else None
+            if included is not None:
+                out.append(included)
+                i += 1 + len(name)
+                continue
+        out.append(line[i])
+        i += 1
+    return "".join(out)
+
+
+def _kb_resolve(path: str, name: str, held) -> "Optional[str]":
+    """The file of the knowledge an include names, or ``None``: the name is resolved from the
+    including file's folder, ``..`` may rise only to the root, and what is not a served file of the
+    overlay is not an include."""
+    if name[0] in "/~" or "\\" in name or re.match(r"[A-Za-z]:", name):
+        return None
+    parts = path.split("/")[:-1]
+    for part in name.split("/"):
+        if part == "":
+            return None
+        if part == ".":
+            continue
+        if part == "..":
+            if not parts:
+                return None
+            parts.pop()
+        else:
+            parts.append(part)
+    target = "/".join(parts)
+    return target if valid_relpath(target) and target in held["files"] else None
+
+
+def _kb_include(target: str, ctx, chain) -> "Optional[str]":
+    item = ctx["held"]["files"][target]
+    limit = ctx["limit"]
+    if item["raw"]:
+        text = item["rest"]
+    elif item["engine"]:
+        if item["engine"] not in ctx["engines"]:
+            return None
+        text = _kb_render(ctx["overlay"], item, ctx["context"], ctx["call"], limit, True)
+    else:
+        if target in chain:
+            raise KnowledgeError("include-error", "an include comes back to " + target)
+        if _kb_over(len(chain), limit["max_include_depth"]):
+            raise KnowledgeError("include-error", "includes are nested too deep")
+        body = item["rest"]
+        found = split_front_matter(body.encode("utf-8"))
+        if found["case"] in ("present", "empty"):
+            body = body.encode("utf-8")[found["body_offset"] :].decode("utf-8")
+        text = _kb_markdown(body, target, ctx, chain + (target,))
+    ctx["added"][0] += len(text.encode("utf-8"))
+    if _kb_over(ctx["added"][0], limit["max_rendered_bytes"]):
+        raise KnowledgeError("too-large", "the included text")
+    if text.endswith("\r\n"):
+        return text[:-2]
+    return text[:-1] if text.endswith("\n") else text
+
+
+def _kb_envsubst_values(overlay, data, context) -> "dict[str, str]":
+    values = template_values(overlay.get("manifest", {}), _kb_facts(overlay))
+    for key, name in (("role", "AOS_CALLER_ROLE"), ("profile", "AOS_CALLER_PROFILE")):
+        if key in data["caller"]:
+            values[name] = data["caller"][key]
+    for name, value in data["env"].items():
+        values["AOS_ENV_" + name] = value
+    for key, value in context.items():
+        if isinstance(value, bool):
+            values["AOS_ARG_" + key] = "true" if value else "false"
+        elif isinstance(value, (int, str)):
+            values["AOS_ARG_" + key] = str(value)
+    return values
+
+
+def _kb_data(overlay, context, call) -> "dict[str, Any]":
+    """What a template reads: the roots ``overlay``, ``project``, ``caller``, ``env``, ``options``
+    and ``context``, each only with what it holds. A sensitive option or variable is never in it."""
+    manifest = overlay.get("manifest", {})
+    facts = _kb_facts(overlay)
+    options: "dict[str, Any]" = {}
+    configured = facts.get("options", {})
+    for name, declared in (manifest.get("options") or {}).items():
+        if declared.get("sensitive") is True:
+            continue
+        if name in configured:
+            try:
                 _option_text(declared, name, configured[name])
-                options[name] = configured[name]
-            elif "default" in declared:
-                options[name] = declared["default"]
-        data: "dict[str, Any]" = {
-            "overlay": {
-                key: template_facts[source]
-                for key, source in (
-                    ("root", "root"),
-                    ("state", "state"),
-                    ("name", "name"),
-                    ("scope", "scope"),
-                )
-                if template_facts.get(source) is not None
-            },
-            "project": (
-                {"root": template_facts["project"]}
-                if template_facts.get("project") is not None
-                else {}
-            ),
-            "caller": caller,
-            "env": env,
-            "options": options,
-            "context": context,
-        }
-        out = mustache(body, data, limit)
-    if len(out.encode("utf-8")) > limit["max_rendered_bytes"]:
+            except ReadError:
+                raise KnowledgeError("invalid-option", name) from None
+            options[name] = configured[name]
+        elif "default" in declared:
+            try:
+                _option_text(declared, name, declared["default"])
+            except ReadError:
+                raise KnowledgeError("invalid-option", name) from None
+            options[name] = declared["default"]
+    data: "dict[str, Any]" = {
+        "overlay": {
+            key: facts[source]
+            for key, source in (
+                ("root", "root"),
+                ("state", "state"),
+                ("name", "name"),
+                ("scope", "scope"),
+            )
+            if facts.get(source) is not None
+        },
+        "project": ({"root": facts["project"]} if facts.get("project") is not None else {}),
+        "caller": {k: v for k, v in call.get("caller", {}).items() if isinstance(v, str)},
+        "env": _kb_allowed_env(call),
+        "options": options,
+        "context": context,
+    }
+    return data
+
+
+def _kb_flow(value: Any) -> str:
+    """A value as one line of flow YAML (JSON's shapes): keys in UTF-8 byte order, ``, `` and
+    ``: `` between, and in a string only the quotation mark, the backslash and U+0000-U+001F
+    escaped, those as ``\\u00xx`` in lower case."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, str):
+        out = []
+        for char in value:
+            if char in '"\\':
+                out.append("\\" + char)
+            elif ord(char) < 0x20:
+                out.append("\\u%04x" % ord(char))
+            else:
+                out.append(char)
+        return '"' + "".join(out) + '"'
+    if isinstance(value, list):
+        return "[" + ", ".join(_kb_flow(item) for item in value) + "]"
+    keys = sorted(value, key=lambda key: key.encode("utf-8"))
+    return "{" + ", ".join("%s: %s" % (_kb_flow(key), _kb_flow(value[key])) for key in keys) + "}"
+
+
+def _kb_context_block(engine: str, data: "dict[str, Any]") -> str:
+    """The front matter a file gets when its engine is not here: one key holding the engine's
+    name and the roots, which are left out when empty."""
+    parts = ['"engine": ' + _kb_flow(engine)]
+    for root_name in ("overlay", "project", "caller", "env", "options", "context"):
+        if data[root_name]:
+            parts.append('"%s": %s' % (root_name, _kb_flow(data[root_name])))
+    return "---\naos_template_context: {" + ", ".join(parts) + "}\n---\n"
+
+
+def _kb_render(overlay, item, context, call, limit, here) -> str:
+    manifest = overlay.get("manifest", {})
+    data = _kb_data(overlay, context, call)
+    engine = item["engine"]
+    if not here:
+        text = item["text"]
+        end = text.find("\n")
+        first, rest = (text + "\n", "") if end < 0 else (text[: end + 1], text[end + 1 :])
+        out = first + _kb_context_block(engine, data) + rest
+    elif engine == "envsubst":
+        values = _kb_envsubst_values(overlay, data, context)
+        out = template(item["rest"], values)
+    else:
+        out = mustache(item["rest"], data, limit)
+    if _kb_over(len(out.encode("utf-8")), limit["max_rendered_bytes"]):
         raise KnowledgeError("too-large", "the rendered text")
     return out
 
 
 # Mustache, the subset: variables, sections, inverted sections, comments; no partials, no
 # delimiter change, no lambdas, no escaping.
-_MUSTACHE_NAME = re.compile(r"^(?:\.|[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)$")
-_MUSTACHE_STANDALONE = re.compile(r"^[ \t]*\r?\n?$")
+_MUSTACHE_NAME = re.compile(r"(?:\.|[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\Z")
+_MUSTACHE_STANDALONE = re.compile(r"[ \t]*\r?\n?\Z")
 _MISSING = object()
 
 
@@ -4723,7 +4992,7 @@ def _mustache_parse(text: str, limit: "dict[str, int]") -> "list":
                 node = [kind, item[1], []]
                 children.append(node)
                 stack.append((item[1], node[2]))
-                if len(stack) > limit["max_template_depth"]:
+                if _kb_over(len(stack), limit["max_template_depth"]):
                     raise KnowledgeError("template-error", "sections nest too deep")
             elif kind == "end":
                 if len(stack) == 1 or stack[-1][0] != item[1]:
@@ -4763,7 +5032,7 @@ def mustache(text: str, data: "dict[str, Any]", limits: "Optional[dict[str, int]
 
     def emit(piece: str) -> None:
         size[0] += len(piece.encode("utf-8"))
-        if size[0] > limit["max_rendered_bytes"]:
+        if _kb_over(size[0], limit["max_rendered_bytes"]):
             raise KnowledgeError("too-large", "the rendered text")
         out.append(piece)
 
@@ -4805,6 +5074,8 @@ def kb_search_check(
     response: Any,
     modes: "Iterable[str]",
     limits: "Optional[dict[str, int]]" = None,
+    facts: "Optional[dict[str, Any]]" = None,
+    engines: "Iterable[str]" = KB_ENGINES,
 ) -> "list[str]":
     """The rules a ``kb_search`` answer breaks, as sorted ids; empty when it conforms. The ranking
     itself is not checked, only the shape and the order the scores imply."""
@@ -4858,7 +5129,7 @@ def kb_search_check(
             continue
         if len(passages) > args["top"]:
             broken.add("top")
-        held = kb_set(overlay, limit)["files"]
+        held = kb_set(overlay, limit)
         for passage in passages:
             if not isinstance(passage, dict) or set(passage) != {
                 "path",
@@ -4877,11 +5148,11 @@ def kb_search_check(
             path = passage["path"]
             if prefix is not None and not (path == prefix or path.startswith(prefix + "/")):
                 broken.add("path-limit")
-            item = held.get(path)
-            if item is None or item["engine"]:
+            try:
+                lines = kb_lines(_kb_serve(overlay, held, path, {}, facts or {}, limit, engines))
+            except (KeyError, KnowledgeError):
                 broken.add("not-knowledge")
                 continue
-            lines = kb_lines(item["text"])
             first, last = passage["from_line"], passage["to_line"]
             if not (
                 isinstance(first, int)

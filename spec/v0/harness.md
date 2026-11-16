@@ -41,7 +41,7 @@ consumer still marks where each file came from. An overlay can ask that its `rul
 The consumer replaces `${NAME}` in the text it hands the agent, as Claude Code does for a skill's body
 and Gemini CLI and Codex do for a command's or a prompt's, once, when it loads it.
 
-**When.** A consumer replaces when it assembles the [context](#context), when it serves a skill's body and when it serves a [template](knowledge.md#templates) of the knowledge tools,
+**When.** A consumer replaces when it assembles the [context](#context), when it serves a skill's body and when it serves a [template](knowledge.md#formats-and-templates) of the knowledge tools,
 each time, from the files as they are installed. It never changes an installed file: the
 [tree digest](integrity.md#tree-digest), a pin, a sync and a move of the overlay's directory stay as
 they were. It does not replace when it installs or reads a file for any other purpose, and it cannot
@@ -53,7 +53,7 @@ replace in a file the agent opens itself, since a consumer does not intercept ev
 - the body of a [bundled skill](skills.md#declaring-skills)'s `SKILL.md`, which is the text after its
   front matter. The front matter reaches the harness exactly as written. A skill from elsewhere is
   delivered as it was fetched, since it is another overlay's text under a digest the user accepted;
-- a knowledge file that marks itself a [template](knowledge.md#templates), when `kb_read` serves it: with the
+- a knowledge file that marks itself a [template](knowledge.md#formats-and-templates), when `kb_read` serves it: with the
   names below and the caller's and environment's [facts](knowledge.md#the-facts) added, or as Mustache.
 
 and nowhere else: not in `routing`, `rules`, a manifest value or an env value (which have their own

@@ -436,6 +436,7 @@ def test_knowledge(case):
             case.get("modes", []),
             limits,
             case.get("facts"),
+            case.get("engines", ("envsubst", "mustache")),
         )
         got = {"error": out["error"]["class"]} if "error" in out else {"result": out["result"]}
     assert strict(json.loads(json.dumps(got))) == strict(case["expect"])
@@ -456,6 +457,8 @@ def test_knowledge_search(case):
                 case["response"],
                 case["modes"],
                 case.get("limits"),
+                case.get("facts"),
+                case.get("engines", ("envsubst", "mustache")),
             )
         }
     assert strict(json.loads(json.dumps(got))) == strict(case["expect"])
