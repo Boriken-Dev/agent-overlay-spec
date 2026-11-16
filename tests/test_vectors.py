@@ -43,6 +43,8 @@ def test_every_vector_file_is_run():
         "skills.json",
         "hooks.json",
         "templating.json",
+        "knowledge.json",
+        "knowledge_search.json",
     }
     assert {path.name for path in VECTORS.glob("*.json")} == run
 
@@ -401,3 +403,59 @@ def test_templating(case):
         assert raised.value.code == case["expect"]["error"]
     else:
         assert serve(data, manifest, case["facts"]) == case["expect"]["text"]
+
+
+KNOWLEDGE = cases("knowledge.json")
+
+
+@pytest.mark.parametrize("case", KNOWLEDGE, ids=ids(KNOWLEDGE))
+def test_knowledge(case):
+    limits = case.get("limits")
+    if case["id"].startswith("tools-"):
+        got = {"tools": aos.kb_tools(case["modes"], limits)}
+    elif case.get("kind") == "arguments":
+        try:
+            got = {
+                "arguments": aos.kb_arguments(
+                    case["tool"], case["arguments"], case["modes"], limits
+                )
+            }
+        except aos.KnowledgeError as error:
+            got = {"error": error.code}
+    elif "outcome" in case:
+        result = aos.kb_call_result(case["outcome"])
+        assert json.loads(result["content"][0]["text"]) == result["structuredContent"]
+        got = {"structuredContent": result["structuredContent"], "isError": result["isError"]}
+    elif "manifest" in case and "files" in case:
+        got = aos.knowledge_plan(case["manifest"], case["files"], case.get("user"))
+    else:
+        out = aos.kb_call(
+            case["tool"],
+            case["overlays"],
+            case["arguments"],
+            case.get("modes", []),
+            limits,
+            case.get("facts"),
+        )
+        got = {"error": out["error"]["class"]} if "error" in out else {"result": out["result"]}
+    assert strict(json.loads(json.dumps(got))) == strict(case["expect"])
+
+
+KNOWLEDGE_SEARCH = cases("knowledge_search.json")
+
+
+@pytest.mark.parametrize("case", KNOWLEDGE_SEARCH, ids=ids(KNOWLEDGE_SEARCH))
+def test_knowledge_search(case):
+    if case["id"].startswith("order-"):
+        got = {"order": aos.kb_search_order(case["passages"])}
+    else:
+        got = {
+            "violations": aos.kb_search_check(
+                case["overlays"],
+                case["arguments"],
+                case["response"],
+                case["modes"],
+                case.get("limits"),
+            )
+        }
+    assert strict(json.loads(json.dumps(got))) == strict(case["expect"])

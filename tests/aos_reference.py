@@ -4169,3 +4169,777 @@ def read_icon(
     if width > max_width or height > max_height:
         raise IconError("icon-dimensions")
     return {"format": found, "width": width, "height": height}
+
+
+# --------------------------------------------------------------------------------------------
+# Knowledge served through MCP: the handlers of kb_list, kb_read and kb_search, and the checks
+# on what kb_search answers. Nothing here reads a filesystem: an overlay is a list of entries.
+# --------------------------------------------------------------------------------------------
+
+KB_DIRS = ("kb", "flows", "references", "rules", "context")
+KB_MODES = ("words", "meaning", "llm")
+KB_ENGINES = ("envsubst", "mustache")
+KB_LIMITS = {
+    "max_file_bytes": 1048576,
+    "max_read_bytes": 65536,
+    "max_rendered_bytes": 1048576,
+    "max_query_characters": 1000,
+    "max_top": 100,
+    "max_context_bytes": 16384,
+    "max_context_depth": 8,
+    "max_template_depth": 32,
+}
+KB_MAX_INTEGER = 9007199254740991
+KB_DEFAULT_TOP = 5
+
+
+class KnowledgeError(Exception):
+    """A refused call. ``code`` is the vectors' error class."""
+
+    def __init__(self, code: str, message: str = ""):
+        super().__init__("%s: %s" % (code, message) if message else code)
+        self.code = code
+        self.message = message or code
+
+
+def kb_limits(given: "Optional[dict[str, int]]") -> "dict[str, int]":
+    return dict(KB_LIMITS, **(given or {}))
+
+
+def _kb_hides(code: int) -> bool:
+    return (
+        0x202A <= code <= 0x202E
+        or 0x2066 <= code <= 0x206F
+        or 0x200B <= code <= 0x200F
+        or code in (0x2028, 0x2029, 0x2060, 0x061C, 0xFEFF, 0x00AD, 0x180E)
+        or 0xFE00 <= code <= 0xFE0F
+        or 0xE0000 <= code <= 0xE007F
+        or 0xE0100 <= code <= 0xE01EF
+        or code in (0x115F, 0x1160, 0x3164, 0xFFA0, 0x034F)
+        or 0x17B4 <= code <= 0x17B5
+        or 0x1D173 <= code <= 0x1D17A
+        or 0xFFF9 <= code <= 0xFFFB
+    )
+
+
+def kb_inert(text: str) -> str:
+    """Text as an agent may receive it: each control character but TAB and LF, and each
+    character that hides or reorders text, is written ``<U+XXXX>``."""
+    out = []
+    for char in text:
+        code = ord(char)
+        if char in "\n\t":
+            out.append(char)
+        elif code < 0x20 or 0x7F <= code <= 0x9F or _kb_hides(code):
+            out.append("<U+%04X>" % code)
+        else:
+            out.append(char)
+    return "".join(out)
+
+
+def kb_lines(text: str) -> "list[str]":
+    """A file's lines: split at LF, a CR before the LF dropped, no line after a final LF."""
+    parts = text.split("\n")
+    last = parts.pop()
+    lines = [part[:-1] if part.endswith("\r") else part for part in parts]
+    if last != "":
+        lines.append(last)
+    return lines
+
+
+def kb_tools(modes: "Iterable[str]", limits: "Optional[dict[str, int]]" = None) -> "list[dict]":
+    """The tools ``tools/list`` names, with their input schemas and no descriptions."""
+    limit = kb_limits(limits)
+    modes = [mode for mode in KB_MODES if mode in set(modes)]
+    line = {"type": "integer", "minimum": 1, "maximum": KB_MAX_INTEGER}
+    tools = [
+        {
+            "name": "kb_list",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"overlay": {"type": "string"}},
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "kb_read",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "from": dict(line),
+                    "to": dict(line),
+                    "overlay": {"type": "string"},
+                    "context": {"type": "object"},
+                },
+                "required": ["path"],
+                "additionalProperties": False,
+            },
+        },
+    ]
+    if modes:
+        tools.append(
+            {
+                "name": "kb_search",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": limit["max_query_characters"],
+                        },
+                        "top": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": limit["max_top"],
+                            "default": KB_DEFAULT_TOP,
+                        },
+                        "overlay": {"type": "string"},
+                        "mode": {"type": "string", "enum": ["auto"] + modes, "default": "auto"},
+                        "path": {"type": "string"},
+                    },
+                    "required": ["query"],
+                    "additionalProperties": False,
+                },
+            }
+        )
+    return tools
+
+
+_KB_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _kb_context_ok(value: Any, depth: int, budget: "list[int]", limit: "dict[str, int]") -> bool:
+    if depth > limit["max_context_depth"]:
+        return False
+    if isinstance(value, bool):
+        return True
+    if isinstance(value, int):
+        return abs(value) <= KB_MAX_INTEGER
+    if isinstance(value, str):
+        budget[0] += len(value.encode("utf-8"))
+        return budget[0] <= limit["max_context_bytes"]
+    if isinstance(value, list):
+        return all(_kb_context_ok(item, depth + 1, budget, limit) for item in value)
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if not _KB_IDENT.match(key):
+                return False
+            budget[0] += len(key.encode("utf-8"))
+            if budget[0] > limit["max_context_bytes"]:
+                return False
+            if not _kb_context_ok(item, depth + 1, budget, limit):
+                return False
+        return True
+    return False
+
+
+def kb_arguments(
+    tool: str,
+    arguments: Any,
+    modes: "Iterable[str]",
+    limits: "Optional[dict[str, int]]" = None,
+) -> "dict[str, Any]":
+    """A call's arguments with the defaults applied, or ``invalid-arguments``. A ``null`` is the
+    argument absent."""
+    limit = kb_limits(limits)
+    schemas = {tool_["name"]: tool_["inputSchema"] for tool_ in kb_tools(modes, limit)}
+    if tool not in schemas:
+        raise KnowledgeError("invalid-arguments", "no tool is named " + tool)
+    schema = schemas[tool]
+    if not isinstance(arguments, dict):
+        raise KnowledgeError("invalid-arguments", "the arguments are an object")
+    out: "dict[str, Any]" = {}
+    for key, value in arguments.items():
+        if key not in schema["properties"]:
+            raise KnowledgeError("invalid-arguments", "no argument is named " + key)
+        if value is None:
+            continue
+        spec = schema["properties"][key]
+        if spec["type"] == "string":
+            if not isinstance(value, str):
+                raise KnowledgeError("invalid-arguments", key + " is text")
+            if "enum" in spec and value not in spec["enum"]:
+                raise KnowledgeError("invalid-arguments", key + " is not one of its values")
+            if key == "query":
+                if len(value) > spec["maxLength"] or not value.strip(" \t\n\v\f\r"):
+                    raise KnowledgeError("invalid-arguments", "the query is empty or too long")
+        elif spec["type"] == "integer":
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise KnowledgeError("invalid-arguments", key + " is a whole number")
+            if not spec["minimum"] <= value <= spec["maximum"]:
+                raise KnowledgeError("invalid-arguments", key + " is out of range")
+        else:
+            if not isinstance(value, dict) or not _kb_context_ok(value, 1, [0], limit):
+                raise KnowledgeError("invalid-arguments", key + " is not a usable context")
+        out[key] = value
+    for key in schema.get("required", ()):
+        if key not in out:
+            raise KnowledgeError("invalid-arguments", key + " is required")
+    if tool == "kb_search":
+        out.setdefault("top", KB_DEFAULT_TOP)
+        out.setdefault("mode", "auto")
+    return out
+
+
+def _kb_entries(tree: "list[dict]") -> "dict[str, tuple[str, bytes]]":
+    out = {}
+    for item in tree:
+        kind = item.get("type", "file")
+        data = base64.b64decode(item["base64"]) if "base64" in item else item.get("text", "")
+        out[item["path"]] = (kind, data if isinstance(data, bytes) else data.encode("utf-8"))
+    return out
+
+
+def _kb_selected(path: str, manifest: "dict[str, Any]") -> bool:
+    if path in MANIFEST_FILES or not valid_relpath(path):
+        return False
+    parts = path.split("/")
+    named = {
+        _named(entry) for field in ("rules", "context") for entry in _declared(manifest, field)
+    }
+    return (len(parts) > 1 and parts[0] in KB_DIRS) or path == "CONTEXT.md" or path in named
+
+
+def _kb_hidden_name(path: str) -> bool:
+    return any(_kb_hides(ord(char)) for char in path)
+
+
+def kb_set(
+    overlay: "dict[str, Any]", limits: "Optional[dict[str, int]]" = None
+) -> "dict[str, Any]":
+    """An overlay's knowledge: ``files`` (path -> {text, engine, bytes}) and ``skipped``
+    ((path, reason) pairs), both in path-byte order, and the raw ``entries``."""
+    limit = kb_limits(limits)
+    entries = _kb_entries(overlay.get("tree", []))
+    manifest = overlay.get("manifest", {})
+    files: "dict[str, dict[str, Any]]" = {}
+    skipped: "list[tuple[str, str]]" = []
+    for path in _by_bytes(entries):
+        kind, data = entries[path]
+        if kind != "file" or not _kb_selected(path, manifest):
+            continue
+        if _kb_hidden_name(path):
+            skipped.append((path, "name"))
+        elif len(data) > limit["max_file_bytes"]:
+            skipped.append((path, "too-large"))
+        else:
+            try:
+                text = data.decode("utf-8")
+            except UnicodeDecodeError:
+                skipped.append((path, "not-text"))
+                continue
+            engine = None
+            found = read_front_matter(data)
+            if found.get("case") == "mapping" and "template" in found["data"]:
+                engine = found["data"]["template"]
+                if not isinstance(engine, str) or engine not in KB_ENGINES:
+                    skipped.append((path, "template"))
+                    continue
+            files[path] = {"text": text, "engine": engine, "bytes": len(data), "raw": data}
+    return {"files": files, "skipped": skipped, "entries": entries}
+
+
+def _kb_choose(overlays: "list[dict]", wanted: Optional[str]) -> "list[dict]":
+    if wanted is None:
+        return overlays
+    chosen = [o for o in overlays if normalize_name(o["identity"]) == normalize_name(wanted)]
+    if not chosen:
+        raise KnowledgeError("unknown-overlay", wanted)
+    return chosen
+
+
+def _kb_error(error: KnowledgeError) -> "dict[str, Any]":
+    return {"error": {"class": error.code, "message": error.message}}
+
+
+def kb_call(
+    tool: str,
+    overlays: "list[dict]",
+    arguments: Any,
+    modes: "Iterable[str]" = (),
+    limits: "Optional[dict[str, int]]" = None,
+    facts: "Optional[dict[str, Any]]" = None,
+) -> "dict[str, Any]":
+    """What a server answers a call of ``kb_list`` or ``kb_read``: ``{"result": ...}`` or
+    ``{"error": {"class", "message"}}``. ``overlays`` are the session's active overlays in
+    composition order, each with ``identity``, ``manifest``, ``tree``, ``served`` and its
+    template ``facts``; ``facts`` holds the caller's: ``caller``, ``env`` and ``env_allow``."""
+    modes = list(modes)
+    try:
+        args = kb_arguments(tool, arguments, modes, limits)
+        if tool == "kb_list":
+            return {"result": _kb_list(overlays, args, modes, limits)}
+        if tool == "kb_read":
+            return {"result": _kb_read(overlays, args, limits, facts or {})}
+        raise KnowledgeError("invalid-arguments", "no tool is named " + tool)
+    except KnowledgeError as error:
+        return _kb_error(error)
+
+
+def _kb_list(overlays, args, modes, limits) -> "dict[str, Any]":
+    listed = []
+    for overlay in _kb_choose(overlays, args.get("overlay")):
+        found = kb_set(overlay, limits)
+        files = []
+        for path, item in found["files"].items():
+            if item["engine"]:
+                files.append({"path": path, "template": item["engine"]})
+            else:
+                files.append(
+                    {"path": path, "lines": len(kb_lines(item["text"])), "bytes": item["bytes"]}
+                )
+        listed.append(
+            {
+                "overlay": overlay["identity"],
+                "served": bool(overlay.get("served", False)),
+                "files": files,
+                "skipped": [
+                    {"path": kb_inert(path), "reason": reason} for path, reason in found["skipped"]
+                ],
+            }
+        )
+    result: "dict[str, Any]" = {"overlays": listed}
+    if modes:
+        result["search"] = {"modes": [mode for mode in KB_MODES if mode in set(modes)]}
+    return result
+
+
+def _kb_path_problem(path: str) -> bool:
+    return not valid_relpath(path) or _kb_hidden_name(path)
+
+
+_KB_SKIP_CLASS = {
+    "name": "invalid-path",
+    "too-large": "too-large",
+    "not-text": "not-text",
+    "template": "unknown-template",
+}
+_KB_PRIORITY = ("link", "not-text", "too-large", "unknown-template", "not-found")
+
+
+def _kb_read(overlays, args, limits, facts) -> "dict[str, Any]":
+    limit = kb_limits(limits)
+    path = args["path"]
+    if _kb_path_problem(path):
+        raise KnowledgeError("invalid-path", kb_inert(path))
+    found_in = []
+    problems = []
+    for overlay in _kb_choose(overlays, args.get("overlay")):
+        held = kb_set(overlay, limit)
+        parts = path.split("/")
+        linked = any(
+            held["entries"].get("/".join(parts[: n + 1]), ("file", b""))[0] == "symlink"
+            for n in range(len(parts))
+        )
+        if linked:
+            problems.append("link")
+        elif path in held["files"]:
+            found_in.append((overlay, held["files"][path]))
+        else:
+            reason = dict(held["skipped"]).get(path)
+            problems.append(_KB_SKIP_CLASS[reason] if reason else "not-found")
+    if len(found_in) > 1:
+        raise KnowledgeError("ambiguous", "more than one overlay has that path")
+    if not found_in:
+        raise KnowledgeError(min(problems, key=_KB_PRIORITY.index), kb_inert(path))
+    overlay, item = found_in[0]
+    text = item["text"]
+    engine = item["engine"]
+    if engine:
+        text = _kb_render(overlay, item, args.get("context", {}), facts, limit)
+    lines = kb_lines(text)
+    total = len(lines)
+    start = args.get("from", 1)
+    stop = args.get("to")
+    if (stop is not None and stop < start) or start > max(total, 1):
+        raise KnowledgeError("line-range", "the file has %d lines" % total)
+    last = total if stop is None else min(stop, total)
+    chosen: "list[str]" = []
+    size = 0
+    truncated = False
+    for line in lines[start - 1 : last]:
+        add = len(line.encode("utf-8")) + (1 if chosen else 0)
+        if chosen and size + add > limit["max_read_bytes"]:
+            truncated = True
+            break
+        chosen.append(line)
+        size += add
+    result = {
+        "overlay": overlay["identity"],
+        "path": path,
+        "from_line": start,
+        "to_line": start - 1 + len(chosen),
+        "total_lines": total,
+        "truncated": truncated,
+        "text": kb_inert("\n".join(chosen)),
+    }
+    if engine:
+        result["template"] = engine
+    return result
+
+
+def _kb_facts(overlay: "dict[str, Any]") -> "dict[str, Any]":
+    facts = dict(overlay.get("facts", {}))
+    facts.setdefault("name", normalize_name(overlay["identity"]))
+    return facts
+
+
+def _kb_allowed_env(facts: "dict[str, Any]") -> "dict[str, str]":
+    env = facts.get("env", {})
+    return {
+        name: env[name]
+        for name in facts.get("env_allow", [])
+        if name in env and not is_sensitive(name) and isinstance(env[name], str)
+    }
+
+
+def _kb_render(overlay, item, context, call, limit) -> str:
+    manifest = overlay.get("manifest", {})
+    template_facts = _kb_facts(overlay)
+    found = split_front_matter(item["raw"])
+    body = item["raw"][found["body_offset"] :].decode("utf-8")
+    caller = {k: v for k, v in call.get("caller", {}).items() if isinstance(v, str)}
+    env = _kb_allowed_env(call)
+    try:
+        values = template_values(manifest, template_facts)
+    except ReadError as error:
+        raise KnowledgeError("invalid-option", error.args[0] if error.args else "") from None
+    if item["engine"] == "envsubst":
+        for key, name in (("role", "AOS_CALLER_ROLE"), ("profile", "AOS_CALLER_PROFILE")):
+            if key in caller:
+                values[name] = caller[key]
+        for name, value in env.items():
+            values["AOS_ENV_" + name] = value
+        for key, value in context.items():
+            if isinstance(value, bool):
+                values["AOS_ARG_" + key] = "true" if value else "false"
+            elif isinstance(value, (int, str)):
+                values["AOS_ARG_" + key] = str(value)
+        out = template(body, values)
+    else:
+        options: "dict[str, Any]" = {}
+        configured = template_facts.get("options", {})
+        for name, declared in (manifest.get("options") or {}).items():
+            if declared.get("sensitive") is True:
+                continue
+            if name in configured:
+                _option_text(declared, name, configured[name])
+                options[name] = configured[name]
+            elif "default" in declared:
+                options[name] = declared["default"]
+        data: "dict[str, Any]" = {
+            "overlay": {
+                key: template_facts[source]
+                for key, source in (
+                    ("root", "root"),
+                    ("state", "state"),
+                    ("name", "name"),
+                    ("scope", "scope"),
+                )
+                if template_facts.get(source) is not None
+            },
+            "project": (
+                {"root": template_facts["project"]}
+                if template_facts.get("project") is not None
+                else {}
+            ),
+            "caller": caller,
+            "env": env,
+            "options": options,
+            "context": context,
+        }
+        out = mustache(body, data, limit)
+    if len(out.encode("utf-8")) > limit["max_rendered_bytes"]:
+        raise KnowledgeError("too-large", "the rendered text")
+    return out
+
+
+# Mustache, the subset: variables, sections, inverted sections, comments; no partials, no
+# delimiter change, no lambdas, no escaping.
+_MUSTACHE_NAME = re.compile(r"^(?:\.|[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)$")
+_MUSTACHE_STANDALONE = re.compile(r"^[ \t]*\r?\n?$")
+_MISSING = object()
+
+
+def _mustache_line(line: str) -> "list[tuple]":
+    items: "list[tuple]" = []
+    index = 0
+    while index < len(line):
+        found = line.find("{{", index)
+        if found < 0:
+            items.append(("text", line[index:]))
+            break
+        if found > index:
+            items.append(("text", line[index:found]))
+        if line.startswith("{{{", found):
+            end = line.find("}}}", found + 3)
+            if end < 0:
+                raise KnowledgeError("template-error", "a tag is not closed")
+            name = line[found + 3 : end].strip(" \t")
+            items.append(("var", name))
+            index = end + 3
+        else:
+            end = line.find("}}", found + 2)
+            if end < 0:
+                raise KnowledgeError("template-error", "a tag is not closed")
+            inner = line[found + 2 : end].strip(" \t")
+            index = end + 2
+            sigil = inner[:1]
+            if sigil in ("#", "^", "/", "&"):
+                kind = {"#": "sec", "^": "inv", "/": "end", "&": "var"}[sigil]
+                items.append((kind, inner[1:].strip(" \t")))
+            elif sigil == "!":
+                items.append(("comment", ""))
+            elif sigil in (">", "<", "=", "{", "}", "$", "%", "*"):
+                raise KnowledgeError("template-error", "a tag of this kind is not defined")
+            else:
+                items.append(("var", inner))
+        if items[-1][0] != "text" and items[-1][0] != "comment":
+            if not _MUSTACHE_NAME.match(items[-1][1]) or (
+                items[-1][0] in ("sec", "inv", "end") and items[-1][1] == "."
+            ):
+                raise KnowledgeError("template-error", "a name is not usable")
+    tags = [item for item in items if item[0] != "text"]
+    if len(tags) == 1 and tags[0][0] in ("sec", "inv", "end", "comment"):
+        if all(
+            item[0] != "text" or _MUSTACHE_STANDALONE.match(item[1]) for item in items
+        ) and _MUSTACHE_STANDALONE.match("".join(i[1] for i in items if i[0] == "text")):
+            return tags
+    return items
+
+
+def _mustache_parse(text: str, limit: "dict[str, int]") -> "list":
+    root: "list" = []
+    stack = [(None, root)]
+    for line in re.findall(r"[^\n]*\n|[^\n]+", text):
+        for item in _mustache_line(line):
+            kind = item[0]
+            children = stack[-1][1]
+            if kind in ("text", "var"):
+                children.append(item)
+            elif kind in ("sec", "inv"):
+                node = [kind, item[1], []]
+                children.append(node)
+                stack.append((item[1], node[2]))
+                if len(stack) > limit["max_template_depth"]:
+                    raise KnowledgeError("template-error", "sections nest too deep")
+            elif kind == "end":
+                if len(stack) == 1 or stack[-1][0] != item[1]:
+                    raise KnowledgeError("template-error", "a section is closed wrongly")
+                stack.pop()
+    if len(stack) != 1:
+        raise KnowledgeError("template-error", "a section is not closed")
+    return root
+
+
+def _mustache_lookup(name: str, stack: "list") -> Any:
+    if name == ".":
+        return stack[-1]
+    first, *rest = name.split(".")
+    value: Any = _MISSING
+    for context in reversed(stack):
+        if isinstance(context, dict) and first in context:
+            value = context[first]
+            break
+    for key in rest:
+        if value is _MISSING:
+            break
+        value = value[key] if isinstance(value, dict) and key in value else _MISSING
+    return value
+
+
+def _mustache_truthy(value: Any) -> bool:
+    return not (value is _MISSING or value is None or value is False or value == [])
+
+
+def mustache(text: str, data: "dict[str, Any]", limits: "Optional[dict[str, int]]" = None) -> str:
+    """The Mustache subset of the knowledge section, over ``data``."""
+    limit = kb_limits(limits)
+    tree = _mustache_parse(text, limit)
+    out: "list[str]" = []
+    size = [0]
+
+    def emit(piece: str) -> None:
+        size[0] += len(piece.encode("utf-8"))
+        if size[0] > limit["max_rendered_bytes"]:
+            raise KnowledgeError("too-large", "the rendered text")
+        out.append(piece)
+
+    def walk(nodes: "list", stack: "list") -> None:
+        for node in nodes:
+            if node[0] == "text":
+                emit(node[1])
+            elif node[0] == "var":
+                value = _mustache_lookup(node[1], stack)
+                if isinstance(value, bool):
+                    emit("true" if value else "false")
+                elif isinstance(value, (int, str)):
+                    emit(str(value))
+            else:
+                value = _mustache_lookup(node[1], stack)
+                if node[0] == "inv":
+                    if not _mustache_truthy(value):
+                        walk(node[2], stack)
+                elif _mustache_truthy(value):
+                    for item in value if isinstance(value, list) else [value]:
+                        walk(node[2], stack + [item])
+
+    walk(tree, [data])
+    return "".join(out)
+
+
+def kb_search_order(passages: "list[dict]") -> "list[dict]":
+    """Passages by score, highest first, then path bytes, then first line, then last line; ones
+    equal in all four keep the order given."""
+    return sorted(
+        passages,
+        key=lambda p: (-p["score"], p["path"].encode("utf-8"), p["from_line"], p["to_line"]),
+    )
+
+
+def kb_search_check(
+    overlays: "list[dict]",
+    arguments: "dict[str, Any]",
+    response: Any,
+    modes: "Iterable[str]",
+    limits: "Optional[dict[str, int]]" = None,
+) -> "list[str]":
+    """The rules a ``kb_search`` answer breaks, as sorted ids; empty when it conforms. The ranking
+    itself is not checked, only the shape and the order the scores imply."""
+    modes = list(modes)
+    limit = kb_limits(limits)
+    args = kb_arguments("kb_search", arguments, modes, limit)
+    broken: "set[str]" = set()
+    if not isinstance(response, dict) or set(response) != {"results"}:
+        return ["shape"]
+    chosen = _kb_choose(overlays, args.get("overlay"))
+    results = response["results"]
+    if not isinstance(results, list):
+        return ["shape"]
+    if [r.get("overlay") if isinstance(r, dict) else None for r in results] != [
+        o["identity"] for o in chosen
+    ]:
+        broken.add("overlays")
+    prefix = args.get("path")
+    for entry, overlay in zip(results, chosen):
+        if not isinstance(entry, dict):
+            broken.add("shape")
+            continue
+        if "error" in entry:
+            error = entry["error"]
+            if (
+                set(entry) != {"overlay", "error"}
+                or not isinstance(error, dict)
+                or set(error) != {"class", "message"}
+                or error["class"] not in ("unavailable", "mode-unavailable")
+            ):
+                broken.add("shape")
+            elif error["class"] == "mode-unavailable" and args["mode"] == "auto":
+                broken.add("mode")
+            continue
+        if (
+            not {"overlay", "mode", "passages"}
+            <= set(entry)
+            <= {"overlay", "mode", "passages", "note"}
+        ):
+            broken.add("shape")
+            continue
+        if entry["mode"] not in modes or (args["mode"] != "auto" and entry["mode"] != args["mode"]):
+            broken.add("mode")
+        if "note" in entry and (
+            not isinstance(entry["note"], str) or entry["note"] != kb_inert(entry["note"])
+        ):
+            broken.add("inert")
+        passages = entry["passages"]
+        if not isinstance(passages, list):
+            broken.add("shape")
+            continue
+        if len(passages) > args["top"]:
+            broken.add("top")
+        held = kb_set(overlay, limit)["files"]
+        for passage in passages:
+            if not isinstance(passage, dict) or set(passage) != {
+                "path",
+                "heading",
+                "from_line",
+                "to_line",
+                "score",
+                "text",
+            }:
+                broken.add("shape")
+                continue
+            score = passage["score"]
+            if isinstance(score, bool) or not isinstance(score, (int, float)) or score != score:
+                broken.add("shape")
+                continue
+            path = passage["path"]
+            if prefix is not None and not (path == prefix or path.startswith(prefix + "/")):
+                broken.add("path-limit")
+            item = held.get(path)
+            if item is None or item["engine"]:
+                broken.add("not-knowledge")
+                continue
+            lines = kb_lines(item["text"])
+            first, last = passage["from_line"], passage["to_line"]
+            if not (
+                isinstance(first, int)
+                and isinstance(last, int)
+                and 1 <= first <= last <= len(lines)
+            ):
+                broken.add("range")
+                continue
+            span = kb_inert("\n".join(lines[first - 1 : last]))
+            if (
+                not isinstance(passage["text"], str)
+                or passage["text"] == ""
+                or passage["text"] not in span
+            ):
+                broken.add("text")
+            for field in ("heading", "text"):
+                if not isinstance(passage[field], str) or passage[field] != kb_inert(
+                    passage[field]
+                ):
+                    broken.add("inert")
+        keyed = [
+            p
+            for p in passages
+            if isinstance(p, dict)
+            and isinstance(p.get("score"), (int, float))
+            and not isinstance(p.get("score"), bool)
+            and isinstance(p.get("path"), str)
+            and isinstance(p.get("from_line"), int)
+            and isinstance(p.get("to_line"), int)
+        ]
+        if len(keyed) == len(passages) and kb_search_order(passages) != passages:
+            broken.add("order")
+    return sorted(broken)
+
+
+def kb_call_result(outcome: "dict[str, Any]") -> "dict[str, Any]":
+    """A handler's outcome as MCP's ``tools/call`` result: the same JSON as ``structuredContent``
+    and as one text block, and ``isError``."""
+    failed = "error" in outcome
+    body = {"error": outcome["error"]} if failed else outcome["result"]
+    return {
+        "content": [{"type": "text", "text": json.dumps(body, ensure_ascii=False)}],
+        "structuredContent": body,
+        "isError": failed,
+    }
+
+
+def knowledge_plan(
+    manifest: "dict[str, Any]", files: "dict[str, Any]", user: "Optional[bool]" = None
+) -> "dict[str, Any]":
+    """Whether an overlay's rules and context files are left out of the context because they are
+    served, and which. The user's choice wins over the overlay's hint; the body of ``OVERLAY.md``
+    is never left out, since it is no file the tools serve."""
+    hint = manifest.get("knowledge", {}).get("serve") is True
+    served = hint if user is None else user
+    left = []
+    if served:
+        for path in rules_of(manifest, files) + context_of(manifest, files):
+            if path != "OVERLAY.md" and path not in left:
+                left.append(path)
+    return {"served": served, "left_out": left}
