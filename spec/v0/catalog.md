@@ -7,13 +7,12 @@ from, through which a consumer also [resolves skill names](skills.md#resolving-a
 may believe of either.
 
 **All of it is informational**, but for a catalog's `skills`, which a consumer that resolves skill
-names reads, and its [`extensions`](#extensions), which a consumer that loads extensions reads. A
-consumer that shows no store, resolves no names and loads no extensions ignores this section and
-loses nothing: no field here changes what an overlay does.
+names reads. A consumer that shows no store and resolves no names ignores this section and loses
+nothing: no field here changes what an overlay does.
 
 > **Status:** dotagents reads the minimal form of a catalog as its registry (see
 > [Sources and distribution](distribution.md#source-form)). It reads no `about` table, shows no
-> store, reads no icon and reads no `extensions`.
+> store and reads no icon.
 
 ## Informational fields
 
@@ -123,7 +122,7 @@ the overlay, which installs and activates as if it had no icon.
 
 ## Catalogs
 
-**Optional Extension.** A **catalog** is a document listing overlays, skills and extensions by name with the
+**Optional Extension.** A **catalog** is a document listing overlays and skills by name with the
 source of each, so a store can list and search them, and a consumer resolve a name, without fetching
 any. It is the registry that dotagents reads, extended: a registry is a catalog in the
 [minimal form](#entries-and-forms). A catalog can be
@@ -156,7 +155,7 @@ none is required. Files, and subdirectories a consumer does not read as overlays
 subdirectory whose name is not a valid overlay name (`.git`, `__pycache__`) is skipped and reported
 (`invalid-name`), and two names that compare equal refuse both (`duplicate-name`), as in a file. A directory
 with no entry lists nothing, and a store says that the directory holds no overlays, not that no catalog was
-found. Such a catalog has no `name`, `description`, `skills`, `extensions` or full entry.
+found. Such a catalog has no `name`, `description`, `skills` or full entry.
 
 ### Entries and forms
 
@@ -183,22 +182,20 @@ tags = ["documentation", "release", "changelog"]
 pdf = "https://github.com/example/skills.git#skills/pdf"
 ```
 
-A catalog is a mapping with an `overlays` mapping, a `skills` mapping, an `extensions` mapping, or
-more than one:
+A catalog is a mapping with an `overlays` mapping, a `skills` mapping, or both:
 
 | Key | Type | Meaning |
 | --- | --- | --- |
 | `overlays` | mapping of name to entry | The overlays the catalog lists |
 | `skills` | mapping of skill name to entry | The skills the catalog lists, [resolving](skills.md#resolving-a-name) a name an overlay gives without a source |
-| `extensions` | mapping of name to entry | The [extensions](#extensions) the catalog lists |
 | `name` | line | The catalog's title, informational |
 | `description` | string | What the catalog holds, informational |
 | `homepage` | https URL | A page about the catalog, informational |
 
-Other top-level keys are allowed, kept and not acted on, as in a manifest. A document with none
-of the mappings, including one that is itself a mapping of names to sources, is not a catalog
-(`not-a-catalog`). Where one is a mapping and another is present and is not, the other is reported at
-its pointer and the catalog is read.
+Other top-level keys are allowed, kept and not acted on, as in a manifest. A document with neither
+mapping, including one that is itself a mapping of names to sources, is not a catalog (`not-a-catalog`).
+Where one is a mapping and the other is present and is not, the other is reported at its pointer and
+the catalog is read.
 
 Each key of `overlays` is an overlay **name**, valid and compared normalized as
 [identities](package.md#names-and-paths) are; each key of `skills` is a
@@ -225,7 +222,7 @@ install an overlay unpinned.
 **The forms are told apart statically**, by the type of each entry in the data model, never by
 content, file name or another key: a string entry is minimal, a table full, and one catalog may mix
 them. A catalog whose entries are all strings is in the **minimal form**, which is what readers of
-today's registries read; one with any table entry, or any entry of `extensions`, is in the **full form**. The top-level `name`,
+today's registries read; one with any table entry is in the **full form**. The top-level `name`,
 `description` and `homepage` do not change the form.
 
 ### Sources in a catalog
@@ -261,101 +258,26 @@ catalog file from.
 An entry's `icon` is a relative path resolved the same way, beside the catalog file; being a
 relative path, it cannot leave the catalog's directory.
 
-### Extensions
-
-**Optional Extension, Proposed.** An **extension** is something a consumer loads to extend what it
-does: a plugin, a library of providers, a module. This edition does not say what loading is or what
-an extension may do; a catalog's `extensions` table says what each is called, where its bytes come
-from and the digest they must have, what it offers and what it needs, so a store can list and search
-extensions without fetching any. **A consumer that does not support extensions ignores the table**
-and loses nothing; a catalog that holds only `extensions` lists nothing to it, and is not a catalog
-to it (`not-a-catalog`).
-
-```toml
-[extensions.speech-kit]
-source = "https://github.com/example/extensions.git#speech-kit"
-ref = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
-pin = "sha256:8280aaf5de7c4f61342f648586d534e481ae095cef223dded70f5b1db5bd84a1"
-load = "bin/speech_kit.dll"
-provider = "example_speech"
-description = "Adds a speech engine to the consumer."
-
-[extensions.speech-kit.needs]
-kind = "store_extension"
-version = "1"
-platforms = ["windows-x86_64"]
-
-[extensions.speech-lib]
-source = "https://github.com/example/extensions/releases/download/v1.2.0/speech_lib.so"
-sha256 = "0f343b0931126a20f133d67c2b018a3b6d6ea3d3d2c1c6d6d3a4d0e6f3b1c2a9"
-provider = "example_speech"
-```
-
-Each key of `extensions` is an extension **name**, valid and compared normalized as
-[identities](package.md#names-and-paths) are, as for `overlays`; the three mappings are listed
-apart, so one name can be in each. The entry is always a **table**, since an extension has no
-meaning without its `provider`: a string is `invalid-entry`.
-
-| Key | Type | Meaning |
-| --- | --- | --- |
-| `source` | string | Required. Where the extension is: a [Git or directory source](distribution.md#source-form), which names a **tree** of files, or an `http` or `https` URL, which names **one file** |
-| `ref` | string | The Git ref, as for an overlay's entry |
-| `pin` | digest | A [tree digest](integrity.md#digest-form) of the tree `source` names. Required with a Git or directory source, and refused with a URL |
-| `sha256` | 64 hexadecimal digits, as `sha256sum` prints them | The SHA-256 of the bytes of the file a URL source names. Required with a URL source, and refused with a Git or directory source |
-| `load` | relative path | For a tree: the file or directory in it that the consumer loads. Absent, the tree's root. Refused with a URL source, whose file is what is loaded |
-| `provider` | name | Required. The identifier under which the extension offers itself to the consumer, as the extension itself declares it: letters, digits, `_`, `.` and `-`, starting with a letter or digit. This edition gives it no other meaning |
-| `needs` | table | What the extension needs of its consumer, below |
-| `description` | string | Informational, as the manifest's |
-| `about` | table | The [informational fields](#informational-fields); its `icon` is a file beside the catalog |
-
-A full entry has no other key. **An extension is always pinned**: a store does not list an entry
-that has no digest, since what it loads runs as the consumer does (`unpinned`). A tree's digest
-covers `load` and every other file of the tree, so `load` is not digested apart. The source resolves
-as any entry's does ([sources in a catalog](#sources-in-a-catalog)); in a catalog at a URL a relative
-source is a URL, so it names a file, and takes a `sha256`. A source that is neither Git, a directory
-nor an `http` or `https` URL is `invalid-source`, and so is a URL with a `#path`.
-
-`needs` is a table of three optional keys. A `version` needs a `kind`.
-
-| Key | Type | Meaning |
-| --- | --- | --- |
-| `kind` | name | The kind of extension the consumer must implement for this one, a name the consumer defines (a plugin interface, a provider type) |
-| `version` | string of letters, digits, `.`, `+`, `_` and `-`, at most 64 | The version of that kind the extension was made for |
-| `platforms` | non-empty array of platforms, each once | The systems the extension's bytes run on. Absent: every system |
-
-A **platform** is an operating system name lower-case as [`os`](runtime.md#operating-systems) names
-it, alone (`linux`: every architecture) or followed by `-` and an architecture (`linux-aarch64`,
-`windows-x86_64`), in lower-case letters, digits and `_`. The group `unix` is not a platform: list
-the systems. A catalog lists one entry per build; two builds are two names.
-
-**Whether a consumer can use an extension** is the consumer's, from its own facts: it implements the
-`kind` (compared as written) and has the `version` (compared as written, so `1.0` is not `1`), and
-its OS, or its OS and architecture, is one of the `platforms`. A store shows an extension the
-consumer cannot use as unavailable, with the first reason in that order (`kind`, `version`,
-`platform`), and never installs it. An extension whose `needs` the consumer does not understand
-is unavailable too. What a consumer implements and how it numbers versions are not defined here.
-
 ### What a store lists
 
-A store refuses an entry, **alone**, and reports it, in `overlays`, `skills` and `extensions` alike:
+A store refuses an entry, **alone**, and reports it, in `overlays` and in `skills` alike:
 
 | The entry | Class |
 | --- | --- |
 | Its name is not a valid overlay name, or skill name | `invalid-name` |
 | Its name compares equal to another's in the same mapping of the catalog: both are refused | `duplicate-name` |
-| It is neither a string nor a table; a table has no string `source`, an unknown key, or a `ref` of the wrong form. An extension is not a string, has no `provider` of the form, has a `load` that is not a relative path, has `needs` that is not as defined, names a `pin` with a URL source, a `sha256` with another source, or a `load` with a URL source | `invalid-entry` |
-| Its source is not one ([source form](distribution.md#source-form)); an extension's is not Git, a directory or an `http` or `https` URL, or is a URL with a `#path` | `invalid-source` |
-| Its `pin` is not a digest, or an extension's `sha256` is not 64 hexadecimal digits | `invalid-pin` |
-| An extension has no `pin` (a Git or directory source) or no `sha256` (a URL) | `unpinned` |
+| It is neither a string nor a table; a table has no string `source`, an unknown key, or a `ref` of the wrong form | `invalid-entry` |
+| Its source is not one ([source form](distribution.md#source-form)) | `invalid-source` |
+| Its `pin` is not a digest | `invalid-pin` |
 | Its `ref` is not allowed | `ref-not-allowed` |
 | Its relative source leaves the catalog's repository | `leaves-repository` |
 | A catalog from elsewhere names a local source | `local-source` |
 | A catalog from elsewhere names a source holding a credential | `source-credentials` |
 
 An informational field that is invalid or unknown (the catalog's `name`, `description` or
-`homepage`; an entry's `description`, an extension's too; each field of an entry's `about`, or an `about` that is not a
+`homepage`; an entry's `description`; each field of an entry's `about`, or an `about` that is not a
 table) is left out and reported, and its entry is still listed. The whole catalog is refused only
-when it cannot be read or has none of the three mappings.
+when it cannot be read or has no `overlays` mapping.
 
 ### Several catalogs
 
@@ -363,7 +285,7 @@ A consumer may be given several catalogs. It gives each a **label** from its own
 valid overlay name, unique among its catalogs when normalized, never taken from the catalog, since
 two catalogs can share a `name`.
 
-- An identity that more than one catalog offers, in `overlays` or in `extensions`, is listed once **per catalog**, each shown
+- An identity that more than one catalog offers is listed once **per catalog**, each shown
   qualified by its label as `<label>/<name>`. An identity that one catalog alone offers is shown by
   its name. A refused entry offers nothing.
 - Entries are **never merged**: not their sources, refs, pins or informational fields, even where
@@ -424,25 +346,3 @@ activating, never from catalog claims**:
 Nothing of the overlay runs to compute this: [reading is static](security.md#reading-is-safe-by-construction).
 A catalog field that seems to say any of it (a tag `offline`, a summary saying it runs nothing) is
 not evidence of it, and a store MUST NOT present it as such.
-
-### Before installing an extension
-
-An extension is code the consumer runs with its own access, so installing one is the user's
-[trust decision](security.md#execution-and-dependencies) and a store never makes it by default.
-Before it fetches anything the consumer MUST show the user the extension's name and catalog label,
-its source without user information or query, the digest it will check, its `provider`, `load`
-and `needs`, and that the extension will run as the consumer does. Then:
-
-- It fetches the bytes and **computes the digest before it keeps, loads or configures anything of
-  them**: the tree digest of the tree, or the SHA-256 of the file. A mismatch refuses the extension
-  and nothing is kept. When the user's own configuration pins the extension too, both MUST match.
-- It records the digest it checked, and the source, in its own configuration, and checks it again
-  when it loads, so what runs is what the user accepted.
-- `provider`, `needs` and the informational fields are claims. After fetching, the extension's own
-  declaration is authoritative: a consumer that finds that the extension does not offer the
-  `provider`, or a kind or version the catalog did not name, does not load it and says why.
-- `load` names a path in the tree the digest has covered; a path that leaves the tree, or a link,
-  refuses the extension.
-- Installing is separate from loading: a consumer may fetch and verify an extension and keep it off
-  until the user turns it on, and removing one removes what it fetched. A catalog makes no
-  extension trusted.

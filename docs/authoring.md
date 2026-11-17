@@ -343,21 +343,6 @@ Relative sources and icons resolve beside the catalog file. A store shows what a
 until it fetches the overlay, then shows the overlay's own manifest, so keep the two in step. See
 [`examples/registry/catalog.toml`](https://github.com/Boriken-Dev/agent-overlay-spec/blob/main/examples/registry/catalog.toml).
 
-A catalog can also list **extensions**, which a consumer loads to extend itself. Each is a table with a
-`source`, a digest (`pin`, the tree digest, for a Git or directory source; `sha256` for a URL to one file),
-the `provider` it offers and, if useful, what it `needs` (a `kind` and `version` of the consumer's, and
-`platforms` such as `windows-x86_64` or `linux`):
-
-```toml
-[extensions.speech-lib]
-source = "https://github.com/example/extensions/releases/download/v1.2.0/speech_lib.so"
-sha256 = "0f343b0931126a20f133d67c2b018a3b6d6ea3d3d2c1c6d6d3a4d0e6f3b1c2a9"
-provider = "example_speech"
-needs = { kind = "store_extension", version = "1", platforms = ["linux-x86_64"] }
-```
-
-An entry without a digest is not listed, and a consumer that does not support extensions ignores the table.
-
 ## Checks
 
 Validate the parsed manifest against the [schema](schemas/overlay.schema.json) and check that every

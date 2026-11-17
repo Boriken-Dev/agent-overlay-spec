@@ -187,9 +187,6 @@ def test_catalog(case):
             )
         except aos.IconError as error:
             got = {"error": error.code}
-    elif "fits" in case:
-        fits = case["fits"]
-        got = aos.extension_fits(fits["needs"], fits["offers"], fits["platform"])
     elif "catalogs" in case:
         try:
             listing = aos.list_catalogs(

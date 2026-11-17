@@ -3565,10 +3565,6 @@ _CATALOG_FIELD = {
     for field in ("name", "description", "homepage")
 }
 CATALOG_VALIDATOR = _subschema("#/$defs/catalog")
-_EXTENSION_FIELD = {
-    field: _subschema("#/$defs/extensionEntry/properties/" + field)
-    for field in ("provider", "needs", "sha256")
-}
 
 
 def applies(issues: "list[tuple[str, str]]") -> bool:
@@ -3672,9 +3668,6 @@ def _escape(token: str) -> str:
 CATALOG_EXTENSIONS = {".toml": "toml", ".json": "json", ".yaml": "yaml", ".yml": "yaml"}
 DEFAULT_CATALOG_MAX_BYTES = 4 * 1024 * 1024
 CATALOG_ENTRY_KEYS = frozenset(("source", "ref", "pin", "description", "about"))
-EXTENSION_ENTRY_KEYS = frozenset(
-    ("source", "ref", "pin", "sha256", "load", "provider", "needs", "description", "about")
-)
 _REF = re.compile(r"^[^-/:\\@#\x00-\x20\x7f][^/:\\@#\x00-\x20\x7f]*$")
 _DRIVE = re.compile(r"^[A-Za-z]:")
 #: A scheme before the location, which no relative path has: ``file:``, ``zip:``, ``ext:``.
@@ -3793,10 +3786,17 @@ def resolve_entry_source(
     }
 
 
-def _entry_source(
-    fields: "dict[str, Any]", origin: "Optional[dict[str, Optional[str]]]"
-) -> "dict[str, Optional[str]]":
-    """An entry's source, made absolute and given its ``ref``, or the class that refuses it."""
+def _catalog_entry(
+    value: Any, at: str, origin: "Optional[dict[str, Optional[str]]]", ignored: "list[str]"
+) -> "dict[str, Any]":
+    if isinstance(value, str):
+        fields: "dict[str, Any]" = {"source": value}
+    elif isinstance(value, dict):
+        if set(value) - CATALOG_ENTRY_KEYS:
+            raise CatalogRefusal("invalid-entry")
+        fields = value
+    else:
+        raise CatalogRefusal("invalid-entry")
     if not isinstance(fields.get("source"), str):
         raise CatalogRefusal("invalid-entry")
     try:
@@ -3811,21 +3811,6 @@ def _entry_source(
         if parsed["kind"] != "git" or parsed["ref"] is not None:
             raise CatalogRefusal("ref-not-allowed")
         source["ref"] = ref
-    return source
-
-
-def _catalog_entry(
-    value: Any, at: str, origin: "Optional[dict[str, Optional[str]]]", ignored: "list[str]"
-) -> "dict[str, Any]":
-    if isinstance(value, str):
-        fields: "dict[str, Any]" = {"source": value}
-    elif isinstance(value, dict):
-        if set(value) - CATALOG_ENTRY_KEYS:
-            raise CatalogRefusal("invalid-entry")
-        fields = value
-    else:
-        raise CatalogRefusal("invalid-entry")
-    source = _entry_source(fields, origin)
     entry: "dict[str, Any]" = {"source": source}
     if "pin" in fields:
         if not isinstance(fields["pin"], str) or not DIGEST_FORM.match(fields["pin"]):
@@ -3843,101 +3828,6 @@ def _catalog_entry(
     return entry
 
 
-def _catalog_extension(
-    value: Any, at: str, origin: "Optional[dict[str, Optional[str]]]", ignored: "list[str]"
-) -> "dict[str, Any]":
-    """An extension's entry: a table whose source is pinned by what kind of source it is."""
-    if not isinstance(value, dict) or set(value) - EXTENSION_ENTRY_KEYS:
-        raise CatalogRefusal("invalid-entry")
-    if not isinstance(value.get("source"), str) or not _EXTENSION_FIELD["provider"].is_valid(
-        value.get("provider")
-    ):
-        raise CatalogRefusal("invalid-entry")
-    if "load" in value and not (isinstance(value["load"], str) and valid_relpath(value["load"])):
-        raise CatalogRefusal("invalid-entry")
-    if "needs" in value and not _EXTENSION_FIELD["needs"].is_valid(value["needs"]):
-        raise CatalogRefusal("invalid-entry")
-    source = _entry_source(value, origin)
-    entry: "dict[str, Any]" = {"source": source, "provider": value["provider"]}
-    if source["kind"] == "url":
-        if not _WEB_URL.match(source["location"] or "") or source["path"] is not None:
-            raise CatalogRefusal("invalid-source")
-        if "load" in value or "pin" in value:
-            raise CatalogRefusal("invalid-entry")
-        if "sha256" not in value:
-            raise CatalogRefusal("unpinned")
-        if not _EXTENSION_FIELD["sha256"].is_valid(value["sha256"]):
-            raise CatalogRefusal("invalid-pin")
-        entry["sha256"] = value["sha256"]
-    else:
-        if "sha256" in value:
-            raise CatalogRefusal("invalid-entry")
-        if "pin" not in value:
-            raise CatalogRefusal("unpinned")
-        if not isinstance(value["pin"], str) or not DIGEST_FORM.match(value["pin"]):
-            raise CatalogRefusal("invalid-pin")
-        entry["pin"] = value["pin"]
-        if "load" in value:
-            entry["load"] = value["load"]
-    if "needs" in value:
-        entry["needs"] = value["needs"]
-    if "description" in value:
-        if isinstance(value["description"], str):
-            entry["description"] = value["description"]
-        else:
-            ignored.append(at + "/description")
-    if "about" in value:
-        about = store_about(value["about"], at + "/about", ignored)
-        if about is not None:
-            entry["about"] = about
-    return entry
-
-
-def _catalog_extensions(
-    extensions: "dict[str, Any]", origin: "Optional[dict[str, Optional[str]]]", ignored: "list[str]"
-) -> "dict[str, Any]":
-    """A catalog's ``extensions``: names are overlay identities, entries are always tables."""
-    holders: "dict[str, int]" = {}
-    for key in extensions:
-        if valid_overlay_name(key):
-            holders[normalize_name(key)] = holders.get(normalize_name(key), 0) + 1
-    entries: "dict[str, Any]" = {}
-    refused: "list[list[str]]" = []
-    for key in sorted(extensions):
-        if not valid_overlay_name(key):
-            refused.append([key, "invalid-name"])
-        elif holders[normalize_name(key)] > 1:
-            refused.append([key, "duplicate-name"])
-        else:
-            try:
-                entries[key] = _catalog_extension(
-                    extensions[key], "/extensions/" + _escape(key), origin, ignored
-                )
-            except CatalogRefusal as refusal:
-                refused.append([key, refusal.code])
-    return {"entries": entries, "refused": refused}
-
-
-def extension_fits(
-    needs: "Optional[dict[str, Any]]", offers: "dict[str, list[str]]", platform: "dict[str, str]"
-) -> "dict[str, Any]":
-    """Whether a consumer can use an extension: ``needs`` as the entry gives it, ``offers`` the
-    kinds the consumer implements with the versions of each, ``platform`` its ``os`` and ``arch``.
-    A kind and a version are compared as written; a platform names an OS or an OS and its
-    architecture."""
-    needs = needs or {}
-    if "kind" in needs:
-        if needs["kind"] not in offers:
-            return {"fits": False, "reason": "kind"}
-        if "version" in needs and needs["version"] not in offers[needs["kind"]]:
-            return {"fits": False, "reason": "version"}
-    if "platforms" in needs and not {platform["os"], platform["os"] + "-" + platform["arch"]} & set(
-        needs["platforms"]
-    ):
-        return {"fits": False, "reason": "platform"}
-    return {"fits": True}
-
-
 def read_catalog(
     data: bytes, name: str, base: "Optional[str]" = None, **limits: int
 ) -> "dict[str, Any]":
@@ -3949,8 +3839,7 @@ def read_catalog(
     document = read_catalog_document(data, name, **limits)
     overlays = document.get("overlays")
     skills = document.get("skills")
-    extensions = document.get("extensions")
-    if not any(isinstance(value, dict) for value in (overlays, skills, extensions)):
+    if not isinstance(overlays, dict) and not isinstance(skills, dict):
         raise ReadError("not-a-catalog")
     origin = parse_source(base) if base else None
     ignored: "list[str]" = []
@@ -3959,9 +3848,8 @@ def read_catalog(
             ignored.append("/overlays")
         overlays = {}
     listed = list(overlays.values()) + (list(skills.values()) if isinstance(skills, dict) else [])
-    full = bool(extensions) if isinstance(extensions, dict) else False
     result: "dict[str, Any]" = {
-        "form": "minimal" if all(isinstance(v, str) for v in listed) and not full else "full"
+        "form": "minimal" if all(isinstance(v, str) for v in listed) else "full"
     }
     for field, check in _CATALOG_FIELD.items():
         if field in document:
@@ -3991,10 +3879,6 @@ def read_catalog(
         result["skills"] = _catalog_skills(skills, origin, ignored)
     elif "skills" in document:
         ignored.append("/skills")
-    if isinstance(extensions, dict):
-        result["extensions"] = _catalog_extensions(extensions, origin, ignored)
-    elif "extensions" in document:
-        ignored.append("/extensions")
     result["ignored"] = sorted(ignored)
     return result
 

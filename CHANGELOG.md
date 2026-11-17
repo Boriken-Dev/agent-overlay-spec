@@ -11,7 +11,6 @@ The first edition, `0.1.0-draft`, a development draft open for review.
 
 ### Added
 
-- Extensions in a catalog (Optional Extension, Proposed): an `extensions` table beside `overlays` and `skills`, for something a consumer loads to extend itself. An entry is always a table: a Git or directory `source` (with `ref`) pinned by the tree `pin`, or an `http` or `https` URL to one file pinned by its `sha256`; an optional `load` path in the tree; the `provider` the extension offers; `needs` (a `kind` and `version` of the consumer's, and `platforms`, an OS or an OS and architecture); and the usual `description` and `about`. Names follow the overlay rule. An entry with no digest is refused (`unpinned`), as is one with the other kind's digest key; a consumer computes the digest of what it fetched before it keeps or loads anything. A consumer that does not support extensions ignores the table. The schema (`extensionEntry`, `extensionNeeds`), the reference reader (`extension_fits` included), an example, `catalog.json` vectors (entries, refusals, names, sources in Git and URL catalogs, `fits` cases) and the security notes carry it.
 - A harness hint `delegate` (Optional Extension, Proposed): `default` (the source a delegated task starts on), `sources`
   (the sources a task may name) and `max_running` (how many run at once), as suggestions that only choose among
   what the consumer already allows, never widen it, grant nothing and may be ignored. A float `max_running` is

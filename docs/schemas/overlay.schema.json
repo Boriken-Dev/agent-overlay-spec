@@ -574,9 +574,9 @@
       "additionalProperties": false
     },
     "catalog": {
-      "description": "A catalog: the overlays, skills and extensions a store lists, by name. Not a manifest: validate a catalog against this definition. Its fields are advertising; what is fetched is authoritative.",
+      "description": "A catalog: the overlays and skills a store lists, by name. Not a manifest: validate a catalog against this definition. Its fields are advertising; what is fetched is authoritative.",
       "type": "object",
-      "anyOf": [{ "required": ["overlays"] }, { "required": ["skills"] }, { "required": ["extensions"] }],
+      "anyOf": [{ "required": ["overlays"] }, { "required": ["skills"] }],
       "properties": {
         "name": { "$ref": "#/$defs/line" },
         "description": { "type": "string" },
@@ -590,50 +590,10 @@
           "type": "object",
           "propertyNames": { "$ref": "#/$defs/toolName" },
           "additionalProperties": { "$ref": "#/$defs/catalogEntry" }
-        },
-        "extensions": {
-          "type": "object",
-          "propertyNames": { "$ref": "#/$defs/overlayName" },
-          "additionalProperties": { "$ref": "#/$defs/extensionEntry" }
         }
       },
       "additionalProperties": { "$ref": "#/$defs/value" }
     },
-    "extensionEntry": {
-      "description": "An extension: a table naming its source, the digest what is fetched must have, what it offers and what it needs. A pin or a sha256 is required, by the kind of the source, which is checked semantically: a pin for a Git or directory source, a sha256 for a URL.",
-      "type": "object",
-      "required": ["source", "provider"],
-      "properties": {
-        "source": { "$ref": "#/$defs/sourceString" },
-        "ref": { "$ref": "#/$defs/gitRef" },
-        "pin": { "$ref": "#/$defs/digest" },
-        "sha256": { "$ref": "#/$defs/sha256Hex" },
-        "load": { "$ref": "#/$defs/relPath" },
-        "provider": { "$ref": "#/$defs/toolName" },
-        "needs": { "$ref": "#/$defs/extensionNeeds" },
-        "description": { "type": "string" },
-        "about": { "$ref": "#/$defs/about" }
-      },
-      "oneOf": [{ "required": ["pin"] }, { "required": ["sha256"] }],
-      "additionalProperties": false
-    },
-    "extensionNeeds": {
-      "description": "What an extension needs of its consumer: the kind it implements and that kind's version, and the platforms it runs on.",
-      "type": "object",
-      "properties": {
-        "kind": { "$ref": "#/$defs/toolName" },
-        "version": { "type": "string", "pattern": "^[0-9A-Za-z][0-9A-Za-z.+_-]{0,63}$" },
-        "platforms": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+(?:_[a-z0-9]+)*)?$" }
-        }
-      },
-      "dependentRequired": { "version": ["kind"] },
-      "additionalProperties": false
-    },
-    "sha256Hex": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
     "catalogEntry": {
       "description": "A source string (the minimal form) or a table (the full form).",
       "oneOf": [

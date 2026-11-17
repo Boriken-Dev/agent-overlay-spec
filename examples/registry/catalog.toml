@@ -44,33 +44,3 @@ tags = ["documentation", "release", "changelog"]
 source = "https://github.com/example/skills.git#skills/pdf"
 ref = "v1.2.0"
 description = "Reads and fills PDF files."
-
-# An extension is something a consumer loads to extend itself. Its entry is always a table, and it
-# is always pinned: a Git or directory source by the tree digest of what it names, a URL by the
-# SHA-256 of the file. A consumer that does not support extensions ignores this table.
-[extensions.speech-kit]
-source = "https://github.com/example/extensions.git#speech-kit"
-ref = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
-pin = "sha256:8280aaf5de7c4f61342f648586d534e481ae095cef223dded70f5b1db5bd84a1"
-load = "bin/speech_kit.dll"
-provider = "example_speech"
-description = "Adds a speech engine to the consumer."
-
-[extensions.speech-kit.needs]
-kind = "store_extension"
-version = "1"
-platforms = ["windows-x86_64"]
-
-[extensions.speech-kit.about]
-summary = "Speech engines, as an extension."
-tags = ["speech"]
-
-[extensions.speech-lib]
-source = "https://github.com/example/extensions/releases/download/v1.2.0/speech_lib.so"
-sha256 = "0f343b0931126a20f133d67c2b018a3b6d6ea3d3d2c1c6d6d3a4d0e6f3b1c2a9"
-provider = "example_speech"
-
-[extensions.speech-lib.needs]
-kind = "store_extension"
-version = "1"
-platforms = ["linux-x86_64", "linux-aarch64"]

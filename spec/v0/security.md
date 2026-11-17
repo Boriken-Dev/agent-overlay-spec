@@ -223,7 +223,6 @@ runs no code.
   and the overlay's files [before installing](catalog.md#before-installing), and a catalog's `pin`
   is checked like any pin. A catalog from a repository or a URL cannot name a source on the
   consumer's machine.
-- **Extensions are code.** A catalog's [`extensions`](catalog.md#extensions) name files a consumer would load and run with its own access. An entry without a digest is not listed; the consumer shows the source and the digest first, computes the digest of what it fetched before it keeps, loads or configures anything, refuses a mismatch, records the digest it checked and checks it again at load. `provider` and `needs` are claims: the extension's own declaration decides at load. A catalog never makes an extension trusted, and installing one is the user's decision.
 - **Names across catalogs** are never resolved silently: a name two catalogs offer is shown
   qualified by catalog, and installing it unqualified asks the user.
 
