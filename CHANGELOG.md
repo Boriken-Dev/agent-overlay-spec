@@ -11,6 +11,10 @@ The first edition, `0.1.0-draft`, a development draft open for review.
 
 ### Added
 
+- A harness hint `delegate` (Optional Extension, Proposed): `default` (the source a delegated task starts on), `sources`
+  (the sources a task may name) and `max_running` (how many run at once), as suggestions that only choose among
+  what the consumer already allows, never widen it, grant nothing and may be ignored. A float `max_running` is
+  `integer-required`. The schema, an example, fixtures and validation vectors carry it.
 - Knowledge served through MCP (Core, Proposed; search an Optional Extension): every consumer that runs an agent
   session serves the active overlays' knowledge by relative path with `kb_list` and `kb_read`, and may add
   `kb_search`. The tools' names and input schemas, the paths (relative to the overlay root, never leaving it, a link

@@ -20,6 +20,8 @@
   "env-scripts-no-interpreter.cfg": "/env_scripts/0",
   "env-two-sources.cfg": "/env/X",
   "harness-bad-id.cfg": "/harness",
+  "harness-delegate-max-running-float.cfg": "/harness/codex/delegate/max_running",
+  "harness-delegate-unknown-key.cfg": "/harness/codex/delegate/grant",
   "harness-skills-string.cfg": "/harness/codex/skills",
   "hooks-match-on-prompt.cfg": "/hooks/prompt",
   "hooks-refuse-after-tool.cfg": "/hooks/post-tool",

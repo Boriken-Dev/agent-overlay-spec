@@ -1046,6 +1046,12 @@ def _integers(doc: "dict[str, Any]") -> "list[tuple[str, str]]":
         for event, entry in hooks.items():
             if isinstance(entry, dict):
                 check(entry.get("timeout"), "/hooks/%s/timeout" % event)
+    harness = doc.get("harness")
+    if isinstance(harness, dict):
+        for harness_id, hints in harness.items():
+            delegate = hints.get("delegate") if isinstance(hints, dict) else None
+            if isinstance(delegate, dict):
+                check(delegate.get("max_running"), "/harness/%s/delegate/max_running" % harness_id)
     return found
 
 

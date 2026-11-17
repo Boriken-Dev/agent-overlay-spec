@@ -484,7 +484,17 @@
           "context": { "type": "array", "items": { "$ref": "#/$defs/relPath" } },
           "skills": { "type": "boolean" },
           "model": { "type": "string", "minLength": 1 },
-          "effort": { "type": "string", "minLength": 1 }
+          "effort": { "type": "string", "minLength": 1 },
+          "delegate": {
+            "description": "A suggested delegation default; it only chooses among what the consumer allows.",
+            "type": "object",
+            "properties": {
+              "default": { "type": "string", "minLength": 1 },
+              "sources": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+              "max_running": { "type": "integer", "minimum": 0, "maximum": 2147483647 }
+            },
+            "additionalProperties": false
+          }
         },
         "additionalProperties": { "$ref": "#/$defs/value" }
       }

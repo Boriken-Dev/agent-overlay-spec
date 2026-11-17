@@ -169,6 +169,26 @@ Recognised keys:
 | `skills` | boolean | `true` | Whether the overlay's skills are delivered natively to this harness; when `false` they are delivered by routing line |
 | `model` | string | none | A suggested model, used only where nothing else chose one |
 | `effort` | string | none | A suggested reasoning effort, likewise |
+| `delegate` | table | none | A suggested [delegation](#delegation-hints) default, likewise |
+
+### Delegation hints
+
+`delegate` suggests how a session of this harness hands a task to another agent, for a consumer that
+offers delegation. It has these keys and no other:
+
+| Key | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `default` | string | none | The name of the source a task starts on when the session names none |
+| `sources` | array of strings, no duplicate | none | The sources a task may name; an empty array suggests none |
+| `max_running` | integer, `0` to `2147483647` | none | The most tasks running at once |
+
+A source's name is the consumer's own, a non-empty string. A hint only chooses among what the
+consumer already allows and never widens it: `default` and each of `sources` count only where the user
+may use that source, `sources` narrows what the consumer's own list allows and never extends it, and
+`max_running` counts only when it is below the consumer's own limit. It grants no access to a source, a
+folder or a credential. A name the consumer does not know, a `default` outside `sources`, and a
+consumer that offers no delegation are not errors: the hint is ignored, and a consumer that ignores
+it is still conforming. A `max_running` that is a float, even of integral value, is `integer-required`.
 
 Other keys in a harness table are that harness's own data. A consumer preserves them for display and
 MUST NOT apply them in this edition: a key that grants a permission, changes approval or sandboxing,
