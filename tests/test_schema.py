@@ -325,6 +325,22 @@ def test_the_example_catalog():
         assert aos.normalize_name(manifest_of(root).get("name", root.name)) == name
         if "pin" in entry:
             assert aos.same_digest(entry["pin"], aos.tree_digest(root)), name
+    extensions = catalog["extensions"]
+    assert (
+        sorted(extensions["entries"]) == ["speech-kit", "speech-lib"] and not extensions["refused"]
+    )
+    kit, lib = extensions["entries"]["speech-kit"], extensions["entries"]["speech-lib"]
+    assert kit["source"]["kind"] == "git" and kit["load"] == "bin/speech_kit.dll"
+    assert lib["source"]["kind"] == "url" and "pin" not in lib
+    assert aos.extension_fits(
+        lib["needs"], {"store_extension": ["1"]}, {"os": "linux", "arch": "aarch64"}
+    ) == {"fits": True}
+    assert aos.extension_fits(
+        kit["needs"], {"store_extension": ["1"]}, {"os": "linux", "arch": "x86_64"}
+    ) == {
+        "fits": False,
+        "reason": "platform",
+    }
 
 
 def test_the_example_hook_script_gets_the_events_without_content():
