@@ -11,6 +11,14 @@ The first edition, `0.1.0-draft`, a development draft open for review.
 
 ### Added
 
+- Session variables (environment.md, Optional Extension, Proposed): the basic set every consumer that runs an agent
+  session provides in its base environment when it knows the value, never empty: `AGENTS_HOST`, `AGENTS_HARNESS`,
+  `AGENTS_VENDOR`, `AGENT`, `AGENTS_MODEL`, `AGENTS_PROJECT_ROOT`, `AGENTS_ACCOUNT`, `AGENTS_ACCOUNT_KIND` (`subscription`,
+  `api-key`, `gateway` or `local`) and `AGENTS_ACCOUNT_PROVIDER`, so one overlay adapts to every harness. A consumer MAY set
+  more `AGENTS_*` variables of its own. They are the base environment and not reserved: an overlay may set one like any
+  other variable and its value replaces the consumer's. The well-known harness ids gain `antigravity`, `grok`, `cursor` and
+  `pi`, each with its vendor. Vectors cover an overlay setting one through `env`, an env file, an env script and a hook's
+  output.
 - A harness hint `delegate` (Optional Extension, Proposed): `default` (the source a delegated task starts on), `sources`
   (the sources a task may name) and `max_running` (how many run at once), as suggestions that only choose among
   what the consumer already allows, never widen it, grant nothing and may be ignored. A float `max_running` is

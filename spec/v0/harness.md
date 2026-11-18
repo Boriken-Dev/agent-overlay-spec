@@ -153,13 +153,17 @@ skills = false
 
 A harness id matches `[a-z0-9][a-z0-9-]*`. Well-known ids, for interchange:
 
-| Id | Harness |
-| --- | --- |
-| `claude-code` | Claude Code |
-| `codex` | OpenAI Codex CLI |
-| `gemini-cli` | Gemini CLI |
-| `copilot` | GitHub Copilot agents |
-| `opencode` | OpenCode |
+| Id | Harness | Vendor ([`AGENTS_VENDOR`](environment.md#session-variables)) |
+| --- | --- | --- |
+| `claude-code` | Claude Code | `anthropic` |
+| `codex` | OpenAI Codex CLI | `openai` |
+| `gemini-cli` | Gemini CLI | `google` |
+| `antigravity` | Antigravity | `google` |
+| `grok` | Grok | `xai` |
+| `copilot` | GitHub Copilot agents | `github` |
+| `cursor` | Cursor | `cursor` |
+| `pi` | Pi | none: it runs the models of several |
+| `opencode` | OpenCode | none: it runs the models of several |
 
 Recognised keys:
 

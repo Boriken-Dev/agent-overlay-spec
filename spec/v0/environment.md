@@ -6,7 +6,8 @@ data; a consumer applies it when it builds an environment, never when it reads t
 
 A consumer that claims this extension applies `env`, `env_files` and `paths`, each after its
 [defaults](package.md#defaults), sets the
-[root variable](#the-root-variable), [substitutes](#substitution) text values, and reports what it
+[root variable](#the-root-variable) and, for a session it runs, the [session variables](#session-variables) it knows,
+[substitutes](#substitution) text values, and reports what it
 refuses. [Env scripts](#env-scripts)
 execute code, and are reported each time they run.
 
@@ -47,6 +48,58 @@ refuses the manifest, and a consumer refuses the env file or the script's or hoo
 routing lines at its own files.
 
 > **Status:** dotagents sets the root variable only when it is unset.
+
+## Session variables
+
+A consumer that runs an agent session sets the variables below in the session's **base environment**,
+before step 1 of the [order of application](#order-of-application). Every env value, hook, step and MCP
+server of every overlay then sees them, and an overlay written once can adapt to any harness:
+`${AGENTS_HARNESS}` in an env value ([substitution](#what-a-placeholder-sees)), `$AGENTS_HARNESS` in a
+script.
+
+| Variable | Value |
+| --- | --- |
+| `AGENTS_HOST` | The consumer that builds the environment, as a lower-case id of ASCII letters, digits and `-`, such as `dotagents` |
+| `AGENTS_HARNESS` | The harness the session runs: a [harness id](harness.md#harness-hints), a well-known one or the consumer's own |
+| `AGENTS_VENDOR` | Who makes the harness's models, as a lower-case id: `anthropic`, `openai`, `google`, `xai`, `github`, `cursor` or the consumer's own. Absent for a harness that has no vendor of its own because it runs the models of several |
+| `AGENT` | The same value as `AGENTS_HARNESS`. It is the name other tools already look for to learn that an agent is driving |
+| `AGENTS_MODEL` | The model the session starts on, as the harness names it. Absent when none has been chosen |
+| `AGENTS_PROJECT_ROOT` | The absolute root of the project the session works in, with the platform's separators. Absent when the session has none |
+| `AGENTS_ACCOUNT` | The label the person gave the account the session runs under. Never a credential, a key, a token or an address that holds one. Absent when the session runs on no account the consumer can name |
+| `AGENTS_ACCOUNT_KIND` | How the account signs in: `subscription` (the person's plan with the harness's vendor), `api-key`, `gateway` (a token for a service in front of the models) or `local` (models that run on the person's machine). Absent when `AGENTS_ACCOUNT` is |
+| `AGENTS_ACCOUNT_PROVIDER` | Who serves the account's models, as a lower-case id: `anthropic`, `openai`, `google`, `xai`, `microsoft-foundry` or the consumer's own. Absent when it is not known |
+
+**Known values only.** A consumer sets a variable when it knows the value and **never sets one
+empty**: an unknown value is an unset variable. So `${AGENTS_MODEL:-}` is how an overlay accepts that
+there may be no model, and `${AGENTS_MODEL}` is [undefined](#undefined-names) when there is none. A name
+has the same meaning in every session, whatever the harness and whichever consumer runs it.
+
+**A value that is already there.** The base environment a consumer starts from may already hold one of
+these names, set by the person or by a consumer that started this one. The consumer keeps it, since it
+was decided outside, unless the person told the consumer the value for this run (dotagents' `--agent`).
+So a session started from inside another consumer's session keeps naming that session's host and
+harness. `AGENTS_PROJECT_ROOT` is the exception: it names where this session works, which the consumer
+knows and a value left by an outer session does not.
+
+**Not reserved.** These names are the base environment, not a protected set: an overlay MAY set one like any
+other variable, through `env`, an env file, an env script or a hook, and the value it sets replaces the consumer's
+for what follows ([order of application](#order-of-application)). The reserved names are only `AOS_*`, `*_OVERLAY_ROOT`
+and `*_OVERLAY_STATE`, since those route one overlay's files and another overlay's lines must not be redirected.
+An overlay that reads one of these names reads the value in force where it reads, not a claim the consumer
+guarantees.
+
+**More names.** A consumer MAY set more `AGENTS_*` variables of its own, such as a session's effort or the
+harness's version. They are that consumer's: it documents each, an overlay reads one with a default
+(`${AGENTS_EFFORT:-}`) since another consumer does not set it, and a consumer MUST NOT use a name above
+for any other meaning. A consumer's name becomes one every consumer provides by being added to this table
+in a later edition.
+
+`AGENTS_PROJECT_ROOT` is the variable for what [templating](harness.md#templating) reads as
+`AOS_PROJECT_ROOT`: one value, in two places.
+
+> **Status:** dotagents sets `AGENTS_HOST`, `AGENTS_HARNESS`, `AGENTS_VENDOR`, `AGENT`, `AGENTS_MODEL`
+> and `AGENTS_PROJECT_ROOT`. The account's three are set by a consumer that runs the harness itself and
+> knows the account.
 
 ## `env`
 
@@ -395,7 +448,7 @@ additions, never another overlay's.
 
 ## Order of application
 
-A consumer builds an environment from a base it chooses (its own, or a cleaned one) as follows, and
+A consumer builds an environment from a base it chooses (its own, or a cleaned one), with the [session variables](#session-variables) added for a session it runs, as follows, and
 MUST give the same result for the same inputs:
 
 1. Set the root variable of every overlay in play, and its state variable when it has a state
