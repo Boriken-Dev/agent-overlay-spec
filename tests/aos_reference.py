@@ -5452,3 +5452,94 @@ def knowledge_plan(
             if path != "OVERLAY.md" and path not in left:
                 left.append(path)
     return {"served": served, "left_out": left}
+
+
+def _context_list(
+    value: "Optional[str]", separator: str, default: "list[str]", directory: bool
+) -> "tuple[list[str], list[str]]":
+    """The entries of ``AGENTS_DIR`` or ``AGENTS_CONTEXT``: the valid ones, once each, and the ignored."""
+    kept: "list[str]" = []
+    ignored: "list[str]" = []
+    for entry in (value or "").split(separator):
+        if entry == "":
+            continue
+        if "/" in entry or "\\" in entry or (directory and entry in (".", "..")):
+            ignored.append(entry)
+        elif entry not in kept:
+            kept.append(entry)
+    return (kept or list(default)), ignored
+
+
+def _name_pattern(pattern: str) -> "re.Pattern[str]":
+    return re.compile(".*".join(re.escape(part) for part in pattern.split("*")), re.DOTALL)
+
+
+_LOCAL_NAME = re.compile(r"^.+\.local\.[^.]+$", re.DOTALL)
+
+
+def context_files(
+    root: "Optional[str]",
+    cwd: str,
+    files: "Iterable[str]",
+    *,
+    env: "Optional[dict[str, str]]" = None,
+    windows: bool = False,
+    native: "Iterable[str]" = (),
+    delivered: "Iterable[str]" = (),
+) -> "dict[str, list[str]]":
+    """The project's context files for a working directory: ``files`` in order, the ``skipped``
+    that the harness loads itself, the ``ignored`` variable entries and the ``levels`` fed.
+
+    Paths are absolute with ``/``; ``files`` are the regular files that exist."""
+    env = env or {}
+    separator = ";" if windows else ":"
+    directories, bad_dirs = _context_list(env.get("AGENTS_DIR"), separator, [".agents"], True)
+    patterns, bad_patterns = _context_list(
+        env.get("AGENTS_CONTEXT"), separator, ["AGENTS.md", "AGENTS.*.md"], False
+    )
+    regular = {path.rstrip("/") for path in files}
+    here = cwd.rstrip("/")
+    top = root.rstrip("/") if root else None
+    levels = [here]
+    if top is not None and (here == top or here.startswith(top + "/")):
+        levels = [top]
+        for part in [p for p in here[len(top) :].split("/") if p]:
+            levels.append(levels[-1] + "/" + part)
+        levels = [
+            level for level in levels if level == top or level.rsplit("/", 1)[1] not in directories
+        ]
+    done = {level.rstrip("/") for level in delivered}
+    fresh = [level for level in levels if level not in done]
+    compiled = [_name_pattern(pattern) for pattern in patterns]
+    skip = set(native)
+    found: "list[str]" = []
+    skipped: "list[str]" = []
+    for level in fresh:
+        places = [level] + [level + "/" + name for name in directories]
+        for local in (False, True):
+            for place in places:
+                names = sorted(
+                    {
+                        path[len(place) + 1 :]
+                        for path in regular
+                        if path.startswith(place + "/") and "/" not in path[len(place) + 1 :]
+                    },
+                    key=lambda name: name.encode("utf-8"),
+                )
+                seen: "set[str]" = set()
+                for pattern in compiled:
+                    for name in names:
+                        if (
+                            name not in seen
+                            and bool(_LOCAL_NAME.match(name)) is local
+                            and pattern.fullmatch(name)
+                        ):
+                            seen.add(name)
+                            path = place + "/" + name
+                            (skipped if path[len(level) + 1 :] in skip else found).append(path)
+    return {
+        "files": found,
+        "skipped": skipped,
+        "ignored": bad_dirs + bad_patterns,
+        "levels": fresh,
+    }

@@ -45,6 +45,7 @@ def test_every_vector_file_is_run():
         "templating.json",
         "knowledge.json",
         "knowledge_search.json",
+        "context.json",
     }
     assert {path.name for path in VECTORS.glob("*.json")} == run
 
@@ -464,3 +465,23 @@ def test_knowledge_search(case):
             )
         }
     assert strict(json.loads(json.dumps(got))) == strict(case["expect"])
+
+
+CONTEXT = cases("context.json")
+
+
+@pytest.mark.parametrize("case", CONTEXT, ids=ids(CONTEXT))
+def test_context(case):
+    result = aos.context_files(
+        case.get("root"),
+        case["cwd"],
+        case["files"],
+        env=case.get("env"),
+        windows=case.get("os") == "windows",
+        native=case.get("native", ()),
+        delivered=case.get("delivered", ()),
+    )
+    expect = case["expect"]
+    assert {key: result[key] for key in expect} == expect
+    if "ignored" not in expect:
+        assert result["ignored"] == []

@@ -1,0 +1,753 @@
+{
+  "description": "A project's context files: which files, in what order, which are left out because the harness loads them, and what a change of directory feeds.",
+  "spec": "spec/v0/project_context.md",
+  "cases": [
+    {
+      "id": "one-file",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/AGENTS.md"
+      ],
+      "expect": {
+        "files": [
+          "/p/AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "none",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/README.md",
+        "/p/CLAUDE.md"
+      ],
+      "expect": {
+        "files": []
+      }
+    },
+    {
+      "id": "order-in-a-directory",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/AGENTS.local.md",
+        "/p/.agents/AGENTS.local.md",
+        "/p/.agents/AGENTS.c.md",
+        "/p/.agents/AGENTS.md",
+        "/p/AGENTS.b.md",
+        "/p/AGENTS.md",
+        "/p/AGENTS.a.md"
+      ],
+      "expect": {
+        "files": [
+          "/p/AGENTS.md",
+          "/p/AGENTS.a.md",
+          "/p/AGENTS.b.md",
+          "/p/.agents/AGENTS.md",
+          "/p/.agents/AGENTS.c.md",
+          "/p/AGENTS.local.md",
+          "/p/.agents/AGENTS.local.md"
+        ]
+      }
+    },
+    {
+      "id": "names-in-byte-order",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/AGENTS.a.md",
+        "/p/AGENTS.B.md",
+        "/p/AGENTS.Z.md",
+        "/p/AGENTS.10.md",
+        "/p/AGENTS.9.md"
+      ],
+      "expect": {
+        "files": [
+          "/p/AGENTS.10.md",
+          "/p/AGENTS.9.md",
+          "/p/AGENTS.B.md",
+          "/p/AGENTS.Z.md",
+          "/p/AGENTS.a.md"
+        ]
+      }
+    },
+    {
+      "id": "a-name-is-compared-in-its-case",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/agents.md",
+        "/p/Agents.md",
+        "/p/AGENTS.MD",
+        "/p/AGENTS.md"
+      ],
+      "expect": {
+        "files": [
+          "/p/AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "other-files-in-the-directory-are-not-context",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/AGENTS.md",
+        "/p/AGENTS.md.bak",
+        "/p/AGENTS.txt",
+        "/p/AGENTS",
+        "/p/.agents/notes/AGENTS.md",
+        "/p/.agents/kb/x.md"
+      ],
+      "expect": {
+        "files": [
+          "/p/AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "a-directory-named-like-a-file-is-not-read",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/AGENTS.md/AGENTS.md",
+        "/p/.agents/AGENTS.md"
+      ],
+      "expect": {
+        "files": [
+          "/p/.agents/AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "nested-directories-broad-first",
+      "root": "/p",
+      "cwd": "/p/a/b",
+      "files": [
+        "/p/AGENTS.md",
+        "/p/.agents/AGENTS.md",
+        "/p/a/AGENTS.md",
+        "/p/a/b/.agents/AGENTS.md",
+        "/p/a/b/AGENTS.local.md",
+        "/p/a/c/AGENTS.md",
+        "/p/d/AGENTS.md",
+        "/p/a/b/c/AGENTS.md"
+      ],
+      "expect": {
+        "files": [
+          "/p/AGENTS.md",
+          "/p/.agents/AGENTS.md",
+          "/p/a/AGENTS.md",
+          "/p/a/b/.agents/AGENTS.md",
+          "/p/a/b/AGENTS.local.md"
+        ],
+        "levels": [
+          "/p",
+          "/p/a",
+          "/p/a/b"
+        ]
+      }
+    },
+    {
+      "id": "a-local-file-of-a-broad-level-comes-before-a-deeper-file",
+      "root": "/p",
+      "cwd": "/p/a",
+      "files": [
+        "/p/AGENTS.local.md",
+        "/p/a/AGENTS.md"
+      ],
+      "expect": {
+        "files": [
+          "/p/AGENTS.local.md",
+          "/p/a/AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "a-level-that-is-an-agents-directory-is-skipped",
+      "root": "/p",
+      "cwd": "/p/.agents/kb",
+      "files": [
+        "/p/AGENTS.md",
+        "/p/.agents/AGENTS.md",
+        "/p/.agents/kb/AGENTS.md"
+      ],
+      "expect": {
+        "files": [
+          "/p/AGENTS.md",
+          "/p/.agents/AGENTS.md",
+          "/p/.agents/kb/AGENTS.md"
+        ],
+        "levels": [
+          "/p",
+          "/p/.agents/kb"
+        ]
+      }
+    },
+    {
+      "id": "a-working-directory-outside-the-root",
+      "root": "/p",
+      "cwd": "/q/x",
+      "files": [
+        "/p/AGENTS.md",
+        "/q/AGENTS.md",
+        "/q/x/AGENTS.md",
+        "/q/x/.agents/AGENTS.md"
+      ],
+      "expect": {
+        "files": [
+          "/q/x/AGENTS.md",
+          "/q/x/.agents/AGENTS.md"
+        ],
+        "levels": [
+          "/q/x"
+        ]
+      }
+    },
+    {
+      "id": "a-root-that-prefixes-another-name-is-not-inside",
+      "root": "/p",
+      "cwd": "/pp/x",
+      "files": [
+        "/p/AGENTS.md",
+        "/pp/AGENTS.md",
+        "/pp/x/AGENTS.md"
+      ],
+      "expect": {
+        "files": [
+          "/pp/x/AGENTS.md"
+        ],
+        "levels": [
+          "/pp/x"
+        ]
+      }
+    },
+    {
+      "id": "no-project-root",
+      "cwd": "/q/x",
+      "files": [
+        "/q/AGENTS.md",
+        "/q/x/AGENTS.md"
+      ],
+      "expect": {
+        "files": [
+          "/q/x/AGENTS.md"
+        ],
+        "levels": [
+          "/q/x"
+        ]
+      }
+    },
+    {
+      "id": "a-trailing-separator-changes-nothing",
+      "root": "/p/",
+      "cwd": "/p/a/",
+      "files": [
+        "/p/AGENTS.md",
+        "/p/a/AGENTS.md"
+      ],
+      "expect": {
+        "files": [
+          "/p/AGENTS.md",
+          "/p/a/AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "agents-dir-names-several-in-order",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/.agents/AGENTS.md",
+        "/p/.ai/AGENTS.md",
+        "/p/.ai/AGENTS.local.md",
+        "/p/.agents/AGENTS.local.md",
+        "/p/AGENTS.md"
+      ],
+      "env": {
+        "AGENTS_DIR": ".ai:.agents"
+      },
+      "expect": {
+        "files": [
+          "/p/AGENTS.md",
+          "/p/.ai/AGENTS.md",
+          "/p/.agents/AGENTS.md",
+          "/p/.ai/AGENTS.local.md",
+          "/p/.agents/AGENTS.local.md"
+        ]
+      }
+    },
+    {
+      "id": "agents-dir-replaces-the-default",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/.agents/AGENTS.md",
+        "/p/.ai/AGENTS.md"
+      ],
+      "env": {
+        "AGENTS_DIR": ".ai"
+      },
+      "expect": {
+        "files": [
+          "/p/.ai/AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "agents-dir-with-the-windows-separator",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/.agents/AGENTS.md",
+        "/p/.ai/AGENTS.md"
+      ],
+      "env": {
+        "AGENTS_DIR": ".agents;.ai"
+      },
+      "os": "windows",
+      "expect": {
+        "files": [
+          "/p/.agents/AGENTS.md",
+          "/p/.ai/AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "a-colon-is-no-separator-on-windows",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/.agents/AGENTS.md",
+        "/p/.ai/AGENTS.md"
+      ],
+      "env": {
+        "AGENTS_DIR": ".agents:.ai"
+      },
+      "os": "windows",
+      "expect": {
+        "files": []
+      }
+    },
+    {
+      "id": "a-semicolon-is-no-separator-elsewhere",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/a;b/AGENTS.md",
+        "/p/a/AGENTS.md",
+        "/p/b/AGENTS.md"
+      ],
+      "env": {
+        "AGENTS_DIR": "a;b"
+      },
+      "os": "linux",
+      "expect": {
+        "files": [
+          "/p/a;b/AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "empty-entries-and-repeats-are-dropped",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/.agents/AGENTS.md",
+        "/p/.ai/AGENTS.md"
+      ],
+      "env": {
+        "AGENTS_DIR": ":.ai::.agents:.ai:"
+      },
+      "expect": {
+        "files": [
+          "/p/.ai/AGENTS.md",
+          "/p/.agents/AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "an-empty-variable-is-the-default",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/AGENTS.md",
+        "/p/.agents/AGENTS.md"
+      ],
+      "env": {
+        "AGENTS_DIR": "",
+        "AGENTS_CONTEXT": ""
+      },
+      "expect": {
+        "files": [
+          "/p/AGENTS.md",
+          "/p/.agents/AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "invalid-directory-entries-are-ignored",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/.agents/AGENTS.md",
+        "/p/.ai/AGENTS.md",
+        "/p/a/b/AGENTS.md",
+        "/p/AGENTS.md"
+      ],
+      "env": {
+        "AGENTS_DIR": "a/b:..:.ai:.:x\\y"
+      },
+      "expect": {
+        "files": [
+          "/p/AGENTS.md",
+          "/p/.ai/AGENTS.md"
+        ],
+        "ignored": [
+          "a/b",
+          "..",
+          ".",
+          "x\\y"
+        ]
+      }
+    },
+    {
+      "id": "no-valid-entry-is-the-default",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/.agents/AGENTS.md",
+        "/p/AGENTS.md"
+      ],
+      "env": {
+        "AGENTS_DIR": "../x"
+      },
+      "expect": {
+        "files": [
+          "/p/AGENTS.md",
+          "/p/.agents/AGENTS.md"
+        ],
+        "ignored": [
+          "../x"
+        ]
+      }
+    },
+    {
+      "id": "agents-context-names-files-in-its-order",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/AGENTS.md",
+        "/p/CONTEXT.md",
+        "/p/CONTEXT.local.md",
+        "/p/AGENTS.local.md"
+      ],
+      "env": {
+        "AGENTS_CONTEXT": "CONTEXT.md:AGENTS.md:CONTEXT.*.md"
+      },
+      "expect": {
+        "files": [
+          "/p/CONTEXT.md",
+          "/p/AGENTS.md",
+          "/p/CONTEXT.local.md"
+        ]
+      }
+    },
+    {
+      "id": "agents-context-replaces-the-default",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/AGENTS.md",
+        "/p/CONTEXT.md"
+      ],
+      "env": {
+        "AGENTS_CONTEXT": "CONTEXT.md"
+      },
+      "expect": {
+        "files": [
+          "/p/CONTEXT.md"
+        ]
+      }
+    },
+    {
+      "id": "a-file-two-patterns-match-is-listed-once",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/AGENTS.a.md",
+        "/p/AGENTS.b.md"
+      ],
+      "env": {
+        "AGENTS_CONTEXT": "AGENTS.b.md:AGENTS.*.md:AGENTS.a.md"
+      },
+      "expect": {
+        "files": [
+          "/p/AGENTS.b.md",
+          "/p/AGENTS.a.md"
+        ]
+      }
+    },
+    {
+      "id": "a-star-matches-no-characters",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/AGENTS.md",
+        "/p/AGENTS.x.md",
+        "/p/AGENTS-y.md",
+        "/p/AGENT.md"
+      ],
+      "env": {
+        "AGENTS_CONTEXT": "AGENTS*.md"
+      },
+      "expect": {
+        "files": [
+          "/p/AGENTS-y.md",
+          "/p/AGENTS.md",
+          "/p/AGENTS.x.md"
+        ]
+      }
+    },
+    {
+      "id": "a-star-matches-a-run-with-dots",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/AGENTS.a.b.md",
+        "/p/AGENTS.md"
+      ],
+      "env": {
+        "AGENTS_CONTEXT": "AGENTS.*.md"
+      },
+      "expect": {
+        "files": [
+          "/p/AGENTS.a.b.md"
+        ]
+      }
+    },
+    {
+      "id": "a-local-name-of-another-extension",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/NOTES.txt",
+        "/p/NOTES.local.txt",
+        "/p/NOTES.a.txt",
+        "/p/NOTES.local.md"
+      ],
+      "env": {
+        "AGENTS_CONTEXT": "NOTES.txt:NOTES.*.txt"
+      },
+      "expect": {
+        "files": [
+          "/p/NOTES.txt",
+          "/p/NOTES.a.txt",
+          "/p/NOTES.local.txt"
+        ]
+      }
+    },
+    {
+      "id": "a-pattern-with-a-separator-is-ignored",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/AGENTS.md",
+        "/p/a/AGENTS.md"
+      ],
+      "env": {
+        "AGENTS_CONTEXT": "a/AGENTS.md:AGENTS.md:..\\AGENTS.md"
+      },
+      "expect": {
+        "files": [
+          "/p/AGENTS.md"
+        ],
+        "ignored": [
+          "a/AGENTS.md",
+          "..\\AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "what-the-harness-loads-is-left-out",
+      "root": "/p",
+      "cwd": "/p/a",
+      "files": [
+        "/p/AGENTS.md",
+        "/p/.agents/AGENTS.md",
+        "/p/a/AGENTS.md",
+        "/p/a/AGENTS.local.md"
+      ],
+      "native": [
+        "AGENTS.md"
+      ],
+      "expect": {
+        "files": [
+          "/p/.agents/AGENTS.md",
+          "/p/a/AGENTS.local.md"
+        ],
+        "skipped": [
+          "/p/AGENTS.md",
+          "/p/a/AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "everything-native-feeds-nothing",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/AGENTS.md",
+        "/p/AGENTS.local.md"
+      ],
+      "native": [
+        "AGENTS.md",
+        "AGENTS.local.md"
+      ],
+      "expect": {
+        "files": [],
+        "skipped": [
+          "/p/AGENTS.md",
+          "/p/AGENTS.local.md"
+        ]
+      }
+    },
+    {
+      "id": "native-is-a-path-not-a-name",
+      "root": "/p",
+      "cwd": "/p",
+      "files": [
+        "/p/AGENTS.md",
+        "/p/.agents/AGENTS.md"
+      ],
+      "native": [
+        ".agents/AGENTS.md"
+      ],
+      "expect": {
+        "files": [
+          "/p/AGENTS.md"
+        ],
+        "skipped": [
+          "/p/.agents/AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "an-update-feeds-the-new-levels",
+      "root": "/p",
+      "cwd": "/p/a/b",
+      "files": [
+        "/p/AGENTS.md",
+        "/p/a/AGENTS.md",
+        "/p/a/b/AGENTS.md"
+      ],
+      "delivered": [
+        "/p"
+      ],
+      "expect": {
+        "files": [
+          "/p/a/AGENTS.md",
+          "/p/a/b/AGENTS.md"
+        ],
+        "levels": [
+          "/p/a",
+          "/p/a/b"
+        ]
+      }
+    },
+    {
+      "id": "going-back-feeds-nothing",
+      "root": "/p",
+      "cwd": "/p/a",
+      "files": [
+        "/p/AGENTS.md",
+        "/p/a/AGENTS.md",
+        "/p/a/b/AGENTS.md"
+      ],
+      "delivered": [
+        "/p",
+        "/p/a",
+        "/p/a/b"
+      ],
+      "expect": {
+        "files": [],
+        "levels": []
+      }
+    },
+    {
+      "id": "a-sibling-feeds-its-own-levels-only",
+      "root": "/p",
+      "cwd": "/p/c/d",
+      "files": [
+        "/p/AGENTS.md",
+        "/p/a/AGENTS.md",
+        "/p/c/AGENTS.md",
+        "/p/c/d/AGENTS.md"
+      ],
+      "delivered": [
+        "/p",
+        "/p/a"
+      ],
+      "expect": {
+        "files": [
+          "/p/c/AGENTS.md",
+          "/p/c/d/AGENTS.md"
+        ],
+        "levels": [
+          "/p/c",
+          "/p/c/d"
+        ]
+      }
+    },
+    {
+      "id": "a-level-with-no-files-is-still-delivered",
+      "root": "/p",
+      "cwd": "/p/a/b",
+      "files": [
+        "/p/AGENTS.md",
+        "/p/a/b/AGENTS.md"
+      ],
+      "delivered": [
+        "/p"
+      ],
+      "expect": {
+        "files": [
+          "/p/a/b/AGENTS.md"
+        ],
+        "levels": [
+          "/p/a",
+          "/p/a/b"
+        ]
+      }
+    },
+    {
+      "id": "an-update-leaves-out-native-files",
+      "root": "/p",
+      "cwd": "/p/a",
+      "files": [
+        "/p/AGENTS.md",
+        "/p/a/AGENTS.md",
+        "/p/a/.agents/AGENTS.md"
+      ],
+      "delivered": [
+        "/p"
+      ],
+      "native": [
+        "AGENTS.md"
+      ],
+      "expect": {
+        "files": [
+          "/p/a/.agents/AGENTS.md"
+        ],
+        "skipped": [
+          "/p/a/AGENTS.md"
+        ],
+        "levels": [
+          "/p/a"
+        ]
+      }
+    }
+  ]
+}
