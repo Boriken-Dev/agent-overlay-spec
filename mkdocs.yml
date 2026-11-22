@@ -45,6 +45,7 @@ nav:
       - Commands: spec/v0/commands.md
       - Skills: spec/v0/skills.md
       - Context and harnesses: spec/v0/harness.md
+      - Project context files: spec/v0/project_context.md
       - Hooks: spec/v0/hooks.md
       - MCP: spec/v0/mcp.md
       - Knowledge through MCP: spec/v0/knowledge.md

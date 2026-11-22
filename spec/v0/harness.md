@@ -27,6 +27,8 @@ with that setting's name, never cut. A consumer MUST bound the total size of the
 another setting with a default (1 MiB is RECOMMENDED), and likewise refuses past it with the setting's
 name; the body of `OVERLAY.md` counts as its file does.
 
+The project's own context files are a different thing and follow [their own rule](project_context.md).
+
 An operator chose to give the overlay to the agent, so the text is instruction, not fenced data; a
 consumer still marks where each file came from. An overlay can ask that its `rules` and `context` files be
 [served](knowledge.md#the-hint) instead.

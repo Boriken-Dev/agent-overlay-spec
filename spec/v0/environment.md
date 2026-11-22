@@ -94,6 +94,9 @@ harness's version. They are that consumer's: it documents each, an overlay reads
 for any other meaning. A consumer's name becomes one every consumer provides by being added to this table
 in a later edition.
 
+**Read, not set.** A consumer also reads `AGENTS_DIR` and `AGENTS_CONTEXT` from the base environment, to find
+the [project's context files](project_context.md#the-variables). It sets neither.
+
 `AGENTS_PROJECT_ROOT` is the variable for what [templating](harness.md#templating) reads as
 `AOS_PROJECT_ROOT`: one value, in two places.
 

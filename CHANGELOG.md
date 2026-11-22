@@ -11,6 +11,13 @@ The first edition, `0.1.0-draft`, a development draft open for review.
 
 ### Added
 
+- Project context files (project_context.md, Optional Extension, Proposed): where a project keeps the instructions for
+  its agents, in one standard place: `AGENTS.md` and `AGENTS.*.md` in a directory and in its `.agents` directory,
+  the user's own `*.local.*` files last, a deeper directory overriding a broader one, walked from the project root to
+  the working directory. `AGENTS_DIR` (default `.agents`) and `AGENTS_CONTEXT` (default `AGENTS.md` and `AGENTS.*.md`)
+  are lists in the platform's path-list separator, an invalid entry ignored and reported. A consumer feeds the files
+  to a harness that does not load them itself, leaves out the paths the harness loads, and on a change of directory feeds
+  only the levels not yet received. Vectors in `context.json`; a conformance class.
 - Session variables (environment.md, Optional Extension, Proposed): the basic set every consumer that runs an agent
   session provides in its base environment when it knows the value, never empty: `AGENTS_HOST`, `AGENTS_HARNESS`,
   `AGENTS_VENDOR`, `AGENT`, `AGENTS_MODEL`, `AGENTS_PROJECT_ROOT`, `AGENTS_ACCOUNT`, `AGENTS_ACCOUNT_KIND` (`subscription`,
